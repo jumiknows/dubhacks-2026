@@ -1,48 +1,68 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { createPlan, setPurchased } from "./api.js";
+import PlannerUI from "./ui/PlannerUI.jsx";
+
+const TABS = [
+  { id: "groceries", label: "Groceries", prompt: "Weekly groceries for two people" },
+  { id: "wedding", label: "Wedding", prompt: "I need to plan a small outdoor wedding." },
+  { id: "camping", label: "Camping", prompt: "I need to prepare for camping." },
+  { id: "custom", label: "Custom", prompt: "" },
+];
 
 export default function App() {
-  const [items, setItems] = useState([]);
-  const [text, setText] = useState("");
+  const [category, setCategory] = useState("camping");
+  const [prompt, setPrompt] = useState(TABS[2].prompt);
+  const [plan, setPlan] = useState(null);
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetch("/api/items")
-      .then((res) => res.json())
-      .then(setItems)
-      .catch((err) => console.error("Failed to load items", err));
-  }, []);
+  function onSelectCategory(id) {
+    const tab = TABS.find((item) => item.id === id);
+    setCategory(id);
+    setPrompt(tab ? tab.prompt : "");
+    setPlan(null);
+    setError("");
+    setStatus("idle");
+  }
 
-  async function addItem(e) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    const res = await fetch("/api/items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const item = await res.json();
-    setItems((prev) => [...prev, item]);
-    setText("");
+  async function onPlan(event) {
+    event.preventDefault();
+    const text = prompt.trim();
+    if (!text) return;
+
+    setStatus("loading");
+    setError("");
+    try {
+      setPlan(await createPlan(text, category));
+      setStatus("idle");
+    } catch (err) {
+      setStatus("error");
+      setError(err.message);
+    }
+  }
+
+  async function onToggle(item) {
+    if (!plan) return;
+    setError("");
+    try {
+      setPlan(await setPurchased(plan.id, item.id, !item.purchased));
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (
-    <main className="container">
-      <h1>DubHacks 2026</h1>
-      <p>Edit <code>client/src/App.jsx</code> to get started.</p>
-
-      <form onSubmit={addItem}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Add an item…"
-        />
-        <button type="submit">Add</button>
-      </form>
-
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>{item.text}</li>
-        ))}
-      </ul>
-    </main>
+    <PlannerUI
+      tabs={TABS}
+      category={category}
+      prompt={prompt}
+      plan={plan}
+      status={status}
+      error={error}
+      onSelectCategory={onSelectCategory}
+      onPromptChange={setPrompt}
+      onPlan={onPlan}
+      onToggle={onToggle}
+    />
   );
 }

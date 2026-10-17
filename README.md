@@ -1,26 +1,40 @@
-# DUB HACKS 2026
+# Planboard
 
-React (Vite) frontend + Express backend.
+A planner for groceries and events. A prompt such as “I need to prepare for camping.” becomes a checklist. Checked items drop out of the buy list. What is left is priced from store data: image, dimensions, ship date, and total.
+
+React (Vite) frontend + Express backend. The list, the store lookup, and the offer summary are separate stubs so they can be built in parallel.
 
 ## Setup
 
 ```bash
-npm install                            # installs everything (client + server)
-cp server/.env.example server/.env     # add API keys here
-npm run dev                            # runs both apps
+npm install
+npm run dev
+```
+
+On Windows, if `server/.env` is missing:
+
+```bash
+copy server\.env.example server\.env
 ```
 
 - Frontend: http://localhost:5173
-- Backend:  http://localhost:3001 (the frontend proxies `/api/*` to it)
+- Backend: http://localhost:3001 (the frontend proxies `/api/*` to it)
 
-## Structure
+## How a plan is built
 
-```
-client/          React app (Vite)
-  src/App.jsx    main UI — start here
-server/          Express API
-  index.js       API routes
-```
+1. `server/services/planner.js` turns the prompt into items. **Stub** — templates stand in for a model.
+2. `server/services/fetchBot.js` returns a **Promise** of products for one query. **Stub** — mock catalog. Replace `searchCatalog()` with trusted-store APIs.
+3. `server/services/synthesizeBot.js` returns a **Promise** of one offer: image, dimensions, ship date, total price. **Stub** — cheapest in-stock listing.
+4. `server/services/pipeline.js` awaits those two promises and attaches them to the plan.
+5. `client/src/ui/` renders the plan. **UI stub** — replace the layout. Keep the props on `PlannerUI`. HTTP stays in `client/src/App.jsx`.
+
+## API
+
+- `POST /api/plans` `{ prompt, category }` → plan, including `items[].products`, `items[].synthesis`, and `quote`
+- `GET /api/plans/:id`
+- `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
+
+`category` is `groceries`, `wedding`, `camping`, or `custom`. If the prompt mentions one of those occasions, that list wins over the selected tab.
 
 ## Team workflow
 
