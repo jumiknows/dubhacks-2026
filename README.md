@@ -2,7 +2,7 @@
 
 Community wildfire briefings from satellite observations.
 
-**Status:** repository setup, product/data implementation plans, artifact schemas and an interactive design mockup are ready. The application, operational data pipeline and trained models are not implemented yet.
+**Status:** the replay demo, map and list, deterministic briefing, and FIRMS archive ingest are in the repository. Live FIRMS, Grok Voice, a trained wildfire model, and human briefing review are not done.
 
 EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
 
@@ -12,7 +12,7 @@ The heatmap represents observed thermal activity. The MVP does not claim ignitio
 
 ## Start here
 
-You need Git and Python 3.12 or newer for the repository checks. No Python packages are required.
+You need Git, Python 3.12 or newer, and Node.js 24.
 
 ```bash
 git clone https://github.com/jumiknows/spacex2026Hacks.git
@@ -20,11 +20,16 @@ cd spacex2026Hacks
 git switch dev
 python3 tools/check_repo.py
 python3 -m unittest discover -s tests -v
+npm ci
+npm run typecheck
+npm test
+npm run build
+npm run dev
 ```
 
 On Windows, use `py -3` instead of `python3`.
 
-Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assign yourself, and follow [CONTRIBUTING.md](CONTRIBUTING.md). There is no application server to start yet.
+Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assign yourself, and follow [CONTRIBUTING.md](CONTRIBUTING.md). `npm run dev` starts the replay workspace. Live observations need `FIRMS_MAP_KEY`. Spoken briefing needs `XAI_API_KEY`.
 
 ## Repository map
 

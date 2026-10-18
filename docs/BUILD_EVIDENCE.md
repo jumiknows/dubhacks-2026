@@ -12,6 +12,9 @@ The data specifications, JSON schemas and interactive synthetic design reference
 
 | Time | Tool or environment | Issue and commit | Action completed | Evidence location | Result or limitation |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-18 | Cursor cloud agent on this repository | #10, branch `cursor/land-emberready-app-d9fa` | Rebuilt the EmberReady workspace after the parent agent branch `cursor/land-emberready-app-7cc1` could not be fetched | This file, `apps/web`, `apps/pipeline`, `packages/domain`, `packages/data`, `data/replay` | Parent transcript and store were not accessible. The application was reconstructed here. Commands and results belong in the pull request after they run. |
+| 2026-10-18T04:34:28Z | Public NASA FIRMS archive download | #13 | Retrieved NOAA-20 VIIRS C2 7-day CONUS and Hawaii CSV | `https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_7d.csv` | 712541 bytes. SHA-256 `d94310ccd14dd8552bd428116259b74eae6ba264d140b44a46fe8cc9ecefd0e0`. 8441 data rows before the Washington filter. No `FIRMS_MAP_KEY` call. |
+| 2026-10-18T04:26:00Z | US Census Gazetteer download | #14 | Retrieved the 2026 Washington place file and selected 12 named communities | `data/places/2026_gaz_place_53.txt` | SHA-256 `ea15e505da225db4290d9f318cc6fa08701cd9c953e6cae33209dfb432807e11`. The minute is the retrieval window. The HTTP Date header was not stored. |
 
 For implementation, record relevant Cursor sessions, prompts or plans, accepted changes, and linked commits. Capture concise screenshots or a short recording without credentials or private conversations.
 

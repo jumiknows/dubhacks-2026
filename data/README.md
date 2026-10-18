@@ -1,6 +1,6 @@
 # Data foundation
 
-This directory currently contains design inputs and schemas, not acquired NASA data or training data.
+This directory contains the source registry, artifact schemas, a 2026 Census place extract, and one published NOAA-20 VIIRS replay snapshot. It does not contain training data.
 
 - [source-registry.json](source-registry.json) identifies selected and candidate sources. Access and rights reviews remain explicit.
 - [Published manifest schema](schemas/snapshot-manifest.schema.json) defines the artifact boundary.
@@ -16,4 +16,4 @@ For published manifests require `rawRows = retainedRows + duplicateRows + exclud
 
 Preserve original source bytes and use actual hashes. Do not create an example manifest with fabricated NASA provenance. Synthetic evaluation cases belong under `tests/fixtures/synthetic` and use `mode: test` in data manifests. The application only serves real `live` or `replay` manifests through its public observation routes.
 
-Implementations should add a small reproducible real dataset only after [#13](https://github.com/jumiknows/spacex2026Hacks/issues/13) verifies it. Larger runtime artifacts stay outside Git.
+The checked-in replay snapshot is the NOAA-20 VIIRS archive described in the source registry. Larger runtime artifacts stay outside Git.
