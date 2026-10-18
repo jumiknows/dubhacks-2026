@@ -63,5 +63,7 @@ test("Express exposes Python under its own namespace while retaining planner hea
   t.after(async () => { peer.closeAllConnections(); await new Promise((resolve) => peer.close(resolve)); });
   const request = await start(t, { baseUrl: `http://127.0.0.1:${peer.address().port}` });
   assert.deepEqual(await (await request("/api/conjure/health", undefined, "GET")).json(), { service: "test-python" });
-  assert.deepEqual(await (await request("/api/health", undefined, "GET")).json(), { ok: true });
+  const health = await (await request("/api/health", undefined, "GET")).json();
+  assert.equal(health.ok, true);
+  assert.ok(["mock", "test"].includes(health.stripe));
 });

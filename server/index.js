@@ -3,21 +3,35 @@ import cors from "cors";
 import { pathToFileURL } from "node:url";
 import { getPlan, savePlan } from "./store.js";
 import { generatePlan, validatePlanRequest } from "./services/planner.js";
-import { attachOffers, quotePlan } from "./services/pipeline.js";
+import { attachOffers, pickListing, quotePlan } from "./services/pipeline.js";
+import { CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
 import { createPythonGateway } from "./pythonGateway.js";
+import { storesRouter } from "./routes/stores.js";
 
 export function createApp(gatewayOptions) {
   const app = express();
 
   app.use(cors());
   app.use("/api/conjure", createPythonGateway(gatewayOptions));
+
+  // Stripe signs the raw body, so this route must run before express.json().
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json", limit: "1mb" }), (req, res) => {
+    try {
+      res.json(handleWebhook(req.body, req.headers["stripe-signature"]));
+    } catch (err) {
+      sendError(res, err, "Could not handle webhook");
+    }
+  });
+
   app.use(express.json({ limit: "32kb" }));
 
   app.get("/api/health", (req, res) => {
-    res.json({ ok: true });
+    res.json({ ok: true, stripe: stripeMode() });
   });
+
+  app.use("/api", storesRouter);
 
   app.post("/api/plans", async (req, res) => {
     try {
@@ -73,6 +87,39 @@ export function createApp(gatewayOptions) {
     }
   });
 
+  // "Use this listing": the server reprices from its own copy, so checkout charges what was picked.
+  app.put("/api/plans/:id/items/:itemId/listing", (req, res) => {
+    const plan = getPlan(req.params.id);
+    if (!plan) return res.status(404).json({ error: "plan not found" });
+
+    const index = plan.items.findIndex((item) => item.id === req.params.itemId);
+    if (index === -1) return res.status(404).json({ error: "item not found" });
+    if (plan.items[index].purchased) return res.status(409).json({ error: "item already purchased" });
+
+    const picked = pickListing(plan.items[index], req.body?.listingId);
+    if (!picked) return res.status(404).json({ error: "listing not found for this item" });
+
+    plan.items[index] = picked;
+    plan.quote = quotePlan(plan.items);
+    res.json(plan);
+  });
+
+  app.post("/api/checkout", async (req, res) => {
+    try {
+      res.status(201).json(await createCheckout(req.body?.planId, req.body?.itemIds));
+    } catch (err) {
+      sendError(res, err, "Could not start checkout");
+    }
+  });
+
+  app.get("/api/checkout/:sessionId", async (req, res) => {
+    try {
+      res.json(await confirmCheckout(req.params.sessionId));
+    } catch (err) {
+      sendError(res, err, "Could not confirm checkout");
+    }
+  });
+
   app.post("/api/compare", async (req, res) => {
     try {
       const left = req.body?.left;
@@ -105,6 +152,12 @@ export function createApp(gatewayOptions) {
     res.status(500).json({ error: "Unexpected server error" });
   });
   return app;
+}
+
+function sendError(res, err, fallback) {
+  if (err instanceof CheckoutError) return res.status(err.status).json({ error: err.message });
+  console.error(err);
+  res.status(500).json({ error: fallback });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

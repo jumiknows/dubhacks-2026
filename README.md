@@ -33,10 +33,21 @@ npm run build
 ## How a plan is built
 
 1. `server/services/planner.js` turns the prompt into items with deterministic templates; it is separate from the AI assistants.
-2. `server/services/fetchBot.js` asks Python `POST /market/search` (Amazon, eBay, Walmart; fixtures unless `SELENIUM_ENABLED=true`) and falls back to labelled demo listings.
+2. `server/services/fetchBot.js` searches two sources in parallel and merges the listings: Python `POST /market/search` (Amazon, eBay, Walmart; fixtures unless `SELENIUM_ENABLED=true` in `api/.env`) and every configured store API in `server/services/stores/` (keys in `server/.env`; without keys, Open Food Facts + Open Prices, UPCitemdb, Shopify stores and the sample APIs DummyJSON and Fake Store still work). Falls back to labelled demo listings.
 3. `server/services/synthesizeBot.js` validates every listing (integer cents, safe links, no invented dates) and lets the Python weighted scorer pick, falling back to the cheapest explicitly in-stock listing.
 4. `server/services/pipeline.js` attaches the offers and reports incomplete totals honestly.
 5. `client/src/ui/` renders the plan. HTTP stays in `client/src/App.jsx`.
+
+## Demo: fake purchase
+
+With no `STRIPE_SECRET_KEY` in `server/.env`, checkout is a simulation. Nothing is charged.
+
+1. In `server/.env`, set `STORES_SAMPLE_DATA=always` so DummyJSON and Fake Store listings appear next to real stores.
+2. Build the Groceries list. Eggs usually comes from DummyJSON; for Milk or Coffee, compare listings and press "Use this listing" on a DummyJSON one.
+3. In **Cart**, tick items and press **Pay**, then **Place mock order** (demo card •••• 4242).
+4. The receipt shows the cart id DummyJSON / Fake Store issued for their items. Other items are recorded locally.
+
+`MOCK_ORDER_SANDBOX=off` skips those sandbox calls for offline demos. With a `sk_test_` key, the same Pay button opens real Stripe Checkout in test mode (card 4242 4242 4242 4242).
 
 ## API
 
@@ -44,6 +55,8 @@ npm run build
 - `GET /api/plans/:id`
 - `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
 - `/api/conjure/*` → allowed Python assistant endpoints, including streamed `/chat`, `/session`, `/products/search`, `/products/recommend`, `/trust/:id`, and signed mock checkout
+- `GET /api/stores` → each store API, whether it is enabled, and its last result
+- `GET /api/products/search?q=headlamp` → merged results from every enabled store
 
 `category` accepts `groceries`, `wedding`, `camping`, `custom`, and the teammate frontend's `electronics` tab. Electronics currently uses custom checklist parsing; there is no dedicated electronics inventory. If the prompt mentions a supported template occasion, that list wins over the selected tab.
 

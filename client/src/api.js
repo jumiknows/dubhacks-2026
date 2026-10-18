@@ -40,3 +40,27 @@ export function topItems(items, { limit = 10, trustFloor = 0.5 } = {}) {
     body: JSON.stringify({ items, limit, trust_floor: trustFloor }),
   });
 }
+
+export function getPlan(planId) {
+  return request(`/api/plans/${planId}`);
+}
+
+export function chooseListing(planId, itemId, listingId) {
+  return request(`/api/plans/${planId}/items/${itemId}/listing`, {
+    method: "PUT",
+    body: JSON.stringify({ listingId }),
+  });
+}
+
+// Returns { id, url, amount, currency, mock }. Send the browser to url.
+export function startCheckout(planId, itemIds) {
+  return request("/api/checkout", {
+    method: "POST",
+    body: JSON.stringify({ planId, itemIds }),
+  });
+}
+
+// Call when Stripe redirects back. Returns { status, mock, plan }.
+export function confirmCheckout(sessionId) {
+  return request(`/api/checkout/${encodeURIComponent(sessionId)}`);
+}

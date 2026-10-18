@@ -1764,3 +1764,73 @@ img.thumb { object-fit: cover; }
   .shop-buy-card > .thumb { min-height: 15rem; max-height: 38vh; }
   .product-facts { grid-template-columns: 1fr 1fr; }
 }
+
+.banner.is-ok {
+  background: rgba(31, 107, 74, 0.3);
+  color: #c9f2dd;
+}
+
+.cart { margin-top: 1rem; }
+
+.cart-lines {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+
+.cart-lines li { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+
+.cart-lines label {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  cursor: pointer;
+}
+
+.cart-lines .is-unpriced { opacity: 0.55; }
+.cart-lines .is-unpriced label { cursor: default; }
+
+.cart-name {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.cart-pay { width: 100%; }
+.cart-pay:disabled { opacity: 0.55; cursor: default; }
+
+.cart-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+
+.mock-tag {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e6c372;
+}
+
+.mock-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.ghost {
+  margin-top: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: inherit;
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+}
+
+.mock-checkout button:disabled { opacity: 0.55; cursor: default; }

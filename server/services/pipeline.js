@@ -45,6 +45,35 @@ async function shortlistTop(products, options) {
     .slice(0, options.topLimit ?? 10);
 }
 
+/** Make one of the item's own listings the offer. Returns null if the id isn't one of them. */
+export function pickListing(item, listingId) {
+  const listing = (item.products || []).find((product) => product.id === listingId);
+  if (!listing) return null;
+  const currency = normalizeCurrency(listing.currency);
+  const unit = parseCents(listing.price, currency);
+  const cents = unit !== null && validQuantity(item.quantity) ? BigInt(unit) * BigInt(item.quantity) : null;
+  const total = cents !== null && cents <= MAX_MONEY_CENTS ? Number(cents) / 100 : null;
+  return {
+    ...item,
+    image: listing.image || item.image,
+    synthesis: {
+      ...item.synthesis,
+      summary: `${item.quantity > 1 ? `${item.quantity} × ` : ""}${listing.title} from ${listing.store}`,
+      image: listing.image,
+      dimensions: listing.dimensions,
+      shippingDate: listing.shippingDate ?? null,
+      estimatedArrival: listing.estimatedArrival ?? null,
+      totalPrice: total,
+      subtotal: total,
+      currency,
+      best: listing,
+      method: "user_pick",
+      source: listing.source ?? item.synthesis?.source,
+      isMock: listing.isMock === true,
+    },
+  };
+}
+
 export function quotePlan(items) {
   const open = items.filter((item) => !item.purchased);
   const currencies = new Set(open.map((item) => normalizeCurrency(item.synthesis?.currency)).filter(Boolean));
