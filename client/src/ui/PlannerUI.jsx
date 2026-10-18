@@ -10,9 +10,15 @@ export default function PlannerUI({
   plan,
   status,
   error,
+  trustFloor,
+  compare,
+  selected,
   onPromptChange,
   onPlan,
   onToggle,
+  onTrustFloor,
+  onToggleListing,
+  onConfirmPick,
 }) {
   const loading = status === "loading";
   const [open, setOpen] = useState(false);
@@ -193,6 +199,12 @@ export default function PlannerUI({
                 onBack={requestBack}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                trustFloor={trustFloor}
+                onTrustFloor={onTrustFloor}
+                compare={compare}
+                selected={selected}
+                onToggleListing={onToggleListing}
+                onConfirmPick={onConfirmPick}
               />
             ) : (
               <p className="empty">
@@ -275,7 +287,20 @@ function EdgePull({ open, onPull, onToggle }) {
   );
 }
 
-function PlanBody({ plan, onToggle, bindBack, onBack, selectedId, onSelect }) {
+function PlanBody({
+  plan,
+  onToggle,
+  bindBack,
+  onBack,
+  selectedId,
+  onSelect,
+  trustFloor,
+  onTrustFloor,
+  compare,
+  selected,
+  onToggleListing,
+  onConfirmPick,
+}) {
   useEffect(() => {
     if (!selectedId || !bindBack) return undefined;
     return bindBack(() => onSelect(null));
@@ -286,6 +311,17 @@ function PlanBody({ plan, onToggle, bindBack, onBack, selectedId, onSelect }) {
       <div className="plan-head">
         <h2>{plan.title}</h2>
         <p>{plan.prompt}</p>
+        <label className="trust-floor">
+          Trust floor {Math.round((trustFloor ?? 0.5) * 100)}%
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={trustFloor ?? 0.5}
+            onChange={(event) => onTrustFloor(Number(event.target.value))}
+          />
+        </label>
       </div>
       <SnapStage
         items={plan.items}
@@ -297,9 +333,15 @@ function PlanBody({ plan, onToggle, bindBack, onBack, selectedId, onSelect }) {
           <ShopCard item={item} selected={selected} onChoose={onChoose} />
         )}
         renderDetail={(item) => (
-          <ShopDetail item={item} onToggle={onToggle} />
+          <ShopDetail
+            item={item}
+            onToggle={onToggle}
+            picked={selected?.[item.id] || []}
+            onToggleListing={(product) => onToggleListing?.(item, product)}
+          />
         )}
       />
+      {compare ? <CompareSheet compare={compare} onConfirmPick={onConfirmPick} /> : null}
       <Quote quote={plan.quote} />
     </section>
   );
@@ -327,10 +369,11 @@ function ShopCard({ item, selected, onChoose }) {
   );
 }
 
-function ShopDetail({ item, onToggle }) {
+function ShopDetail({ item, onToggle, picked = [], onToggleListing }) {
   const offer = item.synthesis;
   const best = offer?.best;
   const qty = quantityLabel(item);
+  const listings = (item.products || []).slice(0, 10);
 
   return (
     <>
@@ -367,8 +410,36 @@ function ShopDetail({ item, onToggle }) {
               <dt>Ships</dt>
               <dd>{formatDate(offer?.shippingDate)}</dd>
             </div>
+            {best?.score != null || best?.scores ? (
+              <div>
+                <dt>Score</dt>
+                <dd>
+                  {Math.round(((best.score ?? best.scores?.total) || 0) * 100)}
+                  {best.relevancy != null ? ` · rel ${Math.round(best.relevancy * 100)}` : ""}
+                </dd>
+              </div>
+            ) : null}
           </dl>
-          {offer?.alternatives?.length ? (
+          {listings.length ? (
+            <ul className="alts">
+              {listings.map((alt) => {
+                const on = picked.includes(alt.id);
+                return (
+                  <li key={alt.id}>
+                    <button
+                      type="button"
+                      className={on ? "pick is-on" : "pick"}
+                      onClick={() => onToggleListing?.(alt)}
+                    >
+                      {on ? "Selected" : "Compare"} · {alt.store} · {money(alt.price, alt.currency)}
+                      {alt.score != null ? ` · ${Math.round(alt.score * 100)}` : ""}
+                      {alt.inStock === false || alt.in_stock === false ? " · out" : ""}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : offer?.alternatives?.length ? (
             <ul className="alts">
               {offer.alternatives.map((alt) => (
                 <li key={alt.id}>
@@ -381,6 +452,62 @@ function ShopDetail({ item, onToggle }) {
         </div>
       </div>
     </>
+  );
+}
+
+function CompareSheet({ compare, onConfirmPick }) {
+  const left = compare.left;
+  const right = compare.right;
+  return (
+    <section className="panel compare-sheet" aria-label="Item comparison">
+      <h3>
+        {compare.pick === "left"
+          ? `Pick ${left.title}`
+          : compare.pick === "right"
+            ? `Pick ${right.title}`
+            : "Too close to call"}
+      </h3>
+      <p className="quiet">{compare.reasons?.[0]}</p>
+      <div className="compare-grid">
+        <ListingPeek side="A" item={left} winner={compare.pick === "left"} />
+        <ListingPeek side="B" item={right} winner={compare.pick === "right"} />
+      </div>
+      <table className="axes">
+        <thead>
+          <tr>
+            <th>Axis</th>
+            <th>A</th>
+            <th>B</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(compare.axes || []).map((axis) => (
+            <tr key={axis.name}>
+              <td>{axis.name}</td>
+              <td className={axis.winner === "left" ? "win" : ""}>{axis.left}</td>
+              <td className={axis.winner === "right" ? "win" : ""}>{axis.right}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {compare.pick && onConfirmPick ? (
+        <button type="button" className="confirm" onClick={() => onConfirmPick(compare.pick === "left" ? left : right)}>
+          Use this listing
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function ListingPeek({ side, item, winner }) {
+  return (
+    <div className={winner ? "peek is-win" : "peek"}>
+      <p className="card-name">
+        {side} · {item.store}
+      </p>
+      <p className="summary">{item.title}</p>
+      <p className="summary">{money(item.price, item.currency)}</p>
+    </div>
   );
 }
 
