@@ -12,6 +12,7 @@ This is a visual and interaction reference for [#16](https://github.com/jumiknow
 
 ## Implementation notes
 
+- Follow the writing and visual direction in the [product brief](../PRODUCT_BRIEF.md), including system typography, flat surfaces, consistent spacing and direct labels.
 - Preserve the clear place, cutoff, source and unknown-data labels.
 - Replace the SVG illustration with MapLibre and actual source coordinates.
 - Replace every synthetic record with the shared snapshot contracts.
@@ -23,6 +24,6 @@ The mockup was created through ChatGPT. It is not evidence that implementation h
 
 ## Verification performed
 
-Checked on 2026-10-18 UTC with Playwright 1.51.1 and Chromium Headless Shell 134. Community changes, timeline filtering, distinct unavailable/stale/empty states, script dialog and Escape, keyboard tab selection and absence of browser script errors passed. Layouts at 1440, 960 and 390 pixels had no horizontal overflow. Desktop and mobile screenshots were visually inspected.
+Checked on 2026-10-18 UTC with Playwright 1.51.1 and Chromium Headless Shell 134. Community changes and selection labels, timeline filtering, distinct unavailable/stale/empty states, script dialog and Escape, keyboard tab selection and absence of browser script errors passed. Layouts at 1440, 960 and 390 pixels had no horizontal overflow. Desktop and mobile screenshots were visually inspected. The primary text, secondary text, map labels, map header and button color pairs each exceeded 4.5:1 contrast in calculation.
 
 These checks validate the synthetic reference only. They do not validate NASA ingestion, map projections, assistive-technology compatibility, Grok Voice or production application behavior.

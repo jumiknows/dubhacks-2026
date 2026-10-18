@@ -1,6 +1,6 @@
 # EmberReady
 
-Satellite evidence to accessible community wildfire briefings.
+Community wildfire briefings from satellite observations.
 
 **Status:** repository setup, product/data implementation plans, artifact schemas and an interactive design mockup are ready. The application, operational data pipeline and trained models are not implemented yet.
 
@@ -63,5 +63,3 @@ Use real GitHub issue numbers in branches and pull requests. Example: `feat/12-d
 - [Demo checklist](docs/DEMO_CHECKLIST.md)
 - [Repository architecture decision](docs/adr/0001-repository-workflow.md)
 - [Data foundation architecture decision](docs/adr/0003-data-foundation.md)
-
-The workflow draws on [ALEASAT Mission Software](https://github.com/jumiknows/Aleasat-Mission-Software). This repository has its own code, issue numbers, owners, and deployment decisions.

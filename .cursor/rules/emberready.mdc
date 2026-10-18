@@ -9,6 +9,8 @@ For data work also read docs/DATA_BACKEND.md, docs/LABELING_AND_ML.md and data/R
 
 Build the selected issue on a focused branch from dev. Use its acceptance criteria and dependency links. Keep one authoritative set of data contracts.
 
+Follow the writing and visual direction in docs/PRODUCT_BRIEF.md. Keep prose concise, with no semicolons, long dashes, emoji headings or promotional filler. Preserve required code syntax. Use Segoe UI, Arial and sans-serif fallbacks, consistent 4-pixel spacing, flat surfaces and neutral dividers. Keep the wordmark as text. Do not add decorative gradients, glass effects, headline badges, ornamental icon rows, star logos, scroll reveals, pointer effects or fading buttons. Style any component library deliberately.
+
 The product is accessible wildfire awareness with NASA observations and Grok Voice. Counts, distances, timestamps, attention bands, and source references come from deterministic code. Do not invent probabilities, incidents, fire perimeters, or evacuation routes.
 
 Preserve the difference between observation time and retrieval time. Replay must not include future observations or current weather. Distinguish real source snapshots from synthetic test cases.

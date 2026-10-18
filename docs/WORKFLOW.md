@@ -35,6 +35,6 @@ A GitHub Projects board is optional and is not created by repository files. If a
 
 ## Traceability
 
-Use `Refs #12` while contributing to an issue and `Closes #12` when a pull request into `main` completes it. Do not reuse ALEASAT's ALEA or OpenProject identifiers.
+Use `Refs #12` while contributing to an issue and `Closes #12` when a pull request into `main` completes it. Use issue numbers from this repository.
 
 Each issue needs a problem, a bounded outcome, and acceptance criteria. Each pull request needs evidence that supports the claimed outcome. Large design or measurement details belong in a linked engineering note.
