@@ -41,3 +41,7 @@ copy server\.env.example server\.env
 - Branch off `main` for each feature: `git checkout -b feature/thing`
 - Open a PR and merge often to avoid big conflicts
 - Never commit `.env` (it's gitignored)
+
+## Hand gesture feature
+
+The reusable gesture module lives in [`gesture_pipeline/`](gesture_pipeline/README.md). It provides index-pointer control, pinch click/drag, horizontal reveal/dismiss gestures and vertical catalogue scrolling for the existing Vite frontend. See its README for installation, asset preparation, UI integration and tuning. The feature has no standalone demo server.
