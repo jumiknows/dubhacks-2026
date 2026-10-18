@@ -49,6 +49,19 @@ The docs support custom function tools and browser authentication using an ephem
 
 Optical mineral mapping does not directly reveal underground ore or see through dense vegetation. Mineral exploration requires its own data, ground truth, and validation. It should be a separate product investigation.
 
+## Research sources
+
+The [research pipeline](../research/README.md) also uses these. Each raw file is pinned by SHA-256.
+
+| Source | Use | Access |
+| --- | --- | --- |
+| [FIRMS yearly country archives](https://firms.modaps.eosdis.nasa.gov/country/) | VIIRS S-NPP detections 2013 to 2024 | Public |
+| [FPA FOD 7th edition service](https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_FireOccurrenceCurrentEdition_01/MapServer) | Discovery labels | Public |
+| [NASA POWER daily API](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) | Previous-day weather and topsoil wetness | Public. MERRA-2 reanalysis published a few days late |
+| [SRTMGL3 at LP DAAC](https://lpdaac.usgs.gov/products/srtmgl3v003/) | Elevation, relief and slope | NASA Earthdata Login bearer token |
+
+The Earthdata token in `research/.env` downloads SRTM. It does not open the LANCE near-real-time FIRMS text archive until the account authorizes that application. A `FIRMS_MAP_KEY` would let scoring use the Area API for complete recent thermal history.
+
 ## Product and implementation references
 
 For future research, the [US Forest Service current FPA FOD service](https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_FireOccurrenceCurrentEdition_01/MapServer) currently identifies the seventh edition covering 1992 to 2024. Pin the actual archive and checksum before using it. [MTBS](https://www.mtbs.gov/project-overview) maps large-fire extent and severity and has size-selection limitations. Neither source is an operational ignition timestamp feed. The [labeling protocol](LABELING_AND_ML.md) defines their proposed use and exclusions.

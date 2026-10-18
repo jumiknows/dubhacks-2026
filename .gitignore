@@ -31,3 +31,7 @@ Thumbs.db
 *.log
 
 apps/web/src/lib/server/replay.generated.json
+
+# Research pipeline: downloaded sources and run outputs stay local
+research/artifacts/
+apps/web/src/lib/server/risk.generated.json

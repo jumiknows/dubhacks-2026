@@ -1,0 +1,34 @@
+{
+  "id": "wa-discovery-nextday-v1",
+  "question": "Rank 10 km equal-area cells in Washington by whether at least one wildfire discovery is recorded in FPA FOD on the target day.",
+  "framing": "Retrospective association study. Weather comes from a reanalysis that was not available in real time, so results support no early-warning claim.",
+  "geography": {
+    "name": "Washington State",
+    "boundary": "US Census cartographic boundary 2023, 1:500,000",
+    "bbox": [-124.85, 45.5, -116.9, 49.05]
+  },
+  "grid": { "crs": "EPSG:5070", "cell_m": 10000, "keep": "cell centroid inside the state boundary" },
+  "outcome": {
+    "positive": "reported-discovery: at least one FPA FOD record whose DISCOVERY_DOY in FIRE_YEAR is the target date and whose point falls in the cell",
+    "negative": "no-record-in-reviewed-scope: an eligible cell-day with no such record. This is a database outcome, not proof that no fire occurred.",
+    "unknown": "records without a usable date or location are excluded and counted"
+  },
+  "reference_dataset": "FPA FOD 7th edition (FPA_FOD_20260615), US Forest Service EDW_FireOccurrenceCurrentEdition_01 layer 0",
+  "date_convention": "Target dates are FPA FOD local discovery days. FIRMS acquisitions are converted to America/Los_Angeles dates. Every feature for target day D uses data dated D-1 or earlier.",
+  "years": {
+    "all": [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024],
+    "train": [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020],
+    "validation": [2021, 2022],
+    "test": [2023, 2024]
+  },
+  "spatial_holdout": {
+    "name": "northeast Washington",
+    "rule": "cell centroid east of -118.6 and north of 47.9 degrees",
+    "lon_min": -118.6,
+    "lat_min": 47.9,
+    "buffer_cells": 1
+  },
+  "review_budget_cells_per_day": 20,
+  "negative_sampling": { "train_ratio": 30, "seed": 29 },
+  "decision_gate": "Unset. The product owner and a qualified domain reviewer must set numeric thresholds before any model can be promoted. Results stay offline research."
+}

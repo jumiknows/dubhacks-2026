@@ -17,3 +17,5 @@ For published manifests require `rawRows = retainedRows + duplicateRows + exclud
 Preserve original source bytes and use actual hashes. Do not create an example manifest with fabricated NASA provenance. Synthetic evaluation cases belong under `tests/fixtures/synthetic` and use `mode: test` in data manifests. The application only serves real `live` or `replay` manifests through its public observation routes.
 
 The checked-in replay snapshot is the NOAA-20 VIIRS archive described in the source registry. Larger runtime artifacts stay outside Git.
+
+`risk/` holds research danger-zone rankings written by `research/wildfire/serve.py`: `grid.json` (10 km cells and which cell each place falls in), `index.json` (model summary, test metrics and per-day input coverage) and one file per scored day. `npm run data:bundle` checks them against the grid and bundles them for the web app. See [the research README](../research/README.md).

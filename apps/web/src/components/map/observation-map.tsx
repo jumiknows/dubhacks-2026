@@ -4,8 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MONITOR_KM, REVIEW_KM, type Place, type ThermalObservation } from "@emberready/domain";
+import type { RiskTier } from "../../lib/risk";
+
+/** Ranked cells to shade, from the research danger-zone model. */
+export interface RiskLayer {
+  polygons: [number, number][][];
+  tier: RiskTier[];
+  rank: number[];
+}
 
 interface ObservationMapProps {
+  risk: RiskLayer | null;
   observations: ThermalObservation[];
   freshIds: Set<string>;
   asOf: string | undefined;
@@ -31,7 +40,7 @@ function ring(place: Place, km: number, band: string) {
   return { type: "Feature" as const, geometry: { type: "LineString" as const, coordinates }, properties: { band } };
 }
 
-export function ObservationMap({ observations, freshIds, asOf, place, bbox, selectedId, onSelect }: ObservationMapProps) {
+export function ObservationMap({ risk, observations, freshIds, asOf, place, bbox, selectedId, onSelect }: ObservationMapProps) {
   const [failure, setFailure] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -62,6 +71,20 @@ export function ObservationMap({ observations, freshIds, asOf, place, bbox, sele
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
       map.resize();
+      // Danger zones sit underneath everything else so detections stay readable.
+      map.addSource("risk", { type: "geojson", data: EMPTY });
+      map.addLayer({
+        id: "risk-fill", type: "fill", source: "risk",
+        paint: {
+          "fill-color": ["match", ["get", "tier"], "highest", "#ff3b30", "high", "#ff8a00", "#ffd166"],
+          "fill-opacity": ["match", ["get", "tier"], "highest", 0.42, "high", 0.26, 0.13],
+        },
+      });
+      map.addLayer({
+        id: "risk-edge", type: "line", source: "risk",
+        filter: ["==", ["get", "tier"], "highest"],
+        paint: { "line-color": "#ff6b5f", "line-width": 1, "line-opacity": 0.9 },
+      });
       map.addSource("rings", { type: "geojson", data: EMPTY });
       map.addSource("observations", { type: "geojson", data: EMPTY });
       map.addSource("place", { type: "geojson", data: EMPTY });
@@ -137,6 +160,19 @@ export function ObservationMap({ observations, freshIds, asOf, place, bbox, sele
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded) return;
+    const features = risk
+      ? risk.polygons.flatMap((ring, i) => risk.tier[i] === "low" ? [] : [{
+        type: "Feature" as const,
+        geometry: { type: "Polygon" as const, coordinates: [ring] },
+        properties: { tier: risk.tier[i], rank: risk.rank[i] },
+      }])
+      : [];
+    (map.getSource("risk") as GeoJSONSource).setData({ type: "FeatureCollection", features });
+  }, [risk, loaded]);
 
   useEffect(() => {
     const map = mapRef.current;

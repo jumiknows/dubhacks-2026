@@ -41,6 +41,7 @@ Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assig
 | [packages/](packages/README.md) | Code shared by applications |
 | `tools/` | Repository checks and development scripts |
 | `tests/` | Tests for repository tooling |
+| [research/](research/README.md) | Wildfire discovery research pipeline and danger-zone scoring |
 | [docs/](docs/WORKFLOW.md) | Workflow, engineering decisions, and demo guidance |
 | `.github/` | Issue forms, pull request template, ownership, and CI |
 
