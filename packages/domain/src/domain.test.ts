@@ -79,6 +79,21 @@ describe("FIRMS time parsing", () => {
 });
 
 describe("distance and attention bands", () => {
+  it("agrees with an independent spherical distance for Seattle to Spokane", () => {
+    const seattle = { latitude: 47.619335, longitude: -122.351538 };
+    const spokane = { latitude: 47.666935, longitude: -117.433322 };
+    const primary = distanceKm(seattle.latitude, seattle.longitude, spokane.latitude, spokane.longitude);
+    const radius = 6371.0088;
+    const φ1 = (seattle.latitude * Math.PI) / 180;
+    const φ2 = (spokane.latitude * Math.PI) / 180;
+    const Δλ = ((spokane.longitude - seattle.longitude) * Math.PI) / 180;
+    const central = Math.acos(Math.sin(φ1) * Math.sin(φ2) + Math.cos(φ1) * Math.cos(φ2) * Math.cos(Δλ));
+    const independent = radius * central;
+    expect(Math.abs(primary - independent)).toBeLessThan(0.01);
+    expect(primary).toBeGreaterThan(350);
+    expect(primary).toBeLessThan(400);
+  });
+
   it("measures a northbound geodesic in kilometers", () => {
     const moved = destinationNorthKm(47, -120, 5);
     const distance = distanceKm(47, -120, moved.latitude, moved.longitude);

@@ -40,6 +40,20 @@ function parse(body: string, window?: { windowStart?: string; windowEnd?: string
 }
 
 describe("FIRMS parser", () => {
+  it("reads the synthetic edge fixture without treating it as NASA replay", () => {
+    const text = readFileSync(new URL("../../../tests/fixtures/synthetic/firms-edges.csv", import.meta.url), "utf8");
+    const result = parseFirmsCsv(text, {
+      product: "VIIRS_NOAA20_NRT",
+      sourceId: "synthetic",
+      rawSha256: "synthetic",
+      bbox,
+    });
+    expect(result.retained.map((item) => item.confidence)).toEqual(["nominal", "low"]);
+    expect(result.retained[0].frpMw).toBeNull();
+    expect(result.duplicateRows).toBe(1);
+    expect(result.quarantined.map((item) => item.reason)).toEqual(["invalid-coordinate", "unknown-confidence"]);
+  });
+
   it("keeps missing FRP as null and retains low confidence", () => {
     const result = parse([row({ frp: "" }), row({ latitude: "47.20000", confidence: "low", acq_time: "1000" })].join("\n"));
     expect(result.quarantined).toEqual([]);

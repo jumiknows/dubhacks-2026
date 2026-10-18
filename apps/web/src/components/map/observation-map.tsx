@@ -28,6 +28,10 @@ export function ObservationMap({ observations, place, selectedId, onSelect }: Ob
       zoom: 6,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: false }), "top-right");
+    const resize = () => map.resize();
+    map.on("load", resize);
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
     map.on("click", "observations", (event) => {
       const id = event.features?.[0]?.properties?.id;
       if (typeof id === "string") onSelectRef.current(id);
@@ -40,6 +44,7 @@ export function ObservationMap({ observations, place, selectedId, onSelect }: Ob
     });
     mapRef.current = map;
     return () => {
+      observer.disconnect();
       map.remove();
       mapRef.current = null;
     };

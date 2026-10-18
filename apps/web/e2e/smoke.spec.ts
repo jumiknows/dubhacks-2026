@@ -11,5 +11,5 @@ test("replay briefing follows the selected community", async ({ page }) => {
   await page.getByRole("button", { name: "Live" }).click();
   await expect(page.getByText(/FIRMS_MAP_KEY|Live observations|live response/i)).toBeVisible();
   await page.getByRole("button", { name: "Play spoken briefing" }).click();
-  await expect(page.getByText(/XAI_API_KEY|readable briefing|Spoken/i)).toBeVisible();
+  await expect(page.locator(".voice-note")).toContainText("XAI_API_KEY");
 });

@@ -111,9 +111,9 @@ h3 { font-size: 14px; margin: 16px 0 8px; }
 
 .mode-switch button { width: auto; border: 1px solid var(--line); background: white; }
 
-.map-wrap { position: relative; min-height: 360px; flex: 1; }
+.map-wrap { position: relative; height: 420px; }
 
-.map-canvas { position: absolute; inset: 0; }
+.map-canvas { position: absolute; inset: 0; min-height: 420px; }
 
 .map-foot { display: flex; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--line); background: white; font-size: 12px; }
 
