@@ -18,6 +18,7 @@ import { quotePlan } from "./pipeline.js";
 const CLIENT_URL = (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
 // Stripe caps each metadata value at 500 characters; item ids are UUIDs.
 const METADATA_MAX = 500;
+const MAX_GROUPS = 20;
 
 let stripe = makeClient(process.env.STRIPE_SECRET_KEY);
 let webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -87,27 +88,46 @@ export function cartLines(plan, itemIds) {
   return lines;
 }
 
-export async function createCheckout(planId, itemIds) {
-  const plan = getPlan(planId);
-  if (!plan) throw new CheckoutError(404, "plan not found");
-  const lines = cartLines(plan, itemIds);
+export function createCheckout(planId, itemIds) {
+  return createCartCheckout([{ planId, itemIds }]);
+}
+
+/** One order for a cart that can span several plans: groups = [{ planId, itemIds }]. */
+export async function createCartCheckout(groups) {
+  if (!Array.isArray(groups) || groups.length === 0 || groups.length > MAX_GROUPS) {
+    throw new CheckoutError(400, "Select at least one item to buy.");
+  }
+  const lines = [];
+  for (const group of groups) {
+    const plan = typeof group?.planId === "string" ? getPlan(group.planId) : null;
+    if (!plan) throw new CheckoutError(404, "plan not found");
+    lines.push(...cartLines(plan, group.itemIds).map((line) => ({ ...line, planId: plan.id })));
+  }
+  if (new Set(lines.map((line) => line.currency)).size > 1) {
+    throw new CheckoutError(409, "Items in one checkout must share a currency.");
+  }
   const amount = lines.reduce((sum, line) => sum + line.amount, 0);
   const currency = lines[0].currency;
+  const cart = groups.map((group) => ({ planId: group.planId, itemIds: [...group.itemIds] }));
 
   if (!stripe) {
     const id = `cs_mock_${randomUUID()}`;
-    mockSessions.set(id, { planId, itemIds: [...itemIds], lines, amount, currency, receipt: null });
+    mockSessions.set(id, { cart, lines, amount, currency, receipt: null });
     return { id, url: successUrl(id), amount, currency, mock: true };
   }
 
-  const metadataIds = itemIds.join(",");
-  if (metadataIds.length > METADATA_MAX) {
-    throw new CheckoutError(400, "Too many items for one checkout. Pay for fewer at a time.");
-  }
+  const metadata = {};
+  cart.forEach((group, index) => {
+    const value = `${group.planId}|${group.itemIds.join(",")}`;
+    if (value.length > METADATA_MAX) {
+      throw new CheckoutError(400, "Too many items for one checkout. Pay for fewer at a time.");
+    }
+    metadata[`cart_${index}`] = value;
+  });
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    client_reference_id: planId,
+    client_reference_id: cart[0].planId,
     line_items: lines.map((line) => ({
       quantity: 1,
       price_data: {
@@ -120,14 +140,14 @@ export async function createCheckout(planId, itemIds) {
         },
       },
     })),
-    metadata: { plan_id: planId, item_ids: metadataIds },
+    metadata,
     success_url: successUrl("{CHECKOUT_SESSION_ID}"),
-    cancel_url: `${CLIENT_URL}/?checkout=cancel&plan_id=${encodeURIComponent(planId)}`,
+    cancel_url: `${CLIENT_URL}/?checkout=cancel&plan_id=${encodeURIComponent(cart[0].planId)}`,
   });
   return { id: session.id, url: session.url, amount, currency, mock: false };
 }
 
-/** Called when the browser lands back on success_url. */
+/** Called when the browser lands back on success_url (or the in-app mock sheet confirms). */
 export async function confirmCheckout(sessionId) {
   if (typeof sessionId !== "string" || !sessionId) throw new CheckoutError(400, "session_id is required");
 
@@ -140,8 +160,8 @@ export async function confirmCheckout(sessionId) {
       mockOrderOptions
     );
     const receipt = await pending.receipt;
-    const plan = markPaid(pending.planId, pending.itemIds, sessionId, receipt.orderId);
-    return { status: "paid", mock: true, plan, receipt };
+    const plans = markCartPaid(pending.cart, sessionId, receipt.orderId);
+    return { status: "paid", mock: true, plan: plans[0] ?? null, plans, receipt };
   }
 
   if (!stripe) throw new CheckoutError(503, "Stripe is not configured on this server.");
@@ -151,11 +171,13 @@ export async function confirmCheckout(sessionId) {
   } catch {
     throw new CheckoutError(404, "checkout session not found");
   }
-  const { planId, itemIds } = fromMetadata(session);
+  const cart = fromMetadata(session);
   if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
-    return { status: session.payment_status || "unpaid", mock: false, plan: getPlan(planId) };
+    const plans = cart.map((group) => getPlan(group.planId)).filter(Boolean);
+    return { status: session.payment_status || "unpaid", mock: false, plan: plans[0] ?? null, plans };
   }
-  return { status: "paid", mock: false, plan: markPaid(planId, itemIds, session.id) };
+  const plans = markCartPaid(cart, session.id);
+  return { status: "paid", mock: false, plan: plans[0] ?? null, plans };
 }
 
 /** Stripe webhook. rawBody must be the unparsed request Buffer. */
@@ -171,18 +193,34 @@ export function handleWebhook(rawBody, signature) {
   const paid =
     event.type === "checkout.session.async_payment_succeeded" ||
     (event.type === "checkout.session.completed" && event.data.object.payment_status === "paid");
-  if (paid) {
-    const { planId, itemIds } = fromMetadata(event.data.object);
-    markPaid(planId, itemIds, event.data.object.id);
-  }
+  if (paid) markCartPaid(fromMetadata(event.data.object), event.data.object.id);
   return { received: true, type: event.type };
 }
 
+/** cart_N = "planId|item,item"; plan_id + item_ids is the older single-plan form. */
 function fromMetadata(session) {
-  const planId = session.metadata?.plan_id || session.client_reference_id;
-  const itemIds = (session.metadata?.item_ids || "").split(",").filter(Boolean);
-  if (!planId || itemIds.length === 0) throw new CheckoutError(400, "Checkout session is missing cart metadata.");
-  return { planId, itemIds };
+  const metadata = session.metadata || {};
+  const cart = Object.keys(metadata)
+    .filter((key) => /^cart_\d+$/.test(key))
+    .sort((a, b) => Number(a.slice(5)) - Number(b.slice(5)))
+    .map((key) => {
+      const [planId, ids = ""] = String(metadata[key]).split("|");
+      return { planId, itemIds: ids.split(",").filter(Boolean) };
+    });
+  if (!cart.length && (metadata.plan_id || session.client_reference_id)) {
+    cart.push({
+      planId: metadata.plan_id || session.client_reference_id,
+      itemIds: String(metadata.item_ids || "").split(",").filter(Boolean),
+    });
+  }
+  if (!cart.length || cart.some((group) => !group.planId || group.itemIds.length === 0)) {
+    throw new CheckoutError(400, "Checkout session is missing cart metadata.");
+  }
+  return cart;
+}
+
+function markCartPaid(cart, sessionId, orderId = null) {
+  return cart.map((group) => markPaid(group.planId, group.itemIds, sessionId, orderId)).filter(Boolean);
 }
 
 /** Idempotent: the redirect and the webhook can both land. */

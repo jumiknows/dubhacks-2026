@@ -14,7 +14,7 @@
     "smoke:backend": "node scripts/smoke-backend.mjs",
     "test": "npm run test:server && npm run test:api",
     "build": "npm run build -w client",
-    "start": "npm run start -w server"
+    "start": "concurrently -n api,server -c magenta,blue \"npm run api -- --prod\" \"npm run start -w server\""
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

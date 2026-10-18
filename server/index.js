@@ -1,16 +1,21 @@
 import express from "express";
 import cors from "cors";
-import { pathToFileURL } from "node:url";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getPlan, savePlan } from "./store.js";
 import { generatePlan, validatePlanRequest } from "./services/planner.js";
 import { attachOffers, pickListing, quotePlan } from "./services/pipeline.js";
-import { CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
+import { CheckoutError, confirmCheckout, createCartCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
 import { createPythonGateway } from "./pythonGateway.js";
 import { storesRouter } from "./routes/stores.js";
+import { attachLiveTunnel } from "./liveTunnel.js";
 
-export function createApp(gatewayOptions) {
+const DEFAULT_CLIENT_DIST = fileURLToPath(new URL("../client/dist", import.meta.url));
+
+export function createApp(gatewayOptions, { clientDist = DEFAULT_CLIENT_DIST } = {}) {
   const app = express();
 
   app.use(cors());
@@ -106,7 +111,9 @@ export function createApp(gatewayOptions) {
 
   app.post("/api/checkout", async (req, res) => {
     try {
-      res.status(201).json(await createCheckout(req.body?.planId, req.body?.itemIds));
+      // { cart: [{ planId, itemIds }] } for a cart across plans, or { planId, itemIds } for one plan.
+      const cart = Array.isArray(req.body?.cart) ? req.body.cart : [{ planId: req.body?.planId, itemIds: req.body?.itemIds }];
+      res.status(201).json(await createCartCheckout(cart));
     } catch (err) {
       sendError(res, err, "Could not start checkout");
     }
@@ -146,6 +153,14 @@ export function createApp(gatewayOptions) {
     }
   });
 
+  // A production build (npm run build) is served from here, so one origin carries the app,
+  // /api and the /ws-live voice tunnel. In development Vite serves the client instead.
+  if (existsSync(join(clientDist, "index.html"))) {
+    app.use(express.static(clientDist, { index: false, maxAge: "1h" }));
+    app.get(/^\/(?!api\/|api$|ws-live).*/, (req, res) => res.sendFile(join(clientDist, "index.html")));
+  }
+  app.use("/api", (req, res) => res.status(404).json({ error: "Unknown API route" }));
+
   app.use((err, req, res, next) => {
     if (err.type === "entity.too.large") return res.status(413).json({ error: "Request body is too large" });
     if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Malformed JSON request" });
@@ -162,5 +177,6 @@ function sendError(res, err, fallback) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const PORT = process.env.PORT || 3001;
-  createApp().listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+  const server = createApp().listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+  attachLiveTunnel(server);
 }

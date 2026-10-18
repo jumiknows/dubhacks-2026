@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # Gemini Multimodal Live (browser audio <-> this API <-> Gemini)
     gemini_api_key: str = Field(default="", repr=False)
-    gemini_live_model: str = "gemini-2.0-flash-exp"
+    gemini_live_model: str = "gemini-3.8-live"
     planboard_url: str = "http://localhost:3001"
 
     @property

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import checkout, live, recommendations, search
+from api import checkout, live, planner_chat, recommendations, search
 from api import store as store_mod
 from api import voice
 from api.market import browser as market_browser
@@ -69,6 +69,7 @@ app.include_router(recommendations.router)
 app.include_router(reviews_router)
 app.include_router(websites_router)
 app.include_router(live.router)
+app.include_router(planner_chat.router)
 
 
 @app.exception_handler(checkout.CheckoutError)

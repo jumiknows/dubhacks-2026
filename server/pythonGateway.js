@@ -11,6 +11,7 @@ const ROUTES = [
   { path: /^\/compare$/, methods: ["POST"] },
   { path: /^\/products\/search$/, methods: ["GET"], query: ["q", "max_price", "limit", "session_id"] },
   { path: /^\/products\/recommend$/, methods: ["POST"] },
+  { path: /^\/planner\/chat$/, methods: ["POST"] },
   { path: /^\/reviews\/(?:analyze|fetch|demo)$/, methods: ["POST"] },
   { path: /^\/reviews\/(?:sources|workbench)$/, methods: ["GET"] },
   { path: /^\/reviews\/products$/, methods: ["GET"], query: ["merchant", "q", "limit"] },

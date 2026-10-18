@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { savePlan } from "../store.js";
 import { pickListing, quotePlan } from "../services/pipeline.js";
 import {
-  CheckoutError, cartLines, configureStripe, confirmCheckout, createCheckout, handleWebhook, stripeMode,
+  CheckoutError, cartLines, configureStripe, confirmCheckout, createCartCheckout, createCheckout, handleWebhook, stripeMode,
 } from "../services/checkout.js";
 
 let seq = 0;
@@ -119,7 +119,7 @@ describe("Stripe checkout", () => {
 
     const [params] = client.calls;
     assert.equal(params.mode, "payment");
-    assert.deepEqual(params.metadata, { plan_id: p.id, item_ids: "tent,stove" });
+    assert.deepEqual(params.metadata, { cart_0: `${p.id}|tent,stove` });
     assert.deepEqual(params.line_items.map((l) => l.price_data.unit_amount), [12999, 4550]);
     assert.deepEqual(params.line_items[1].price_data.product_data.images, ["https://img.example/stove.jpg"]);
     assert.match(params.success_url, /session_id=\{CHECKOUT_SESSION_ID\}$/);
@@ -136,6 +136,36 @@ describe("Stripe checkout", () => {
     configureStripe({ client: fakeStripe({ payment_status: "paid", metadata }) });
     const paid = await confirmCheckout("cs_test_123");
     assert.equal(paid.plan.items.find((i) => i.id === "stove").purchased, true);
+  });
+});
+
+describe("cart across plans", () => {
+  it("charges one order for items from two plans and marks both", async () => {
+    const a = plan();
+    const b = plan();
+    const started = await createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: b.id, itemIds: ["stove"] }]);
+    assert.equal(started.amount, 12999 + 4550);
+    const done = await confirmCheckout(started.id);
+    assert.equal(done.plans.length, 2);
+    assert.equal(a.items.find((i) => i.id === "tent").purchased, true);
+    assert.equal(b.items.find((i) => i.id === "stove").purchased, true);
+    assert.equal(b.items.find((i) => i.id === "tent").purchased, false);
+  });
+
+  it("reads multi-plan Stripe metadata on return", async () => {
+    const a = plan();
+    const b = plan();
+    configureStripe({
+      client: fakeStripe({ payment_status: "paid", metadata: { cart_0: `${a.id}|tent`, cart_1: `${b.id}|stove` } }),
+    });
+    const done = await confirmCheckout("cs_test_123");
+    assert.deepEqual(done.plans.map((p) => p.id), [a.id, b.id]);
+    assert.equal(b.items.find((i) => i.id === "stove").purchased, true);
+  });
+
+  it("rejects an empty or oversized cart", async () => {
+    await rejects(createCartCheckout([]), 400);
+    await rejects(createCartCheckout([{ planId: "missing", itemIds: ["x"] }]), 404);
   });
 });
 
