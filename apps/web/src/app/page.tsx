@@ -1,6 +1,6 @@
 import { buildPlaceContext } from "@emberready/domain";
 import { Workspace } from "../components/workspace";
-import { currentReplay, loadPlaces, sourceFromSnapshot } from "../lib/server/catalog";
+import { currentReplay, loadPlaces, loadRegion, sourceFromSnapshot } from "../lib/server/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -25,28 +25,17 @@ export default function Page() {
     source: sourceFromSnapshot(snapshot),
   });
   return (
-    <>
-      <header>
-        <div className="brand">EmberReady</div>
-        <div className="edition">Washington observation replay</div>
-      </header>
-      <main>
-        <div className="intro">
-          <h1>What was observed near this community?</h1>
-          <p>Thermal detections from a retrieved NASA FIRMS file. Counts, distances, and the attention band come from the selected cutoff. This is not a fire probability or an evacuation instruction.</p>
-        </div>
-        <Workspace
-          demo={{
-            places,
-            snapshotId: snapshot.manifest.snapshotId,
-            asOf: snapshot.manifest.scope.asOf,
-            windowStart: snapshot.manifest.scope.windowStart,
-            fetchedAt: snapshot.manifest.source.fetchedAt,
-            observations: snapshot.observations,
-            initialContext,
-          }}
-        />
-      </main>
-    </>
+    <Workspace
+      demo={{
+        places,
+        bbox: loadRegion().bbox,
+        snapshotId: snapshot.manifest.snapshotId,
+        asOf: snapshot.manifest.scope.asOf,
+        windowStart: snapshot.manifest.scope.windowStart,
+        fetchedAt: snapshot.manifest.source.fetchedAt,
+        observations: snapshot.observations,
+        initialContext,
+      }}
+    />
   );
 }
