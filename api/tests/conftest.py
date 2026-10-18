@@ -16,6 +16,7 @@ from api.main import app
 # same results on every machine. Tests that need a key set one themselves.
 _settings = get_settings()
 _settings.llm_api_key = _settings.elevenlabs_api_key = _settings.stripe_secret_key = ""
+_settings.gemini_api_key = ""
 
 
 @pytest.fixture(scope="session")

@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     scrape_timeout_s: float = 25.0
     scrape_limit: int = 50
 
+    # Gemini Multimodal Live (browser audio <-> this API <-> Gemini)
+    gemini_api_key: str = ""
+    gemini_live_model: str = "gemini-2.0-flash-exp"
+    planboard_url: str = "http://localhost:3001"
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.llm_api_key)
@@ -54,6 +59,18 @@ class Settings(BaseSettings):
     @property
     def voice_enabled(self) -> bool:
         return bool(self.elevenlabs_api_key)
+
+    @property
+    def gemini_live_key(self) -> str:
+        if self.gemini_api_key:
+            return self.gemini_api_key
+        if "generativelanguage.googleapis.com" in (self.llm_base_url or "") and self.llm_api_key:
+            return self.llm_api_key
+        return ""
+
+    @property
+    def gemini_live_enabled(self) -> bool:
+        return bool(self.gemini_live_key)
 
 
 @lru_cache

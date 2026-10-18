@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import checkout, search
+from api import checkout, live, search
 from api import store as store_mod
 from api import voice
 from api.market import browser as market_browser
@@ -58,6 +58,7 @@ app.add_middleware(
 (DATA_DIR / "images").mkdir(parents=True, exist_ok=True)
 app.mount("/static/products", StaticFiles(directory=DATA_DIR / "images"), name="product-images")
 app.include_router(voice.router)
+app.include_router(live.router)
 
 
 @app.exception_handler(checkout.CheckoutError)
@@ -285,6 +286,7 @@ def health() -> dict[str, Any]:
         "integrations": {
             "llm": f"live ({s.llm_model})" if llm_live else "mocked (fallback agent only)",
             "elevenlabs": status(s.voice_enabled),
+            "gemini_live": status(s.gemini_live_enabled),
             "stripe": status(False),
             "selenium": "live" if s.selenium_enabled else "mocked (fixture listings)",
         },
