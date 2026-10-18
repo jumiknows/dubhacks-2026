@@ -1,6 +1,6 @@
 # EmberReady architecture
 
-Status: implementation design. The application and backend are not built yet. A synthetic [interactive design reference](prototype/README.md) is available.
+Status: replay application and batch job are in the repo. Live FIRMS and Grok Voice credentials are still unverified. A synthetic [interactive design reference](prototype/README.md) remains design-only.
 
 Decisions: [ADR 0002](adr/0002-emberready-mvp.md) and [data foundation ADR 0003](adr/0003-data-foundation.md). Interfaces: [contracts](CONTRACTS.md). Pipeline: [data backend](DATA_BACKEND.md).
 
