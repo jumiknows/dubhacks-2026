@@ -63,6 +63,24 @@ test("gateway streams each SSE chunk before the upstream finishes", async (t) =>
   assert.match(rest, /event: done/);
 });
 
+test("review routes forward only their fixed methods and query fields", async (t) => {
+  const upstream = await listen(t, (req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ path: req.url, method: req.method }));
+  });
+  const url = await gateway(t, upstream);
+  assert.equal((await fetch(`${url}/reviews/sources`)).status, 200);
+  const search = await fetch(`${url}/reviews/products?merchant=shop&q=headphones&limit=5`);
+  assert.equal(search.status, 200);
+  assert.equal((await search.json()).path, "/reviews/products?merchant=shop&q=headphones&limit=5");
+  for (const name of ["analyze", "fetch", "demo"]) {
+    assert.equal((await fetch(`${url}/reviews/${name}`, { method: "POST", body: "{}" })).status, 200);
+    assert.equal((await fetch(`${url}/reviews/${name}`)).status, 405);
+  }
+  assert.equal((await fetch(`${url}/reviews/workbench`)).status, 200);
+  assert.equal((await fetch(`${url}/reviews/products?url=http://127.0.0.1`)).status, 400);
+});
+
 test("fixed target and route/method/query restrictions block proxy abuse", async (t) => {
   let calls = 0;
   const upstream = await listen(t, (_req, res) => { calls++; res.end("ok"); });

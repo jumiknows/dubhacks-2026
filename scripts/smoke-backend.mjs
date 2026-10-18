@@ -78,6 +78,24 @@ try {
   assert(recommendations.results[0].product.price === "19.99" && recommendations.results[0].total_price === null);
   console.log("PASS: catalog search and raw-product normalization/recommendation");
 
+  const reviewSources = await json(base, "/api/conjure/reviews/sources");
+  assert(Array.isArray(reviewSources.sources));
+  const reviewDemo = await json(base, "/api/conjure/reviews/demo", "POST", { use_llm: false });
+  assert(reviewDemo.source.is_mock && reviewDemo.analysis.provenance === "demo");
+  assert(reviewDemo.analysis.duplicates.length && reviewDemo.analysis.security_flags.length);
+  assert(reviewDemo.analysis.sentiment.classified_count > 0 && reviewDemo.analysis.classification_method === "deterministic");
+  const reviewProduct = { source: "smoke_upload", external_id: "headphones" };
+  const reviewUpload = await json(base, "/api/conjure/reviews/analyze", "POST", {
+    product: reviewProduct,
+    reviews: [{ review_id: "sample-1", product: reviewProduct, text: "Great sound but terrible battery life.", rating: 3 }],
+  });
+  assert(reviewUpload.analysis.provenance === "uploaded" && reviewUpload.analysis.sentiment.counts.mixed === 1);
+  const noAmazonReviews = await json(base, "/api/conjure/reviews/fetch", "POST", { product: { source: "amazon", external_id: "example" } });
+  assert(noAmazonReviews.source.status === "unsupported_source" && noAmazonReviews.analysis === null);
+  const workbench = await fetch(base + "/api/conjure/reviews/workbench");
+  assert(workbench.ok && workbench.headers.get("content-type").includes("text/html"));
+  console.log("PASS: review gateway, synthetic demo, supplied-review analysis, honest unavailable source and workbench");
+
   const { session_id } = await json(base, "/api/conjure/session", "POST", {});
   console.log(live ? "Checking one live Gemini tool-planning turn; key and provider messages withheld..." : "Checking offline fallback SSE...");
   const started = Date.now();

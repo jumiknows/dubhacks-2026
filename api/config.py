@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     session_ttl_s: int = 3600
     session_spend_cap: float = 150.0
 
+    # Review sources are explicitly configured public stores, not approved merchants.
+    # JSON map of short merchant IDs to HTTPS origins; no credentials are needed.
+    review_woocommerce_stores: dict[str, str] = Field(default_factory=dict)
+    review_source_timeout_s: float = Field(default=10.0, gt=0, le=20)
+    review_source_cache_ttl_s: int = Field(default=300, ge=0, le=3600)
+    review_llm_timeout_s: float = Field(default=25.0, gt=0, le=30)
+    review_llm_max_reviews: int = Field(default=12, ge=1, le=30)
+    review_llm_requests_per_minute: int = Field(default=6, ge=1, le=30)
+    review_llm_requests_per_day: int = Field(default=100, ge=1, le=1000)
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.llm_api_key.strip())

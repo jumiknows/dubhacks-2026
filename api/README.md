@@ -1,5 +1,7 @@
 # Conjure API
 
+Review analysis and the evidence workbench: [review insights handoff](../docs/review-insights.md).
+
 FastAPI backend for Conjure. Runs fully on mock data with an empty `.env`.
 
 ```bash

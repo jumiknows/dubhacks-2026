@@ -23,6 +23,8 @@ from api.schemas import (
 )
 from api.sessions import breaker, sessions, tts_cache
 from api.store import store
+from api.reviews.routes import router as reviews_router
+from api.reviews.body_limit import ReviewBodyLimitMiddleware
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("conjure")
@@ -42,6 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Conjure API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(ReviewBodyLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
@@ -52,6 +55,7 @@ app.add_middleware(
 app.mount("/static/products", StaticFiles(directory=DATA_DIR / "images"), name="product-images")
 app.include_router(voice.router)
 app.include_router(recommendations.router)
+app.include_router(reviews_router)
 
 
 @app.exception_handler(checkout.CheckoutError)

@@ -3,9 +3,14 @@
 This branch contains a locally integrated hackathon backend. It does not turn the demo
 inventory, synthetic reviews, or mock payment intents into live integrations.
 
+Review insights now adds optional configured WooCommerce written-review retrieval,
+supplied-review analysis, evidence-checked AI interpretation and a browser workbench.
+See [review insights](docs/review-insights.md) for configuration, API contracts,
+live-check results and merge boundaries. Existing product rankers are unchanged.
+
 ## Validation on this branch
 
-- `npm test`: 21 Node tests and 379 Python tests passed (400 total).
+- Regression suites: 22 Node tests and 539 Python tests passed (561 total).
 - `npm run build`: current frontend production build passed.
 - `npm run smoke:backend`: real local HTTP gateway, plan updates, raw recommendations,
   constrained catalog search and fallback SSE passed.
@@ -138,8 +143,9 @@ rejected before mock payment authorization. Shipping, tax and actual retail paym
 integration remain separate tasks requiring real source data and agreed contracts.
 
 Sessions, plans, caches and audit logs are in memory and are lost on restart.
-ElevenLabs is optional; browser fallback is expected without its key. No live retailer
-search, live review ingestion, FX, domain verification or real charge was implemented.
+ElevenLabs is optional; browser fallback is expected without its key. Live written
+reviews require a configured WooCommerce store. Live retailer product search, FX,
+domain verification and real charges remain outside this branch's implementation.
 
 ## Eventual manual Git integration
 
