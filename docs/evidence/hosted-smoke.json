@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-10-18T06:18:38.830437+00:00",
+  "origin": "https://emberready.jumiknows.chatgpt.site",
+  "access": "Owner-private Sites service authorization, no visitor identity",
+  "sourceCommit": "8d0a583ad851b5090d50107efdc5c820720d567b",
+  "deploymentId": "appgdep_6ad463f504d88191940c9a48266ad495",
+  "results": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/api/places",
+      "status": 200
+    },
+    {
+      "path": "/api/observations?mode=replay&snapshotId=ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29&asOf=2026-10-17T20:49:00Z",
+      "status": 200,
+      "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+      "observationCount": 397
+    },
+    {
+      "path": "/api/observations?mode=live",
+      "status": 200,
+      "snapshotId": "a29a38a066710659e59eca5f3ceb3e4967cbc669f8f82c95b6a84e9f27931df4",
+      "observationCount": 13
+    },
+    {
+      "path": "/api/context?placeId=wa-5311615&snapshotId=a29a38a066710659e59eca5f3ceb3e4967cbc669f8f82c95b6a84e9f27931df4&asOf=2026-10-18T06%3A18%3A22Z&mode=live",
+      "status": 200,
+      "snapshotId": "a29a38a066710659e59eca5f3ceb3e4967cbc669f8f82c95b6a84e9f27931df4",
+      "contextVersion": "wa-5311615|a29a38a066710659e59eca5f3ceb3e4967cbc669f8f82c95b6a84e9f27931df4|live|2026-10-18T06:18:22Z"
+    },
+    {
+      "path": "/api/snapshots/a29a38a066710659e59eca5f3ceb3e4967cbc669f8f82c95b6a84e9f27931df4/provenance",
+      "status": 200,
+      "snapshotId": "a29a38a066710659e59eca5f3ceb3e4967cbc669f8f82c95b6a84e9f27931df4"
+    },
+    {
+      "path": "/api/snapshots/ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29/provenance",
+      "status": 200,
+      "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29"
+    },
+    {
+      "path": "/api/context?placeId=unknown&snapshotId=ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29&asOf=2026-10-17T20:49:00Z&mode=replay",
+      "status": 400,
+      "errorCode": "invalid-input"
+    },
+    {
+      "path": "/api/voice/briefing",
+      "status": 503,
+      "errorCode": "missing-credential"
+    },
+    {
+      "path": "/api/voice/session",
+      "status": 503,
+      "errorCode": "missing-credential"
+    }
+  ],
+  "hostedBrowserTested": false,
+  "note": "Browser tests ran against the Next application in GitHub CI. These are hosted HTTP checks. No real Grok call is claimed."
+}

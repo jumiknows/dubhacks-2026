@@ -43,6 +43,13 @@ export class FirmsLiveClient {
   ) {}
 
   async fetchArea(request: LiveRequest): Promise<LiveResult> {
+    const [west, south, east, north] = request.bbox;
+    const validArea = request.bbox.length === 4 && request.bbox.every(Number.isFinite)
+      && west >= -124.85 && east <= -116.9 && south >= 45.5 && north <= 49.05
+      && west < east && south < north;
+    if (!validArea || !["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"].includes(request.sourceCode)) {
+      return { fetchStatus: "unavailable", body: null, fetchedAt: null, sourceUrl: request.publicFeed ? PUBLIC_NOAA20_URL : REDACTED, error: "upstream-failure" };
+    }
     if (!this.options.apiKey && !request.publicFeed) {
       return { fetchStatus: "unavailable", body: null, fetchedAt: null, sourceUrl: REDACTED, error: "missing-credential" };
     }
@@ -79,7 +86,7 @@ export class FirmsLiveClient {
         fetchStatus: "unavailable",
         body: null,
         fetchedAt: null,
-        sourceUrl: REDACTED,
+        sourceUrl: request.publicFeed ? PUBLIC_NOAA20_URL : REDACTED,
         error: timedOut ? "timeout" : "upstream-failure",
       };
     }
@@ -94,8 +101,24 @@ export class FirmsLiveClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetchImpl(url, { signal: controller.signal });
-      if (!response.ok) throw new Error(`upstream-${response.status}`);
+      let response = await fetchImpl(url, { signal: controller.signal });
+      if (response.status === 429 || response.status >= 500) {
+        const retryAfter = response.headers.get("retry-after");
+        const delay = retryAfter === null ? 250 : /^\d+(\.\d+)?$/.test(retryAfter)
+          ? Number(retryAfter) * 1000 : Math.max(0, Date.parse(retryAfter) - Date.now());
+        // One retry shares the original deadline. Never shorten a provider's wait.
+        if (Number.isFinite(delay) && delay <= 1000) {
+          await response.body?.cancel();
+          await new Promise<void>((resolve, reject) => {
+            const abort = () => { clearTimeout(wait); reject(new DOMException("Aborted", "AbortError")); };
+            const wait = setTimeout(() => { controller.signal.removeEventListener("abort", abort); resolve(); }, delay);
+            if (controller.signal.aborted) abort();
+            else controller.signal.addEventListener("abort", abort, { once: true });
+          });
+          response = await fetchImpl(url, { signal: controller.signal });
+        }
+      }
+      if (!response.ok) { await response.body?.cancel(); throw new Error(`upstream-${response.status}`); }
       const reader = response.body?.getReader();
       if (!reader) throw new Error("empty-body");
       const chunks: Uint8Array[] = []; let size = 0;
