@@ -1,0 +1,767 @@
+{
+  "experiment": "wa-discovery-nextday-v1",
+  "experiment_sha256": "a6ecc0bedf6098a6f2171d7d8c6a827635c59fde8e98ba8e8d108eac91e3a960",
+  "generated_at": "2026-10-18T12:54:59+00:00",
+  "framing": "Retrospective association study. Weather comes from a reanalysis that was not available in real time, so results support no early-warning claim.",
+  "review_budget_cells_per_day": 20,
+  "adequacy_audit_positive_cell_days": {
+    "2013": 1258,
+    "2014": 1415,
+    "2015": 1569,
+    "2016": 1161,
+    "2017": 1248,
+    "2018": 1541,
+    "2019": 1350,
+    "2020": 1447,
+    "2021": 1655,
+    "2022": 1425,
+    "2023": 1719,
+    "2024": 1518
+  },
+  "label_exclusions": {
+    "total_records": 18777,
+    "missing_day_or_year_outside_scope": 0,
+    "missing_location": 0,
+    "outside_gridded_state": 478,
+    "retained_records": 18299,
+    "positive_cell_days": 17306,
+    "records_sharing_a_cell_day": 993,
+    "epoch": "2012-12-01"
+  },
+  "models": {
+    "random_forest": {
+      "params": {
+        "min_samples_leaf": 30,
+        "max_features": "sqrt"
+      },
+      "validation": {
+        "rows": 1278230,
+        "positives": 3080,
+        "prevalence": 0.0024095820001095265,
+        "pr_auc": 0.024299159794824568,
+        "recall_at_budget": 0.11038961038961038,
+        "precision_at_budget": 0.023287671232876714,
+        "false_positives_per_1000_cell_days": 11.15605172777982
+      },
+      "test": {
+        "rows": 1279981,
+        "positives": 3237,
+        "prevalence": 0.002528943789009368,
+        "pr_auc": 0.021055303318840982,
+        "recall_at_budget": 0.09453197405004633,
+        "precision_at_budget": 0.020930232558139535,
+        "false_positives_per_1000_cell_days": 11.182978497337071,
+        "brier": 0.0024971634389804563,
+        "brier_reference_prevalence": 0.0025225482323214
+      },
+      "test_intervals": {
+        "pr_auc_95ci": [
+          0.01723455754954811,
+          0.024959055054134722
+        ],
+        "recall_at_budget_95ci": [
+          0.08413176222165593,
+          0.10700509673376551
+        ],
+        "resamples": 200,
+        "unit": "calendar week"
+      },
+      "test_reliability": [
+        {
+          "mean_predicted": 2.5676825060581246e-05,
+          "observed": 0.00010937585449886327,
+          "rows": 127999
+        },
+        {
+          "mean_predicted": 2.5676825060581253e-05,
+          "observed": 3.125048828887951e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 3.87659473613828e-05,
+          "observed": 6.250097657775902e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 9.326333252438662e-05,
+          "observed": 0.00012500195315551805,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0001434741500487106,
+          "observed": 0.0002890670166721355,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00037158096010435126,
+          "observed": 0.0006562602540664698,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0010683726566969084,
+          "observed": 0.0015703370365161957,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0019527972328832286,
+          "observed": 0.0027266051032047377,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.003991836137876214,
+          "observed": 0.00516414318973734,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.013807643123074302,
+          "observed": 0.014554914920545633,
+          "rows": 127998
+        }
+      ],
+      "test_slices": {
+        "year_2023": {
+          "rows": 639115,
+          "positives": 1719,
+          "prevalence": 0.002689656791031348,
+          "pr_auc": 0.02360384449650398,
+          "recall_at_budget": 0.08842350203606748,
+          "precision_at_budget": 0.020821917808219178,
+          "false_positives_per_1000_cell_days": 11.184215673235647
+        },
+        "year_2024": {
+          "rows": 640866,
+          "positives": 1518,
+          "prevalence": 0.0023686698935502896,
+          "pr_auc": 0.01878026162440092,
+          "recall_at_budget": 0.10144927536231885,
+          "precision_at_budget": 0.02103825136612022,
+          "false_positives_per_1000_cell_days": 11.181744701700513
+        },
+        "fire_season_jun_sep": {
+          "rows": 427244,
+          "positives": 2483,
+          "prevalence": 0.005811667337633764,
+          "pr_auc": 0.023755912614883464,
+          "recall_at_budget": 0.09061619009262989,
+          "precision_at_budget": 0.04610655737704918,
+          "false_positives_per_1000_cell_days": 10.89541339375158
+        },
+        "off_season": {
+          "rows": 852737,
+          "positives": 754,
+          "prevalence": 0.0008842116619778431,
+          "pr_auc": 0.011604353151493033,
+          "recall_at_budget": 0.10742705570291777,
+          "precision_at_budget": 0.008316221765913758,
+          "false_positives_per_1000_cell_days": 11.327056290509267
+        },
+        "west_of_cascades": {
+          "rows": 526320,
+          "positives": 1309,
+          "prevalence": 0.0024870801033591732,
+          "pr_auc": 0.02233850245124286,
+          "recall_at_budget": 0.13139801375095492,
+          "precision_at_budget": 0.011764705882352941,
+          "false_positives_per_1000_cell_days": 27.45098039215686
+        },
+        "east_of_cascades": {
+          "rows": 753661,
+          "positives": 1928,
+          "prevalence": 0.0025581793405788545,
+          "pr_auc": 0.02211792067205301,
+          "recall_at_budget": 0.15352697095435686,
+          "precision_at_budget": 0.02024623803009576,
+          "false_positives_per_1000_cell_days": 19.00589256973626
+        },
+        "no_prior_detection_7d_3x3": {
+          "rows": 1159681,
+          "positives": 2847,
+          "prevalence": 0.00245498546583069,
+          "pr_auc": 0.02010807486721938,
+          "recall_at_budget": 0.10467158412363892,
+          "precision_at_budget": 0.020383036935704514,
+          "false_positives_per_1000_cell_days": 12.349947959826883
+        },
+        "prior_detection_7d_3x3": {
+          "rows": 120300,
+          "positives": 390,
+          "prevalence": 0.0032418952618453864,
+          "pr_auc": 0.028801429408860883,
+          "recall_at_budget": 0.4,
+          "precision_at_budget": 0.010820559062218215,
+          "false_positives_per_1000_cell_days": 118.5453034081463
+        }
+      }
+    },
+    "gradient_boosting": {
+      "params": {
+        "max_leaf_nodes": 63
+      },
+      "validation": {
+        "rows": 1278230,
+        "positives": 3080,
+        "prevalence": 0.0024095820001095265,
+        "pr_auc": 0.02464972667570332,
+        "recall_at_budget": 0.1038961038961039,
+        "precision_at_budget": 0.021917808219178082,
+        "false_positives_per_1000_cell_days": 11.171698364144168
+      },
+      "test": {
+        "rows": 1279981,
+        "positives": 3237,
+        "prevalence": 0.002528943789009368,
+        "pr_auc": 0.022066754367993838,
+        "recall_at_budget": 0.08897126969416126,
+        "precision_at_budget": 0.01969904240766074,
+        "false_positives_per_1000_cell_days": 11.197041206080403,
+        "brier": 0.0024949648788960416,
+        "brier_reference_prevalence": 0.0025225482323214
+      },
+      "test_intervals": {
+        "pr_auc_95ci": [
+          0.017256958721293174,
+          0.028153617551111475
+        ],
+        "recall_at_budget_95ci": [
+          0.07934046061781469,
+          0.09967181352261517
+        ],
+        "resamples": 200,
+        "unit": "calendar week"
+      },
+      "test_reliability": [
+        {
+          "mean_predicted": 0.0,
+          "observed": 2.3437683106899272e-05,
+          "rows": 127999
+        },
+        {
+          "mean_predicted": 1.5296616109876815e-05,
+          "observed": 2.3437866216659635e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 3.3213829300888766e-05,
+          "observed": 6.250097657775902e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 5.656025774295786e-05,
+          "observed": 5.468835450553915e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00016329279908888837,
+          "observed": 0.00023437866216659636,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0004311265037979292,
+          "observed": 0.0006093845216331506,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0010097102561297912,
+          "observed": 0.0012656447756996202,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.002077219600620507,
+          "observed": 0.002851607056360256,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.004535256578438108,
+          "observed": 0.005429772340192815,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.01551307279015643,
+          "observed": 0.014734605228206691,
+          "rows": 127998
+        }
+      ]
+    },
+    "logistic_regression": {
+      "params": {
+        "C": 0.01
+      },
+      "validation": {
+        "rows": 1278230,
+        "positives": 3080,
+        "prevalence": 0.0024095820001095265,
+        "pr_auc": 0.021219646739359437,
+        "recall_at_budget": 0.10357142857142858,
+        "precision_at_budget": 0.02184931506849315,
+        "false_positives_per_1000_cell_days": 11.172480695962385
+      },
+      "test": {
+        "rows": 1279981,
+        "positives": 3237,
+        "prevalence": 0.002528943789009368,
+        "pr_auc": 0.020659565538374784,
+        "recall_at_budget": 0.09823911028730306,
+        "precision_at_budget": 0.021751025991792065,
+        "false_positives_per_1000_cell_days": 11.173603358174848,
+        "brier": 0.002497806127281672,
+        "brier_reference_prevalence": 0.0025225482323214
+      },
+      "test_intervals": {
+        "pr_auc_95ci": [
+          0.01731851805534064,
+          0.02420280863398143
+        ],
+        "recall_at_budget_95ci": [
+          0.08687977934099779,
+          0.11042592930029155
+        ],
+        "resamples": 200,
+        "unit": "calendar week"
+      },
+      "test_reliability": [
+        {
+          "mean_predicted": 1.239552438992918e-05,
+          "observed": 7.81256103563309e-06,
+          "rows": 127999
+        },
+        {
+          "mean_predicted": 2.462733494578937e-05,
+          "observed": 7.812622072219878e-06,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 3.8764894156855685e-05,
+          "observed": 8.593884279441866e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00010386759855580499,
+          "observed": 0.00010156408693885842,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00021799796786772595,
+          "observed": 0.0003359427491054548,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0005698567020315301,
+          "observed": 0.0007187612306442288,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0011907765351460604,
+          "observed": 0.0013828341067829185,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0023680430451141926,
+          "observed": 0.002953171143299114,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00483664208391866,
+          "observed": 0.005546961671276114,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.01360290032279156,
+          "observed": 0.0141486585727902,
+          "rows": 127998
+        }
+      ]
+    },
+    "nearest_neighbors": {
+      "params": {
+        "k": 100,
+        "features": [
+          "hist_rate",
+          "hist_rate3x3",
+          "tmax",
+          "tmax_7d",
+          "doy_cos",
+          "vpd",
+          "tmin",
+          "precip_30d",
+          "rh",
+          "wind_max",
+          "precip_7d",
+          "lat"
+        ]
+      },
+      "validation": {
+        "rows": 1278230,
+        "positives": 3080,
+        "prevalence": 0.0024095820001095265,
+        "pr_auc": 0.021740199137009263,
+        "recall_at_budget": 0.10292207792207793,
+        "precision_at_budget": 0.021712328767123288,
+        "false_positives_per_1000_cell_days": 11.17404535959882
+      },
+      "test": {
+        "rows": 1279981,
+        "positives": 3237,
+        "prevalence": 0.002528943789009368,
+        "pr_auc": 0.019639118397007615,
+        "recall_at_budget": 0.08958912573370405,
+        "precision_at_budget": 0.019835841313269494,
+        "false_positives_per_1000_cell_days": 11.195478682886698,
+        "brier": 0.002497601933266898,
+        "brier_reference_prevalence": 0.0025225482323214
+      },
+      "test_intervals": {
+        "pr_auc_95ci": [
+          0.016854070378407145,
+          0.02287683806321304
+        ],
+        "recall_at_budget_95ci": [
+          0.07845140097212684,
+          0.10409947471268785
+        ],
+        "resamples": 200,
+        "unit": "calendar week"
+      },
+      "test_reliability": [
+        {
+          "mean_predicted": 3.302715220465955e-05,
+          "observed": 0.00011718841553449637,
+          "rows": 127999
+        },
+        {
+          "mean_predicted": 3.302715220465955e-05,
+          "observed": 7.812622072219878e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 3.302715220465955e-05,
+          "observed": 7.812622072219878e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 3.302715220465955e-05,
+          "observed": 3.906311036109939e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00021070490387976943,
+          "observed": 0.0003671932373943343,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0004641835766996087,
+          "observed": 0.0006484476319942499,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0011078762618539912,
+          "observed": 0.0014062719729995782,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.001953066209850309,
+          "observed": 0.002500039063110361,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.004509374356369398,
+          "observed": 0.0056172752699260925,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.014866713909040844,
+          "observed": 0.014437725589462335,
+          "rows": 127998
+        }
+      ]
+    },
+    "frequency_baseline": {
+      "params": {
+        "block_km": 50
+      },
+      "validation": {
+        "rows": 1278230,
+        "positives": 3080,
+        "prevalence": 0.0024095820001095265,
+        "pr_auc": 0.013765236573450903,
+        "recall_at_budget": 0.05909090909090909,
+        "precision_at_budget": 0.012465753424657534,
+        "false_positives_per_1000_cell_days": 11.279660155058167
+      },
+      "test": {
+        "rows": 1279981,
+        "positives": 3237,
+        "prevalence": 0.002528943789009368,
+        "pr_auc": 0.013358162764060415,
+        "recall_at_budget": 0.049737411183194316,
+        "precision_at_budget": 0.011012311901504788,
+        "false_positives_per_1000_cell_days": 11.296261428880586,
+        "brier": 0.002506841001976387,
+        "brier_reference_prevalence": 0.0025225482323214
+      },
+      "test_intervals": {
+        "pr_auc_95ci": [
+          0.011170323261317656,
+          0.015957574221235196
+        ],
+        "recall_at_budget_95ci": [
+          0.04141918892859348,
+          0.06138676101126809
+        ],
+        "resamples": 200,
+        "unit": "calendar week"
+      },
+      "test_reliability": [
+        {
+          "mean_predicted": 0.00011896373436313227,
+          "observed": 3.125024414253236e-05,
+          "rows": 127999
+        },
+        {
+          "mean_predicted": 0.00011896373436313225,
+          "observed": 8.593884279441866e-05,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00011896373436313225,
+          "observed": 0.00024219128423881624,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0002543731110419895,
+          "observed": 0.000257816528383256,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0004565354335318363,
+          "observed": 0.00041406896982765354,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0009803521729163176,
+          "observed": 0.0011250175783996624,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.0019782730706036315,
+          "observed": 0.002242222534727105,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.00317287373102281,
+          "observed": 0.0031172362068157314,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.004570576892574023,
+          "observed": 0.006148533570837045,
+          "rows": 127998
+        },
+        {
+          "mean_predicted": 0.012296567408846727,
+          "observed": 0.011625181643463179,
+          "rows": 127998
+        }
+      ]
+    }
+  },
+  "ablation_random_forest": {
+    "season+terrain+history": {
+      "rows": 1279981,
+      "positives": 3237,
+      "prevalence": 0.002528943789009368,
+      "pr_auc": 0.02132076431012793,
+      "recall_at_budget": 0.09823911028730306,
+      "precision_at_budget": 0.021751025991792065,
+      "false_positives_per_1000_cell_days": 11.173603358174848,
+      "pr_auc_95ci": [
+        0.017606592878443975,
+        0.026243473843930554
+      ],
+      "recall_at_budget_95ci": [
+        0.08502851387253424,
+        0.11162384389360566
+      ],
+      "resamples": 100,
+      "unit": "calendar week"
+    },
+    "+thermal": {
+      "rows": 1279981,
+      "positives": 3237,
+      "prevalence": 0.002528943789009368,
+      "pr_auc": 0.021104455988362573,
+      "recall_at_budget": 0.09576768612913192,
+      "precision_at_budget": 0.021203830369357045,
+      "false_positives_per_1000_cell_days": 11.179853450949663,
+      "pr_auc_95ci": [
+        0.017464181128746002,
+        0.0260628508175641
+      ],
+      "recall_at_budget_95ci": [
+        0.08428626764231029,
+        0.10856994087940998
+      ],
+      "resamples": 100,
+      "unit": "calendar week"
+    },
+    "+weather": {
+      "rows": 1279981,
+      "positives": 3237,
+      "prevalence": 0.002528943789009368,
+      "pr_auc": 0.020961176570637605,
+      "recall_at_budget": 0.09453197405004633,
+      "precision_at_budget": 0.020930232558139535,
+      "false_positives_per_1000_cell_days": 11.182978497337071,
+      "pr_auc_95ci": [
+        0.018334309459319905,
+        0.024842341443346252
+      ],
+      "recall_at_budget_95ci": [
+        0.08239999605117675,
+        0.10734872065723126
+      ],
+      "resamples": 100,
+      "unit": "calendar week"
+    },
+    "all": {
+      "rows": 1279981,
+      "positives": 3237,
+      "prevalence": 0.002528943789009368,
+      "pr_auc": 0.02146510891906382,
+      "recall_at_budget": 0.09916589434661724,
+      "precision_at_budget": 0.021956224350205198,
+      "false_positives_per_1000_cell_days": 11.171259573384292,
+      "pr_auc_95ci": [
+        0.018576075556309808,
+        0.025519926314261678
+      ],
+      "recall_at_budget_95ci": [
+        0.08757694911723347,
+        0.11238841872889183
+      ],
+      "resamples": 100,
+      "unit": "calendar week"
+    }
+  },
+  "spatial_transfer": {
+    "held_out_region_model": {
+      "rows": 103071,
+      "positives": 512,
+      "prevalence": 0.004967449622105151,
+      "pr_auc": 0.013779458541296136,
+      "recall_at_budget": 0.205078125,
+      "precision_at_budget": 0.007181942544459644,
+      "false_positives_per_1000_cell_days": 140.8252563766724
+    },
+    "model_trained_with_region": {
+      "rows": 103071,
+      "positives": 512,
+      "prevalence": 0.004967449622105151,
+      "pr_auc": 0.01929002060377891,
+      "recall_at_budget": 0.32421875,
+      "precision_at_budget": 0.011354309165526676,
+      "false_positives_per_1000_cell_days": 140.23343132403875
+    },
+    "note": "The held-out model never saw the region and uses no history features. Budget is the same 20 cells per day, applied within the region."
+  },
+  "shap": {
+    "mean_abs_shap": {
+      "hist_rate": 0.0025884002330018867,
+      "hist_rate3x3": 0.0014647681805613137,
+      "tmax": 0.0010760307263358467,
+      "doy_cos": 0.0009898869991483688,
+      "tmax_7d": 0.000829959226900173,
+      "vpd": 0.0005824086779867763,
+      "tmin": 0.0005222965326553337,
+      "precip_30d": 0.00035836505306807747,
+      "lon": 0.00033816087221690536,
+      "lat": 0.0003064500554721196,
+      "precip_7d": 0.00025285689903341724,
+      "doy_sin": 0.00024023232093590779,
+      "precip_1d": 0.00022912187808720255,
+      "rh": 0.00022436373503755946,
+      "elev_mean": 0.00022265917162268711,
+      "elev_relief": 0.00020994297596621493,
+      "wind_max": 0.00019829341274087332,
+      "dry_days": 0.00017333838108152456,
+      "slope_mean": 0.00017151585135284167,
+      "days_since_det": 0.00014282708012744642,
+      "soil_wet": 0.00013150020086487679,
+      "july4_window": 8.501573597571552e-05,
+      "weekend": 6.908654255394883e-05,
+      "det5x5_7d": 6.463702944612364e-05,
+      "det3x3_7d": 3.238451438151995e-05,
+      "det3x3_3d": 2.3924225293731784e-05,
+      "det_30d": 1.9285774823224826e-05,
+      "frp_7d": 7.143370118703395e-06,
+      "det_7d": 5.42123604716569e-06,
+      "det_3d": 2.7309007119521422e-06,
+      "det_1d": 1.9099035307307417e-06
+    },
+    "base_value": 0.002148776342324729,
+    "rows": 3000,
+    "example": {
+      "cell_id": "wa10k_-187_284",
+      "date": "2024-07-07",
+      "score": 0.14298934654398893,
+      "contributions": {
+        "hist_rate": 0.0367673608290971,
+        "hist_rate3x3": 0.02094543813409767,
+        "doy_cos": 0.012649951443722813,
+        "tmax": 0.011334449198615338,
+        "slope_mean": 0.008352656815018795,
+        "tmax_7d": 0.008094169143552111,
+        "vpd": 0.006949385249238651,
+        "tmin": 0.0053923311370656585
+      },
+      "feature_values": {
+        "doy_sin": -0.10944576561450958,
+        "doy_cos": -0.9939927458763123,
+        "weekend": 1.0,
+        "july4_window": 1.0,
+        "elev_mean": 254.703125,
+        "elev_relief": 7.6315131187438965,
+        "slope_mean": 0.704741358757019,
+        "lat": 46.42146301269531,
+        "lon": -120.46440887451172,
+        "det_1d": 0.0,
+        "det_3d": 0.0,
+        "det_7d": 0.0,
+        "det_30d": 1.0,
+        "det3x3_3d": 5.0,
+        "det3x3_7d": 5.0,
+        "det5x5_7d": 16.0,
+        "frp_7d": 0.0,
+        "days_since_det": 21.0,
+        "tmax": 34.95000076293945,
+        "tmin": 15.15999984741211,
+        "rh": 33.13999938964844,
+        "vpd": 3.7489490509033203,
+        "wind_max": 4.599999904632568,
+        "soil_wet": 0.3799999952316284,
+        "dry_days": 7.0,
+        "precip_1d": 0.0,
+        "precip_7d": 0.03999999910593033,
+        "precip_30d": 13.5,
+        "tmax_7d": 29.26285743713379,
+        "hist_rate": 46.54346466064453,
+        "hist_rate3x3": 155.71527099609375
+      }
+    }
+  },
+  "knn_permutation_importance": {
+    "hist_rate": 0.12626928670185852,
+    "hist_rate3x3": 0.035393546307942246,
+    "doy_cos": 0.018424447182712838,
+    "precip_30d": 0.013087017824808866,
+    "precip_7d": 0.012052599186614185,
+    "tmin": 0.008815821431029103,
+    "tmax": 0.007122885250521645,
+    "rh": 0.006056928637142522,
+    "vpd": 0.005456782241852846,
+    "lat": 0.004613401405030693,
+    "tmax_7d": 0.0038992207687678824,
+    "wind_max": 0.0031699705252314545
+  },
+  "decision_gate": "Unset. The product owner and a qualified domain reviewer must set numeric thresholds before any model can be promoted. Results stay offline research.",
+  "runtime_seconds": 2533
+}

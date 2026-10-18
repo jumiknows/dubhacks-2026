@@ -69,11 +69,13 @@ export function Workspace({ demo }: { demo: DemoProps }) {
   useEffect(() => {
     fetch("/api/risk").then((response) => response.ok ? response.json() : null).then(setRiskMeta).catch(() => setRiskMeta(null));
   }, []);
-  const riskDate = useMemo(() => {
-    if (!riskMeta) return null;
-    if (mode === "replay") return cutoff ? riskDateFor(cutoff) : null;
+  // The ranking for the cutoff's day, or the latest ranked day before it when that day is not scored yet.
+  const { riskDate, riskRequested } = useMemo(() => {
+    if (!riskMeta) return { riskDate: null, riskRequested: null };
+    const requested = mode === "replay" && cutoff ? riskDateFor(cutoff) : null;
     const scored = Object.values(riskMeta.summary.dates).filter((entry) => entry.status !== "unavailable").map((entry) => entry.date).sort();
-    return scored.at(-1) ?? null;
+    const chosen = (requested ? scored.filter((date) => date <= requested) : scored).at(-1) ?? null;
+    return { riskDate: chosen, riskRequested: requested ?? chosen };
   }, [riskMeta, mode, cutoff]);
   useEffect(() => {
     if (!riskDate) { setRiskDay(null); return; }
@@ -179,7 +181,7 @@ export function Workspace({ demo }: { demo: DemoProps }) {
         </details>
       </> : <p className="briefing empty">A live briefing is unavailable until a live source snapshot loads. No replay observations are shown in Live mode.</p>}
 
-      {riskMeta ? <RiskPanel summary={riskMeta.summary} date={riskDate} day={riskDay} cell={riskCell} shown={showRisk} onToggle={() => setShowRisk((value) => !value)} /> : null}
+      {riskMeta ? <RiskPanel summary={riskMeta.summary} requested={riskRequested} date={riskDate} day={riskDay} cell={riskCell} shown={showRisk} onToggle={() => setShowRisk((value) => !value)} /> : null}
 
       <VoicePanel key={context?.contextVersion ?? `${place.id}|${mode}|unavailable`} context={context} />
       <div className="share">

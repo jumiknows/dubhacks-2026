@@ -110,6 +110,8 @@ def main() -> None:
         "",
         "![Recall at budget](figures/recall_at_budget.png)",
         "",
+        "Run history: the first complete run stopped after scoring the test years because one fitted model could not be saved. After that fix the unchanged pipeline, configuration and seed were run again and produced the same test metrics, so no setting was changed after seeing the test.",
+        "",
         "### Feature sets (Random Forest, same settings)",
         "",
         f"| Features | PR-AUC | Recall at {budget}/day | 95% interval |",
@@ -120,6 +122,8 @@ def main() -> None:
     lines += [
         "",
         "### Slices (Random Forest)",
+        "",
+        "Each slice applies the 20-cell budget within the slice. A smaller pool makes the budget easier to fill, so slice recall is not comparable with the overall figure. Compare PR-AUC against each slice's prevalence instead.",
         "",
         f"| Slice | Positives | Prevalence | PR-AUC | Recall at {budget}/day |",
         "| --- | --- | --- | --- | --- |",

@@ -217,7 +217,7 @@ code { font-family: var(--font-mono), ui-monospace, monospace; font-size: 11px; 
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .panel h2 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
 .band {
-  display: inline-flex; align-items: center; gap: 8px; margin: 0;
+  display: inline-flex; flex: none; align-items: center; gap: 8px; margin: 0; white-space: nowrap;
   padding: 4px 10px; border-radius: 999px; border: 1px solid currentColor;
   font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
 }

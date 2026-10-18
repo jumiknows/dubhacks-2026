@@ -25,6 +25,8 @@ function shortDate(date: string): string {
 
 interface RiskPanelProps {
   summary: RiskSummary;
+  /** The day the view asks for. `date` is the day actually shown, which can be earlier. */
+  requested: string | null;
   date: string | null;
   day: RiskDay | null;
   cell: number | null;
@@ -32,8 +34,8 @@ interface RiskPanelProps {
   onToggle: () => void;
 }
 
-export function RiskPanel({ summary, date, day, cell, shown, onToggle }: RiskPanelProps) {
-  const listed = date ? summary.dates[date] : undefined;
+export function RiskPanel({ summary, requested, date, day, cell, shown, onToggle }: RiskPanelProps) {
+  const pending = requested && requested !== date ? summary.dates[requested] : undefined;
   const cells = day?.cells;
   const total = cells?.rank.length ?? 0;
   const test = summary.test;
@@ -43,11 +45,12 @@ export function RiskPanel({ summary, date, day, cell, shown, onToggle }: RiskPan
       <span className="risk-tag">Research model</span>
       <button type="button" className="chip" aria-pressed={shown} onClick={onToggle}>{shown ? "On map" : "Show on map"}</button>
     </div>
+    {requested && requested !== date ? <p className="risk-note">
+      No ranking for {shortDate(requested)} yet{pending && !pending.coverage.weatherForPreviousDay ? ": NASA weather for the day before is not published" : ""}.
+      {date ? ` Showing ${shortDate(date)}, the latest ranked day.` : ""}
+    </p> : null}
     {!date ? <p className="nothing">No ranking is available for this view.</p>
-      : !day || !cells ? <p className="nothing">
-        No ranking for {shortDate(date)}.{" "}
-        {listed && !listed.coverage.weatherForPreviousDay ? "NASA weather for the day before is not published yet." : "This day was not scored."}
-      </p>
+      : !day || !cells ? <p className="nothing">Loading the ranking for {shortDate(date)}…</p>
       : cell === null ? <p className="nothing">This community is outside the ranked grid.</p>
       : <>
         <p className="risk-line">

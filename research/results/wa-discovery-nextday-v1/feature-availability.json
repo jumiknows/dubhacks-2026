@@ -1,0 +1,61 @@
+{
+  "rule": "Target dates are FPA FOD local discovery days. FIRMS acquisitions are converted to America/Los_Angeles dates. Every feature for target day D uses data dated D-1 or earlier.",
+  "groups": {
+    "season": {
+      "features": [
+        "doy_sin",
+        "doy_cos",
+        "weekend",
+        "july4_window"
+      ],
+      "availability": "Calendar only, known in advance."
+    },
+    "terrain": {
+      "features": [
+        "elev_mean",
+        "elev_relief",
+        "slope_mean",
+        "lat",
+        "lon"
+      ],
+      "availability": "Static SRTMGL3 (2000 acquisition), available before every target day."
+    },
+    "thermal": {
+      "features": [
+        "det_1d",
+        "det_3d",
+        "det_7d",
+        "det_30d",
+        "det3x3_3d",
+        "det3x3_7d",
+        "det5x5_7d",
+        "frp_7d",
+        "days_since_det"
+      ],
+      "availability": "FIRMS acquisitions converted to Pacific dates, summed through D-1. The yearly archive mixes near-real-time and later standard-processing rows, so values can differ slightly from what was visible at the time."
+    },
+    "weather": {
+      "features": [
+        "tmax",
+        "tmin",
+        "rh",
+        "vpd",
+        "wind_max",
+        "precip_1d",
+        "precip_7d",
+        "precip_30d",
+        "dry_days",
+        "soil_wet",
+        "tmax_7d"
+      ],
+      "availability": "NASA POWER daily values for D-1 from MERRA-2 reanalysis, typically published days later. Not available in real time: retrospective only."
+    },
+    "history": {
+      "features": [
+        "hist_rate",
+        "hist_rate3x3"
+      ],
+      "availability": "FPA FOD discovery rates from training years only, leave-one-year-out within training."
+    }
+  }
+}

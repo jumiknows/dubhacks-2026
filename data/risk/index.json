@@ -1,0 +1,181 @@
+{
+  "dates": {
+    "2026-10-10": {
+      "date": "2026-10-10",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 0,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-11": {
+      "date": "2026-10-11",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 0,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-12": {
+      "date": "2026-10-12",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 1,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-13": {
+      "date": "2026-10-13",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 2,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-14": {
+      "date": "2026-10-14",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 3,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-15": {
+      "date": "2026-10-15",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 4,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-16": {
+      "date": "2026-10-16",
+      "status": "partial",
+      "coverage": {
+        "thermalDays": 5,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": true
+      }
+    },
+    "2026-10-17": {
+      "date": "2026-10-17",
+      "status": "unavailable",
+      "coverage": {
+        "thermalDays": 6,
+        "thermalDaysNeeded": 7,
+        "weatherForPreviousDay": false
+      }
+    }
+  },
+  "experiment": "wa-discovery-nextday-v1",
+  "label": "Research ranking of where a wildfire discovery is most likely to be recorded next",
+  "framing": "Retrospective association study. Weather comes from a reanalysis that was not available in real time, so results support no early-warning claim.",
+  "model": {
+    "algorithm": "Random Forest",
+    "params": {
+      "min_samples_leaf": 30,
+      "max_features": "sqrt"
+    },
+    "features": [
+      "doy_sin",
+      "doy_cos",
+      "weekend",
+      "july4_window",
+      "elev_mean",
+      "elev_relief",
+      "slope_mean",
+      "lat",
+      "lon",
+      "det_1d",
+      "det_3d",
+      "det_7d",
+      "det3x3_3d",
+      "det3x3_7d",
+      "det5x5_7d",
+      "frp_7d",
+      "tmax",
+      "tmin",
+      "rh",
+      "vpd",
+      "wind_max",
+      "precip_1d",
+      "precip_7d",
+      "precip_30d",
+      "dry_days",
+      "soil_wet",
+      "tmax_7d",
+      "hist_rate",
+      "hist_rate3x3"
+    ],
+    "trainedYears": [
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020
+    ],
+    "calibratedOn": [
+      2021,
+      2022
+    ]
+  },
+  "test": {
+    "years": [
+      2023,
+      2024
+    ],
+    "prAuc": 0.02087748357865606,
+    "prevalence": 0.002528943789009368,
+    "recallAtBudget": 0.09700339820821749,
+    "budgetCellsPerDay": 20,
+    "recallAtBudget95ci": [
+      0.08617981003023287,
+      0.1104547758583782
+    ]
+  },
+  "tiers": {
+    "highest": "top 1% of cells that day",
+    "high": "top 5% of cells that day",
+    "elevated": "top 20% of cells that day"
+  },
+  "plainLanguage": {
+    "doy_sin": "time of year",
+    "doy_cos": "time of year",
+    "weekend": "weekend",
+    "july4_window": "Independence Day week",
+    "elev_mean": "elevation",
+    "elev_relief": "terrain relief",
+    "slope_mean": "slope",
+    "lat": "location",
+    "lon": "location",
+    "det_1d": "satellite heat in the cell yesterday",
+    "det_3d": "satellite heat in the cell, last 3 days",
+    "det_7d": "satellite heat in the cell, last 7 days",
+    "det3x3_3d": "satellite heat within 10 km, last 3 days",
+    "det3x3_7d": "satellite heat within 10 km, last 7 days",
+    "det5x5_7d": "satellite heat within 20 km, last 7 days",
+    "frp_7d": "fire radiative power, last 7 days",
+    "tmax": "yesterday's high temperature",
+    "tmin": "yesterday's low temperature",
+    "rh": "yesterday's humidity",
+    "vpd": "yesterday's air dryness (vapour-pressure deficit)",
+    "wind_max": "yesterday's peak wind",
+    "precip_1d": "yesterday's rain",
+    "precip_7d": "rain in the last 7 days",
+    "precip_30d": "rain in the last 30 days",
+    "dry_days": "days since meaningful rain",
+    "soil_wet": "topsoil wetness",
+    "tmax_7d": "7-day average high temperature",
+    "hist_rate": "past recorded discoveries in this cell",
+    "hist_rate3x3": "past recorded discoveries nearby"
+  }
+}

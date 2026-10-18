@@ -1,0 +1,47 @@
+{
+  "experiment_sha256": "a6ecc0bedf6098a6f2171d7d8c6a827635c59fde8e98ba8e8d108eac91e3a960",
+  "splits": {
+    "train": {
+      "days": 2922,
+      "cells": 1751,
+      "rows": 5116422,
+      "positives": 10989,
+      "row_hash_sha256": "137463e0b5bbb84a3d1ef5d6ad72e80312bdc4d99ea1a46756221fe8fe7cdf31"
+    },
+    "validation": {
+      "days": 730,
+      "cells": 1751,
+      "rows": 1278230,
+      "positives": 3080,
+      "row_hash_sha256": "05a0c57ddb35bca8210c969ab15275fb09ef8a405d0a48bc09de90688e704ca6"
+    },
+    "test": {
+      "days": 731,
+      "cells": 1751,
+      "rows": 1279981,
+      "positives": 3237,
+      "row_hash_sha256": "52f166acfc79c875580dbe1b0340c059238583569e9db96ec0a95e2e74c184db"
+    },
+    "transfer_train": {
+      "days": 2922,
+      "cells": 1579,
+      "rows": 4613838,
+      "positives": 8371,
+      "row_hash_sha256": "751c1b1a9ffd996f2ffd6e6af14ef4d5698c39f4b6498ef3f813a4c28d2eb7b4"
+    },
+    "transfer_validation": {
+      "days": 730,
+      "cells": 1579,
+      "rows": 1152670,
+      "positives": 2230,
+      "row_hash_sha256": "7199fa8e763a979108e4d84aa89ec5a9ee807227ea447b3d78fa4210ea351aad"
+    },
+    "transfer_test": {
+      "days": 731,
+      "cells": 141,
+      "rows": 103071,
+      "positives": 512,
+      "row_hash_sha256": "6b22e6e16c3b5ec6adbef55604a3d07c0c73c2709d9962a28e25b8e058e8d892"
+    }
+  }
+}
