@@ -1,0 +1,17 @@
+[
+  {
+    "id": "m_dermadirect",
+    "name": "DermaDirect",
+    "verified": true
+  },
+  {
+    "id": "m_glowmart",
+    "name": "Glow Mart",
+    "verified": true
+  },
+  {
+    "id": "m_bargainbay",
+    "name": "Bargain Bay",
+    "verified": false
+  }
+]
