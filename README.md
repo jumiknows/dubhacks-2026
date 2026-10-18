@@ -1,8 +1,14 @@
-# SpaceX 2026 Hacks
+# EmberReady
 
-Team hackathon workspace with ALEASAT-inspired contribution and review practices.
+Satellite evidence to accessible community wildfire briefings.
 
-**Status:** repository foundation is ready. The application stack and demo scope still need to be selected.
+**Status:** the repository foundation and implementation plan are ready. The application is not implemented yet.
+
+EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
+
+Start with the [implementation epic](https://github.com/jumiknows/spacex2026Hacks/issues/10), [product brief](docs/PRODUCT_BRIEF.md), and [Grok handoff](docs/GROK_HANDOFF.md).
+
+The heatmap represents observed thermal activity. The MVP does not claim ignition prediction, fire spread forecasts, or evacuation guidance.
 
 ## Start here
 
@@ -39,6 +45,13 @@ Use real GitHub issue numbers in branches and pull requests. Example: `feat/12-d
 
 ## Working guides
 
+- [Product scope and demo goals](docs/PRODUCT_BRIEF.md)
+- [Architecture and component boundaries](docs/ARCHITECTURE.md)
+- [Data and API contracts](docs/CONTRACTS.md)
+- [Verified data sources](docs/DATA_SOURCES.md)
+- [Grok Bot and Cursor implementation handoff](docs/GROK_HANDOFF.md)
+- [Three-minute demo script](docs/DEMO_SCRIPT.md)
+- [Build and sponsor evidence](docs/BUILD_EVIDENCE.md)
 - [Contribution steps](CONTRIBUTING.md)
 - [Branches, issues, and work queue](docs/WORKFLOW.md)
 - [Engineering review standard](docs/ENGINEERING_STANDARD.md)
