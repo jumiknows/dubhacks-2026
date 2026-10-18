@@ -23,6 +23,7 @@ export class VoiceConnection {
   private ready = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private nextAudio = 0;
+  private maxQueuedSeconds = MAX_QUEUED_SECONDS;
   // Microphone audio is batched into 40 ms chunks before sending.
   private chunk = new Int16Array(CHUNK_SAMPLES);
   private chunkFill = 0;
@@ -59,6 +60,7 @@ export class VoiceConnection {
     if (this.stopped) return;
     if (!response.ok || !accept(session)) throw new Error(session.error?.message ?? "Voice context did not match. Retry from the selected community.");
     const seconds = Math.min(session.sessionSeconds, options.maxSeconds ?? 120);
+    this.maxQueuedSeconds = Math.min(MAX_QUEUED_SECONDS, seconds);
     this.ws = new WebSocket(`wss://api.x.ai/v1/realtime?model=${encodeURIComponent(session.model)}`, [`xai-client-secret.${session.token}`]);
     this.timer = setTimeout(() => { this.stop(); this.onState(`The ${Math.round(seconds / 60)}-minute session ended. Start a new session to continue.`, false); }, seconds * 1000);
     this.ws.onopen = () => this.send({ type: "session.update", session: {
@@ -177,8 +179,9 @@ export class VoiceConnection {
     for (let i = 0; i < data.length; i += 1) data[i] = samples.getInt16(i * 2, true) / 32768;
     const source = this.audio.createBufferSource(); source.buffer = buffer; source.connect(this.audio.destination);
     const start = Math.max(this.nextAudio, this.audio.currentTime);
-    // xAI streams faster than real time, so a long answer can queue well ahead. Only a runaway stream stops.
-    if (start - this.audio.currentTime > MAX_QUEUED_SECONDS) { this.fail("Voice output exceeded the demo buffer. Use the transcript."); return; }
+    // Grok can deliver a complete answer much faster than real-time playback.
+    // Include each incoming chunk, bounded by this session and the playback cap.
+    if (start - this.audio.currentTime + buffer.duration > this.maxQueuedSeconds) { this.fail("Voice output exceeded the demo buffer. Use the transcript."); return; }
     this.sources.add(source); source.onended = () => this.sources.delete(source);
     source.start(start); this.nextAudio = start + buffer.duration;
     this.echoTailUntil = this.nextAudio + ECHO_TAIL_SECONDS;

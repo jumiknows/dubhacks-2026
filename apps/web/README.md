@@ -16,8 +16,12 @@ npm run test:browser
 
 Copy `apps/web/.env.example` to a private environment file. `FIRMS_MAP_KEY` and `XAI_API_KEY` stay on the server. Without a FIRMS key, live observations use the fixed public NOAA-20 24-hour CSV and filter it to Washington. A key enables the bounded SNPP Area API. No xAI key means spoken briefings and conversation return an unavailable state. The replay snapshot still loads.
 
-Voice is fail-closed. Use `VOICE_ACCESS_MODE=private-site` only behind the owner-private Sites boundary. For another host, set `VOICE_ACCESS_TOKEN` and enter that demo access code in the Voice panel. The per-process ten-minute quotas are 20 speech requests and five sessions. The browser ends conversation after two minutes. These are demo controls, not a global provider spending cap. Set a provider account budget before wider access.
+Voice is fail-closed. Use `VOICE_ACCESS_MODE=private-site` only behind the owner-private Sites boundary. This mode requires site identity and rejects code-only access even if an old access code remains in the runtime. For another host, set `VOICE_ACCESS_TOKEN` and enter that demo access code in the Voice panel. The per-process ten-minute quotas are 20 speech requests and five sessions. The browser ends conversation after two minutes. These are demo controls, not a global provider spending cap. Set a provider account budget before wider access.
 
 `npm ci` validates and bundles the checked-in replay. The web server reads that immutable bundle without runtime filesystem access. Live snapshots are retained in process memory, up to 32 IDs. Restart and another server instance can make a live ID unavailable. Replay IDs survive restart.
 
 The basemap defaults to `https://tiles.openfreemap.org/styles/liberty`. The place list and briefing remain usable when tiles do not load.
+
+Grok may stream an answer much faster than playback. The client accepts up to 120 seconds of queued audio for community briefings and up to 180 seconds for the longer shopping session. Each incoming chunk counts toward the bound. Stop and context changes release scheduled sources. An 80-second burst and over-limit cleanup are covered by tests.
+
+An Earthdata bearer token is not a `FIRMS_MAP_KEY`. Obtain the separate key through the [official FIRMS map-key page](https://firms.modaps.eosdis.nasa.gov/api/map_key/). The public NOAA-20 fallback needs neither credential.

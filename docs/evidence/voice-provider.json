@@ -1,0 +1,132 @@
+{
+  "checkedAt": "2026-10-18T11:16:55.092433+00:00",
+  "origin": "https://emberready.jumiknows.chatgpt.site",
+  "applicationSource": "8d4ef4e94f1823d5d854a4925b5a8aaf33663a7a",
+  "deploymentId": "appgdep_6ad4aa90df0c8191a5c323b19f4cc901",
+  "environmentRevision": 3,
+  "method": "Hosted HTTP and ephemeral-token WebSocket client, no browser or microphone",
+  "results": [
+    {
+      "route": "/api/voice/session",
+      "authorization": "platform service only, without Voice code",
+      "status": 403,
+      "errorCode": "forbidden"
+    },
+    {
+      "route": "/api/voice/briefing",
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "bytes": 1203840,
+      "selection": {
+        "placeId": "wa-5311615",
+        "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+        "asOf": "2026-10-17T20:49:00Z",
+        "mode": "replay"
+      },
+      "audioSha256": "914eccfdc5f6cc8040b31f23cb7a18515a459d9b5c4d53b705fdda7d85db4f7c",
+      "hasMp3Header": true
+    },
+    {
+      "route": "/api/voice/session",
+      "status": 200,
+      "tokenReturned": true,
+      "model": "grok-voice-latest",
+      "errorCode": null
+    }
+  ],
+  "humanReviews": [],
+  "conversation": {
+    "question": "How many observations are near the selected community, what time are these data from, and does no nearby detection mean it is safe?",
+    "model": "grok-voice-latest",
+    "voice": "eve",
+    "contextVersion": "wa-5311615|ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29|replay|2026-10-17T20:49:00Z",
+    "toolCalls": [
+      {
+        "name": "get_place_context",
+        "arguments": {
+          "placeId": "wa-5311615",
+          "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+          "asOf": "2026-10-17T20:49:00Z"
+        },
+        "status": 200,
+        "context": {
+          "contextVersion": "wa-5311615|ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29|replay|2026-10-17T20:49:00Z",
+          "placeId": "wa-5311615",
+          "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+          "mode": "replay",
+          "asOf": "2026-10-17T20:49:00Z",
+          "nearestObservationKm": 85.3,
+          "matchingObservationIds": [],
+          "countLast24h": 46,
+          "attentionBand": "no-signal",
+          "ruleVersion": "1",
+          "reasons": [
+            "The nearest qualifying observation is farther than 25 km.",
+            "Low confidence observations stay visible and do not set this band."
+          ],
+          "sources": [
+            {
+              "provider": "NASA FIRMS",
+              "product": "VIIRS_NOAA20_NRT",
+              "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_7d.csv",
+              "fetchedAt": "2026-10-18T04:34:28Z",
+              "newestObservationAt": "2026-10-17T20:49:00Z",
+              "fetchStatus": "ok",
+              "coverageStatus": "unknown",
+              "requestRange": {
+                "regionId": "wa-demo",
+                "bbox": [
+                  -124.85,
+                  45.5,
+                  -116.9,
+                  49.05
+                ],
+                "windowStart": "2026-10-10T09:54:00Z",
+                "windowEnd": "2026-10-17T20:49:00Z"
+              }
+            }
+          ],
+          "officialInfoLinks": [
+            {
+              "label": "Chelan County Emergency Management",
+              "url": "https://www.co.chelan.wa.us/emergency-management"
+            },
+            {
+              "label": "Washington Emergency Management wildfire resources",
+              "url": "https://mil.wa.gov/wildfire"
+            }
+          ],
+          "briefingText": "Chelan is shown in replay mode. The selected cutoff is 2026-10-17 20:49 UTC (Oct 17, 2026, 13:49 PDT). 46 nominal or high confidence thermal observations were acquired in the Washington snapshot during the 24 hours ending at the cutoff. 0 of them are within 25 km. The nearest is 85.3 km from the representative place coordinate. The latest qualifying observation time is 2026-10-17 20:49 UTC. The source file was retrieved at 2026-10-18 04:34 UTC. Attention band no-signal means No matching observations in this snapshot. Rule version 1. Distances of 5 km and 25 km sort observations for this demo. They are not a fire probability, a perimeter, or an evacuation instruction. Satellite coverage can be incomplete. No detections does not establish safety. Evacuation status, road access, and current weather are outside this dataset. Use the official information links. This is an observation-time replay. Current weather and current alerts are not included."
+        }
+      }
+    ],
+    "transcript": "Checking the selected community context now.For the selected community in replay mode, there are 46 thermal observations in the last 24 hours across the Washington snapshot, but zero are within 25 km of the place. The nearest is 85.3 km away. These data run through 2026-10-17 20:49 UTC, which is 1:49 PM Pacific on October 17, 2026, and the source file was pulled at 04:34 UTC on October 18. The source is NASA FIRMS using the VIIRS sensor on the NOAA-20 satellite, covering a bounding box over Washington from October 10 through the cutoff time. Coverage status for that fetch is unknown, so gaps are possible. The no-signal band simply means no matching observations fell inside 25 km under rule version 1. It does not mean the area is safe. A thermal detection is not a confirmed wildfire, and no detections do not rule one out. Evacuation status, road access, and weather are outside this dataset, so for those use the Chelan County Emergency Management or Washington Emergency Management wildfire links shown on screen.",
+    "audioBytes": 3531360,
+    "eventTypes": [
+      "session.created",
+      "conversation.created",
+      "ping",
+      "session.updated",
+      "conversation.item.added",
+      "response.created",
+      "response.output_item.added",
+      "response.content_part.added",
+      "response.output_audio.delta",
+      "response.output_audio_transcript.delta",
+      "response.output_audio_transcript.done",
+      "response.content_part.done",
+      "response.output_audio.done",
+      "response.output_item.done",
+      "response.function_call_arguments.delta",
+      "response.function_call_arguments.done",
+      "response.done"
+    ],
+    "responseStatuses": [
+      "completed",
+      "completed"
+    ],
+    "audioSha256": "26c2ec1ef06113321ce899bf42ee7f2e3aa9e1ae3288785ccd7898af7cac3478",
+    "generatedAudioSeconds": 73.57,
+    "transportPassed": true
+  }
+}

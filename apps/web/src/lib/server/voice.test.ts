@@ -39,6 +39,14 @@ afterEach(() => vi.unstubAllEnvs());
 const selected = { placeId: "wa-1", snapshotId: "known", asOf: "2026-10-17T12:00:00Z", mode: "replay" as const };
 const args = { placeId: selected.placeId, snapshotId: selected.snapshotId, asOf: selected.asOf };
 describe("bounded Voice access and grounding", () => {
+  it("requires site identity in private mode even when an access code remains configured", () => {
+    vi.stubEnv("XAI_API_KEY", "synthetic-test-key");
+    vi.stubEnv("VOICE_ACCESS_MODE", "private-site");
+    vi.stubEnv("VOICE_ACCESS_TOKEN", "old-test-access");
+    const endpoint = "https://demo.example/api/voice/briefing";
+    expect(voiceAccess(new Request(endpoint, { headers: { Authorization: "Bearer old-test-access" } }), "speech")?.status).toBe(403);
+    expect(voiceAccess(new Request(endpoint, { headers: { "oai-authenticated-user-id": "test-site-owner" } }), "speech")).toBeNull();
+  });
   it("signs a context and rejects other places, snapshots, times, extra arguments and expiration", () => {
     vi.stubEnv("XAI_API_KEY", "synthetic-test-key");
     const ticket = contextTicket(selected, 1000);

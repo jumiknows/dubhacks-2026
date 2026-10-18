@@ -2,7 +2,7 @@
 
 Community wildfire briefings from satellite observations.
 
-**Status:** real NASA replay and public-feed live observations, the accessible map and list, deterministic briefings, and a verified data pipeline are implemented. Grok Voice code is connected but real audio and conversation still need an xAI key. Twelve evaluation cases are prepared and await actual outputs and human review. No wildfire model has been trained.
+**Status:** real NASA replay and public-feed live observations, the accessible map and list, deterministic briefings, and a verified data pipeline are implemented. Actual Grok speech and a grounded conversation have succeeded through the private deployment. Twelve evaluation scenarios now have provider evidence, including eleven completed answers and one deliberate cancellation. [Human review](data/evaluation/REVIEW_PACKET.md) and hosted browser checks remain open. No wildfire model has been trained.
 
 [Open the private demo](https://emberready.jumiknows.chatgpt.site). Access is limited to the site owner. [Test and deployment evidence](docs/RELEASE_READINESS.md) records what works and the remaining release gates.
 

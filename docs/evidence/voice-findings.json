@@ -1,0 +1,26 @@
+{
+  "reviewType": "assistant inspection, not a human review",
+  "firstRun": "2026-10-18-first-provider-run",
+  "revisedRun": "2026-10-18-grounding-revision",
+  "findings": [
+    {
+      "caseId": "map-failure",
+      "firstRunProblem": "The response said low-confidence observations were included in the 46 count, contradicting deterministic context.",
+      "change": "Prompt explicitly excludes low confidence from countLast24h as well as the attention band.",
+      "revisedObservation": "The response now identifies the 46 count as nominal or high confidence. Its nearest-observation timestamp wording still needs review because the tool exposes a source-wide newest timestamp."
+    },
+    {
+      "caseId": "unavailable-source",
+      "firstRunProblem": "The response interpreted zero placeholder fields as no recorded observations despite provider unavailability.",
+      "change": "Prompt forbids interpreting zero values for stale, unavailable or unknown context.",
+      "revisedObservation": "The response says the zero count cannot be read as no activity and retrieval time is unknown."
+    },
+    {
+      "caseId": "streaming-playback",
+      "firstRunProblem": "Provider delivery was much faster than playback. Estimated audio queues exceeded the existing 20-second client cap.",
+      "change": "Queued audio is bounded to 120 seconds including each incoming chunk. Tests cover an 80-second burst, stop and over-limit cleanup."
+    }
+  ],
+  "humanReviews": [],
+  "releaseDecision": "Keep human-review and hosted-browser gates open"
+}

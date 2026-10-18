@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-18T11:22:09.024380+00:00",
+  "origin": "https://emberready.jumiknows.chatgpt.site",
+  "deploymentId": "appgdep_6ad4aa90df0c8191a5c323b19f4cc901",
+  "results": [
+    {
+      "check": "valid",
+      "status": 200,
+      "errorCode": null
+    },
+    {
+      "check": "wrong-place",
+      "status": 400,
+      "errorCode": "invalid-input"
+    },
+    {
+      "check": "wrong-snapshot",
+      "status": 400,
+      "errorCode": "invalid-input"
+    },
+    {
+      "check": "wrong-time",
+      "status": 400,
+      "errorCode": "invalid-input"
+    },
+    {
+      "check": "expired-ephemeral-token",
+      "accepted": false,
+      "httpStatus": 401,
+      "waitedSeconds": 64.9
+    }
+  ]
+}
