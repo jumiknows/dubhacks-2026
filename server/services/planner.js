@@ -67,10 +67,13 @@ const TITLES = {
 export function generatePlan({ prompt, category }) {
   const resolved = resolveCategory(prompt, category);
   const source = itemsForPrompt(prompt, resolved);
+  const planType = source.length === 1 ? "individual" : "plan";
 
   return {
     id: randomUUID(),
     category: resolved,
+    planType,
+    allowBreak: source.length > 1,
     prompt,
     title: TITLES[resolved] || clip(prompt),
     createdAt: new Date().toISOString(),
@@ -94,10 +97,15 @@ function itemsForPrompt(prompt, category) {
 
 function resolveCategory(prompt, category) {
   const text = prompt.toLowerCase();
-  const hinted = HINTS.find((hint) => hint.words.some((word) => text.includes(word)));
+  const hinted = HINTS.find((hint) => hint.words.some((word) => hasKeyword(text, word)));
   if (hinted) return hinted.category;
   if (TEMPLATES[category]) return category;
   return "custom";
+}
+
+function hasKeyword(text, word) {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(text);
 }
 
 function customFromPrompt(prompt) {
@@ -122,12 +130,7 @@ function customFromPrompt(prompt) {
   }
 
   const topic = named[0] || "Custom item";
-  return [
-    { name: topic, quantity: 1, unit: null, reason: "Main pickup" },
-    { name: `${clip(topic, 28)} kit`, quantity: 1, unit: null, reason: "Matching supplies" },
-    { name: "Backup option", quantity: 1, unit: null, reason: "If the first pick is out" },
-    { name: "Consumables", quantity: 1, unit: null, reason: "Day-of extras" },
-  ];
+  return [{ name: topic, quantity: 1, unit: null, reason: "Individual pickup" }];
 }
 
 function clip(prompt, max = 48) {

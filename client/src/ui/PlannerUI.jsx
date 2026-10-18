@@ -61,7 +61,7 @@ export default function PlannerUI({
             id="plan-prompt"
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder="Camping trip, weekly groceries, new laptop…"
+            placeholder="Camping gear, weekly groceries, new laptop…"
           />
           <button className="transition duration-200 ease-snap active:scale-[0.98]" type="submit" disabled={loading || !prompt.trim()}>
             {loading ? "Planning…" : "Build list"}
@@ -72,17 +72,10 @@ export default function PlannerUI({
             {error}
           </p>
         ) : null}
-        <ShopBoard
-          plans={plans}
-          marks={marks}
-          focusId={focusId}
-          onMark={onMark}
-          onToggle={onToggle}
-          onInspect={onInspect}
-        />
+        <ShopBoard plans={plans} marks={marks} focusId={focusId} onMark={onMark} onToggle={onToggle} onInspect={onInspect} />
         <HandToggle />
       </section>
-      <p className="home-hint">Each query stays on the list. One finger scrolls. Both hands split a group. Hold a product two seconds to put it in the cart.</p>
+      <p className="home-hint">Click a plan to reveal its components. Open an item to browse full-screen product options horizontally. Add a product with either a 1-second mouse press-and-hold or a 1-second closed-fist hold.</p>
       <Hints />
     </main>
   );

@@ -3,7 +3,7 @@
  * STATUS: Calls the Python marketplace service, then falls back to the mock catalog.
  *
  * POST {PYTHON_API_URL}/market/search
- *   { query, marketplaces, limit: 50, details: false }
+ *   { query, marketplaces, limit: 8, details: true }
  */
 
 const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
@@ -26,8 +26,11 @@ async function searchPython(query, options) {
       body: JSON.stringify({
         query,
         marketplaces: options.marketplaces || MARKETS,
-        limit: options.limit ?? 50,
-        details: options.details === true,
+        // A product card is a decision surface, not just a title and price.
+        // Ask Selenium for each listing page so image, dimensions, specs, seller,
+        // availability, and review data reach the UI.
+        limit: options.limit ?? 8,
+        details: options.details !== false,
         min_price: options.minPrice ?? options.min_price,
         max_price: options.maxPrice ?? options.max_price,
         brands_include: options.brandsInclude || options.brands_include || [],
@@ -51,7 +54,7 @@ export function toRaw(product) {
     title: product.title,
     price: product.price,
     currency: product.currency || "USD",
-    image: product.image,
+    image: resolveImage(product.image),
     url: product.url,
     dimensions: product.dimensions,
     shippingDays,
@@ -83,6 +86,11 @@ export function toRaw(product) {
     score: product.score ?? null,
     flags: product.flags || [],
   };
+}
+
+function resolveImage(image) {
+  if (!image || /^https?:\/\//i.test(image) || image.startsWith("data:")) return image || null;
+  return `${PYTHON_API}${image.startsWith("/") ? "" : "/"}${image}`;
 }
 
 export function toValued(product) {

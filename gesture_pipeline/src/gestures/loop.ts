@@ -369,8 +369,12 @@ export class GestureController {
         if (named === 'swipe-left') emitNamed('reveal');
         if (named === 'swipe-right') emitNamed('dismiss');
         if (named === 'swipe-up' || named === 'swipe-down') emitNamed('scroll', named === 'swipe-up' ? 0.12 : -0.12);
-        if (named === 'grab' && input.hoveredId) {
-          lane.grabTarget = input.hoveredId; markPressed(lane.grabTarget, true, `fist:${id}`);
+        // The index tip naturally travels inward while the fist closes. Prefer the
+        // last stable hover target so that motion during formation cannot retarget
+        // the grab to a neighboring card or empty space.
+        const fistTarget = lane.engine.hoverId ?? input.hoveredId;
+        if (named === 'grab' && fistTarget) {
+          lane.grabTarget = fistTarget; markPressed(lane.grabTarget, true, `fist:${id}`);
           gestureBus.emit(makeEvent('grab', source, { hand_id: id, target_id: lane.grabTarget, x: input.pointer?.x, y: input.pointer?.y }));
         }
         if (named === 'release') {

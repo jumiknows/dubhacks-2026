@@ -7,11 +7,18 @@ export async function attachOffers(items, options = {}) {
     items.map(async (item) => {
       if (item.purchased || item.synthesis) return item;
 
-      const fetched = await fetchProducts(item.name, options);
+      const fetched = await fetchProducts(item.name, {
+        ...options,
+        details: true,
+        // Detail scraping is intentionally bounded per component so a large plan
+        // stays responsive while still yielding a useful comparison rail.
+        limit: options.productLimit ?? 8,
+      });
       const shortlist = await shortlistTop(fetched, options);
       const synthesis = await synthesize(item, shortlist);
+      const image = synthesis?.image || shortlist.find((product) => product.image)?.image || null;
 
-      return { ...item, products: shortlist, synthesis };
+      return { ...item, products: shortlist, synthesis, image };
     })
   );
 }

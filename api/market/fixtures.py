@@ -62,6 +62,7 @@ def _variants(seed: dict, marketplace: str, count: int) -> list[MarketProduct]:
             title=f"{brand} {seed['title']}" + (" Used" if used else ""),
             brand=brand,
             price=price,
+            image=f"/static/products/p{(index % 20) + 1:02d}.svg",
             url=f"https://www.{marketplace}.com/item/{index}",
             dimensions={"label": seed["specs"].get("packed size") or seed["specs"].get("size") or "see specs"},
             shipping_days=2 if marketplace == "amazon" else 4 + index % 5,
