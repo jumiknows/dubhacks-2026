@@ -1,30 +1,123 @@
 /**
  * OWNER: Synthesis bot
- * STATUS: Stub. Returns a Promise of one display offer for a plan item.
+ * STATUS: Prefers the Python weighted scorer, then local rank.
  *
- * Replace chooseOffer() with a model that weighs price, shipping,
- * dimensions, and images. Keep the Synthesis shape.
- *
- * Synthesis:
- *   { summary, image, dimensions, shippingDate, totalPrice, currency, best, alternatives }
- *   shippingDate: YYYY-MM-DD | null
- *   totalPrice: unit price × quantity, or null when nothing is priced
- *   best: RawProduct | null
- *   alternatives: RawProduct[]
+ * POST {PYTHON_API_URL}/market/synthesize
+ *   { item, products, weights? }
  */
 
-export function synthesize(item, products) {
-  const offer = chooseOffer(item, products);
-  return Promise.resolve(offer);
+const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
+
+export async function synthesize(item, products) {
+  const live = await synthesizePython(item, products);
+  if (live) return live;
+  return chooseOffer(item, products);
+}
+
+async function synthesizePython(item, products) {
+  try {
+    const response = await fetch(`${PYTHON_API}/market/synthesize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        item: {
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          reason: item.reason,
+        },
+        products: products.map(toMarket),
+      }),
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return {
+      summary: body.summary,
+      image: body.image,
+      dimensions: body.dimensions,
+      shippingDate: body.shipping_date,
+      totalPrice: body.total_price,
+      currency: body.currency || "USD",
+      best: body.best ? fromMarket(body.best) : null,
+      alternatives: (body.alternatives || []).map(fromMarket),
+      method: body.method,
+      weights: body.weights,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function toMarket(product) {
+  return {
+    id: product.id,
+    store: product.store,
+    title: product.title,
+    price: product.price,
+    currency: product.currency || "USD",
+    image: product.image,
+    url: product.url,
+    dimensions: product.dimensions,
+    shipping_days: product.shippingDays ?? product.shipping_days ?? null,
+    in_stock: product.inStock !== false && product.in_stock !== false,
+    rating: product.rating ?? null,
+    review_count: product.reviewCount ?? product.review_count ?? 0,
+    seller: product.seller ?? null,
+    seller_rating: product.seller_rating ?? null,
+    condition: product.condition || "new",
+    marketplace: product.marketplace || "amazon",
+    query: product.query || "",
+    brand: product.brand ?? null,
+    specs: product.specs || {},
+    history: product.history ?? null,
+    asin: product.asin ?? null,
+    walmart_id: product.walmart_id ?? null,
+    bang_per_buck: product.bang_per_buck,
+    relevancy: product.relevancy,
+    trust: product.trust,
+    flags: product.flags || [],
+    prime: product.prime ?? false,
+  };
+}
+
+function fromMarket(product) {
+  return {
+    id: product.id,
+    store: product.store,
+    title: product.title,
+    price: product.price,
+    currency: product.currency,
+    image: product.image,
+    url: product.url,
+    dimensions: product.dimensions,
+    shippingDays: product.shipping_days ?? null,
+    shipping_days: product.shipping_days ?? null,
+    inStock: product.in_stock,
+    in_stock: product.in_stock,
+    rating: product.rating,
+    reviewCount: product.review_count,
+    review_count: product.review_count,
+    seller: product.seller,
+    condition: product.condition,
+    marketplace: product.marketplace,
+    brand: product.brand,
+    specs: product.specs || {},
+    history: product.history,
+    bang_per_buck: product.bang_per_buck,
+    relevancy: product.relevancy,
+    trust: product.trust,
+    score: product.score,
+    flags: product.flags || [],
+    scores: product.scores,
+    asin: product.asin,
+    walmart_id: product.walmart_id,
+  };
 }
 
 function chooseOffer(item, products) {
   const ranked = rank(products || []);
   const best = ranked[0] || null;
-
-  if (!best) {
-    return emptyOffer(item);
-  }
+  if (!best) return emptyOffer(item);
 
   const unitPrice = typeof best.price === "number" ? best.price : null;
   const quantity = item.quantity > 0 ? item.quantity : 1;

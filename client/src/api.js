@@ -26,3 +26,17 @@ export function setPurchased(planId, itemId, purchased) {
     body: JSON.stringify({ purchased }),
   });
 }
+
+export function compareItems(left, right, trustFloor = 0.5) {
+  return request("/api/compare", {
+    method: "POST",
+    body: JSON.stringify({ left, right, trust_floor: trustFloor }),
+  });
+}
+
+export function topItems(items, { limit = 10, trustFloor = 0.5 } = {}) {
+  return request("/api/top", {
+    method: "POST",
+    body: JSON.stringify({ items, limit, trust_floor: trustFloor }),
+  });
+}

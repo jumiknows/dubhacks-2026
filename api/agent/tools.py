@@ -6,15 +6,17 @@ review text) and `actions` (UIActions to stream to the frontend).
 
 from __future__ import annotations
 
+import functools
+import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Annotated, Any, Callable
 
 from pydantic import BaseModel, Field
 
 from api import checkout, nlu
 from api.schemas import (
-    Dismissal, HighlightTrust, OpenCompare, PreferenceProfile, Product, RankedProduct, Rerank,
-    ShowResults, Tradeoff, UpdateProfile,
+    Dismissal, FilterTrace, HighlightTrust, OpenCompare, PolicyTrace, PreferenceProfile, Product,
+    RankedProduct, Rerank, ShowResults, Tradeoff, UpdateProfile,
 )
 from api.search import SearchRequest, ranker
 from api.sessions import Session
@@ -25,6 +27,19 @@ from api.store import store
 class ToolOutcome:
     result: dict[str, Any]
     actions: list[BaseModel] = field(default_factory=list)
+    traces: list[BaseModel] = field(default_factory=list)  # filter/policy steps for the glass-box view
+    ms: int = 0
+
+
+def _timed(fn: Callable[..., ToolOutcome]) -> Callable[..., ToolOutcome]:
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> ToolOutcome:
+        t0 = time.perf_counter()
+        out = fn(*args, **kwargs)
+        out.ms = round((time.perf_counter() - t0) * 1000)
+        return out
+
+    return wrapper
 
 
 # --- argument models (validated before any tool runs) ---------------------
@@ -46,9 +61,12 @@ class CompareArgs(BaseModel):
     product_b: str = Field(max_length=20)
 
 
+ProfileValue = Annotated[str, Field(max_length=60)]
+
+
 class ProfileArgs(BaseModel):
-    needs: list[str] | None = None
-    avoid: list[str] | None = None
+    needs: list[ProfileValue] | None = Field(default=None, max_length=20)
+    avoid: list[ProfileValue] | None = Field(default=None, max_length=20)
     budget_max: float | None = Field(default=None, ge=0, le=10_000)
     skin_type: str | None = Field(default=None, max_length=60)
 
@@ -60,6 +78,30 @@ class StageArgs(BaseModel):
 
 
 # --- helpers --------------------------------------------------------------
+
+
+_FRAGRANCE_FREE_WORDS = {"fragrance_free", "fragrancefree", "unscented", "no_fragrance", "scent_free", "without_fragrance"}
+
+
+def normalize_preferences(needs: list[str], avoid: list[str]) -> tuple[list[str], list[str]]:
+    """Map free-form LLM values onto the vocabulary search understands
+    ("fragrance-free" as a need becomes avoid: fragrance)."""
+    def key(v: str) -> str:
+        return v.strip().lower().replace("-", "_").replace(" ", "_")
+
+    out_needs: list[str] = []
+    out_avoid = [key(a) for a in avoid]
+    for n in map(key, needs):
+        if n in _FRAGRANCE_FREE_WORDS:
+            out_avoid.append("fragrance")
+        elif n in ("hydration", "moisturizing", "moisture"):
+            out_needs.append("hydrating")
+        elif n in ("sun_protection", "sunscreen", "uv"):
+            out_needs.append("spf")
+        else:
+            out_needs.append(n)
+    out_avoid = ["fragrance" if a in ("fragrance", "scent", "perfume", "fragrances") else a for a in out_avoid]
+    return list(dict.fromkeys(out_needs))[:20], list(dict.fromkeys(out_avoid))[:20]
 
 
 def money(x: float) -> str:
@@ -107,33 +149,59 @@ def merge_parsed(profile: PreferenceProfile, q: nlu.ParsedQuery, provenance: str
     return prof
 
 
+def run_search_with_stats(
+    session: Session | None, args: SearchArgs, profile: PreferenceProfile | None = None, limit: int | None = None
+) -> tuple[list[RankedProduct], dict[str, int], PreferenceProfile]:
+    """Search, applying constraints parsed from the query on top of the session profile (not persisted).
+    `limit` overrides the agent-facing cap in SearchArgs for internal callers.
+    Returns (results, products removed per hard filter, the effective profile)."""
+    base = profile or (session.profile if session else PreferenceProfile())
+    parsed = nlu.parse(args.query)
+    # A budget in the query only tightens the search; it never loosens the profile's budget.
+    budgets = [b for b in (args.max_price, parsed.budget_max) if b is not None]
+    parsed.budget_max = None
+    effective = merge_parsed(base, parsed)
+    req = SearchRequest(query=args.query, max_price=min(budgets) if budgets else None, limit=limit or args.limit,
+                        subcategory=args.subcategory or parsed.subcategory)
+    results, removed = ranker().search_with_stats(req, effective, session.intent_mandate if session else None)
+    return results, removed, effective
+
+
 def run_search(
     session: Session | None, args: SearchArgs, profile: PreferenceProfile | None = None, limit: int | None = None
 ) -> list[RankedProduct]:
-    """Search, applying constraints parsed from the query on top of the session profile (not persisted).
-    `limit` overrides the agent-facing cap in SearchArgs for internal callers."""
-    base = profile or (session.profile if session else PreferenceProfile())
-    parsed = nlu.parse(args.query)
-    effective = merge_parsed(base, parsed)
-    req = SearchRequest(query=args.query, max_price=args.max_price, limit=limit or args.limit,
-                        subcategory=args.subcategory or parsed.subcategory)
-    return ranker().search(req, effective, session.intent_mandate if session else None)
+    return run_search_with_stats(session, args, profile, limit)[0]
+
+
+def _filter_traces(removed: dict[str, int], profile: PreferenceProfile, max_price: float | None) -> list[BaseModel]:
+    budgets = [b for b in (max_price, profile.budget_max) if b is not None]
+    why = {
+        "budget": f"over your {money(min(budgets))} budget" if budgets else "over budget",
+        "avoid": f"contain something you avoid ({', '.join(profile.avoid)})",
+        "unverified": "sold by unverified merchants (your signed rules require verified)",
+        "dismissed": "you dismissed them",
+    }
+    return [FilterTrace(removed=n, why=why[k]) for k, n in removed.items() if k in why and n]
 
 
 # --- tools ----------------------------------------------------------------
 
 
+@_timed
 def search_products(session: Session, args: SearchArgs, rerank_because: str | None = None) -> ToolOutcome:
-    results = run_search(session, args)
+    results, removed, effective = run_search_with_stats(session, args)
     ids = [r.id for r in results]
     session.last_results, session.last_query = ids, args.query
+    session.last_subcategory = args.subcategory or nlu.parse(args.query).subcategory
     if rerank_because:
         action: BaseModel = Rerank(product_ids=ids, changed_because=rerank_because)
     else:
         action = ShowResults(product_ids=ids, reason=f"Best matches for: {args.query}"[:200] if args.query else "Best matches for your profile")
-    return ToolOutcome({"results": [_brief(r) for r in results], "count": len(results)}, [action])
+    return ToolOutcome({"results": [_brief(r) for r in results], "count": len(results)}, [action],
+                       _filter_traces(removed, effective, args.max_price))
 
 
+@_timed
 def get_trust(session: Session, args: ProductArg) -> ToolOutcome:
     p = require_product(args.product_id)
     t = store.trust_report(p.id)
@@ -183,6 +251,7 @@ def tradeoffs(a: Product, b: Product) -> list[Tradeoff]:
     return out
 
 
+@_timed
 def compare(session: Session, args: CompareArgs) -> ToolOutcome:
     a, b = require_product(args.product_a), require_product(args.product_b)
     if a.id == b.id:
@@ -192,25 +261,29 @@ def compare(session: Session, args: CompareArgs) -> ToolOutcome:
     return ToolOutcome(result, [OpenCompare(product_ids=(a.id, b.id), tradeoffs=tos)])
 
 
+@_timed
 def update_profile(session: Session, args: ProfileArgs, provenance: str = "said") -> ToolOutcome:
-    q = nlu.ParsedQuery(text="", budget_max=args.budget_max,
-                        skin_types=[s.strip() for s in (args.skin_type or "").split(",") if s.strip()],
-                        needs=args.needs or [], avoid=args.avoid or [])
+    needs, avoid = normalize_preferences(args.needs or [], args.avoid or [])
+    skin = [s.strip().lower() for s in (args.skin_type or "").split(",") if s.strip().lower() in nlu.SKIN_TYPES]
+    q = nlu.ParsedQuery(text="", budget_max=args.budget_max, skin_types=skin, needs=needs, avoid=avoid)
     session.profile = merge_parsed(session.profile, q, provenance)
     return ToolOutcome({"profile": session.profile.model_dump()}, [UpdateProfile(profile=session.profile)])
 
 
+@_timed
 def stage_checkout(session: Session, args: StageArgs) -> ToolOutcome:
     require_product(args.product_id)
     action = checkout.stage(session, args.product_id, args.quantity, args.unit_price)
-    result: dict[str, Any] = {"allowed": action.policy.allowed,
+    result: dict[str, Any] = {"allowed": action.policy.allowed, "quantity": args.quantity,
                               "failed_checks": [c.reason for c in action.policy.checks if not c.passed]}
     if action.policy.allowed:
         result["total"] = action.cart.total  # type: ignore[union-attr]
         result["note"] = "Staged for the user to review and sign. You cannot complete payment."
-    return ToolOutcome(result, [action])
+    traces: list[BaseModel] = [PolicyTrace(rule=c.rule, passed=c.passed, reason=c.reason) for c in action.policy.checks]
+    return ToolOutcome(result, [action], traces)
 
 
+@_timed
 def apply_feedback(session: Session, product_id: str, signal: str, reason: str | None, provenance: str = "gesture") -> ToolOutcome:
     """Like or dismiss a product, then rerank the last results."""
     p = require_product(product_id)
@@ -230,7 +303,8 @@ def apply_feedback(session: Session, product_id: str, signal: str, reason: str |
                 prof.provenance["avoid:fragrance"] = provenance  # type: ignore[assignment]
             because += " Products with fragrance are now hidden."
     prof.provenance[f"{signal}:{p.id}"] = provenance  # type: ignore[assignment]
-    outcome = search_products(session, SearchArgs(query=session.last_query), rerank_because=because)
+    outcome = search_products(session, SearchArgs(query=session.last_query, subcategory=session.last_subcategory),
+                              rerank_because=because)
     outcome.actions.append(UpdateProfile(profile=session.profile))
     outcome.result["changed_because"] = because
     return outcome
@@ -247,9 +321,24 @@ REGISTRY: dict[str, tuple[type[BaseModel], Any, str]] = {
 }
 
 
+def _clean_schema(node: Any) -> Any:
+    """Simplify Pydantic JSON Schema for LLM providers: drop titles/defaults and turn
+    `anyOf: [X, null]` into X (some OpenAI-compatible endpoints reject nullable unions)."""
+    if isinstance(node, list):
+        return [_clean_schema(n) for n in node]
+    if not isinstance(node, dict):
+        return node
+    if "anyOf" in node:
+        non_null = [n for n in node["anyOf"] if n.get("type") != "null"]
+        if len(non_null) == 1:
+            merged = {**{k: v for k, v in node.items() if k != "anyOf"}, **non_null[0]}
+            return _clean_schema(merged)
+    return {k: _clean_schema(v) for k, v in node.items() if k not in ("title", "default")}
+
+
 def openai_tool_schemas() -> list[dict[str, Any]]:
     return [
-        {"type": "function", "function": {"name": name, "description": desc, "parameters": model.model_json_schema()}}
+        {"type": "function", "function": {"name": name, "description": desc, "parameters": _clean_schema(model.model_json_schema())}}
         for name, (model, _, desc) in REGISTRY.items()
     ]
 

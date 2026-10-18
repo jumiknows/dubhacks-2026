@@ -8,6 +8,8 @@ numpy==2.5.4
 cryptography==50.0.2
 stripe==16.0.0
 pytest==9.1.1
+beautifulsoup4==4.14.2
+selenium==4.36.0
 
 # Optional: better semantic search (needs a model download on first run)
 # sentence-transformers

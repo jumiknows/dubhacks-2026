@@ -22,10 +22,16 @@ _NEEDS: dict[str, tuple[re.Pattern[str], str]] = {
     "spf": (re.compile(r"\b(spf|sun protection|uv)\b"), "SPF"),
     "brightening": (re.compile(r"\b(brighten\w*|dark spots?|glow\w*)\b"), "brightening"),
     "gentle": (re.compile(r"\b(gentle|mild|calm\w*|sooth\w*)\b"), "gentle"),
+    "acne": (re.compile(r"\b(acne|breakouts?|blemish\w*|pimples?|clogged pores)\b"), "acne-prone skin"),
 }
 
 _FRAGRANCE_FREE = re.compile(r"\b(fragrance[- ]?free|unscented|no fragrance|without fragrance|scent[- ]?free)\b")
-_HAS_FRAGRANCE = re.compile(r"\b(has|have|with|contains?|smells?|got)\b.{0,20}\b(fragrance|scent|perfume)|\b(fragranced|perfumed|scented)\b")
+_HAS_FRAGRANCE = re.compile(
+    r"\b(has|have|with|contains?|smells?|got)\b.{0,20}\b(fragrance|scent|perfume)"
+    r"|\b(fragranced|perfumed|scented)\b"
+    r"|\b(hate|dislike|don'?t like|can'?t stand|too strong|too much)\b.{0,20}\b(smell|scent|fragrance|perfume)\b"
+    r"|\bsmells? (bad|weird|strong|awful|too strong)\b"
+)
 _BUDGET = re.compile(
     r"(?:under|below|less than|cheaper than|max(?:imum)?|up to|at most|<|no more than)\s*\$?\s*(\d+(?:\.\d+)?)"
     r"|\$\s*(\d+(?:\.\d+)?)\s*(?:or less|max|tops|budget)"
@@ -84,6 +90,8 @@ def meets_need(p: Product, need: str) -> bool:
         return str(a.get("key_ingredient", "")) in ("vitamin c", "niacinamide")
     if need == "gentle":
         return "sensitive" in product_skin_types(p) or bool(a.get("fragrance_free"))
+    if need == "acne":
+        return str(a.get("key_ingredient", "")) in ("salicylic acid", "niacinamide") or "oily" in product_skin_types(p)
     if need == "fragrance_free":
         return bool(a.get("fragrance_free"))
     return False
