@@ -60,6 +60,13 @@ jobs:
         run: npm run build
       - name: Browser smoke
         run: npx playwright install --with-deps chromium && npm run test:browser
+      - name: Browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: browser-evidence
+          path: test-results/
+          retention-days: 14
 
   pr-evidence:
     name: PR evidence

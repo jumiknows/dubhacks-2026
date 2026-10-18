@@ -20,10 +20,15 @@
     "test:browser": "playwright test",
     "build": "npm run build -w @emberready/web",
     "start": "npm run start -w @emberready/web",
-    "data:ingest": "tsx apps/pipeline/src/cli.ts ingest",
-    "data:replay": "tsx apps/pipeline/src/cli.ts replay",
-    "data:validate": "tsx apps/pipeline/src/cli.ts validate",
-    "data:publish": "tsx apps/pipeline/src/cli.ts publish"
+    "data:ingest": "node --import tsx apps/pipeline/src/cli.ts ingest",
+    "data:replay": "node --import tsx apps/pipeline/src/cli.ts replay",
+    "data:validate": "node --import tsx apps/pipeline/src/cli.ts validate",
+    "data:publish": "node --import tsx apps/pipeline/src/cli.ts publish",
+    "data:bundle": "node --import tsx apps/pipeline/src/bundle.ts",
+    "postinstall": "npm run data:bundle",
+    "prebuild": "npm run data:bundle",
+    "verify:data": "node --import tsx apps/pipeline/src/verify-rebuild.ts",
+    "verify:evaluation": "vitest run packages/data/src/evaluation.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

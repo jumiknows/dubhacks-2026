@@ -21,21 +21,9 @@
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
         {
-          "label": "Washington Emergency Management wildfire resources",
-          "url": "https://mil.wa.gov/wildfire"
-        }
-      ]
-    },
-    {
-      "id": "wa-5314170",
-      "name": "Colville",
-      "censusName": "Colville city",
-      "geoid": "5314170",
-      "latitude": 48.545448,
-      "longitude": -117.898479,
-      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
-      "sourceVintage": "2026 Gazetteer",
-      "officialInfoLinks": [
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
         {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
@@ -53,6 +41,10 @@
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
         {
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
+        {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
         }
@@ -68,6 +60,10 @@
       "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
+        {
+          "label": "Countywide AlertSpokane information",
+          "url": "https://my.spokanecity.org/emergencymanagement/alerts/"
+        },
         {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
@@ -85,6 +81,10 @@
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
         {
+          "label": "Seattle emergency alerts",
+          "url": "https://alert.seattle.gov/"
+        },
+        {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
         }
@@ -101,53 +101,9 @@
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
         {
-          "label": "Washington Emergency Management wildfire resources",
-          "url": "https://mil.wa.gov/wildfire"
-        }
-      ]
-    },
-    {
-      "id": "wa-5370000",
-      "name": "Tacoma",
-      "censusName": "Tacoma city",
-      "geoid": "5370000",
-      "latitude": 47.252199,
-      "longitude": -122.459832,
-      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
-      "sourceVintage": "2026 Gazetteer",
-      "officialInfoLinks": [
-        {
-          "label": "Washington Emergency Management wildfire resources",
-          "url": "https://mil.wa.gov/wildfire"
-        }
-      ]
-    },
-    {
-      "id": "wa-5374060",
-      "name": "Vancouver",
-      "censusName": "Vancouver city",
-      "geoid": "5374060",
-      "latitude": 45.637156,
-      "longitude": -122.596567,
-      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
-      "sourceVintage": "2026 Gazetteer",
-      "officialInfoLinks": [
-        {
-          "label": "Washington Emergency Management wildfire resources",
-          "url": "https://mil.wa.gov/wildfire"
-        }
-      ]
-    },
-    {
-      "id": "wa-5375775",
-      "name": "Walla Walla",
-      "censusName": "Walla Walla city",
-      "geoid": "5375775",
-      "latitude": 46.067006,
-      "longitude": -118.337033,
-      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
-      "sourceVintage": "2026 Gazetteer",
-      "officialInfoLinks": [
+          "label": "Countywide AlertSpokane information",
+          "url": "https://my.spokanecity.org/emergencymanagement/alerts/"
+        },
         {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
@@ -165,6 +121,10 @@
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
         {
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
+        {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
         }
@@ -180,6 +140,10 @@
       "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
+        {
+          "label": "Okanogan County Alerts",
+          "url": "https://www.okanogancounty.gov/408/What-is-Okanogan-County-Alerts"
+        },
         {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
@@ -197,10 +161,40 @@
       "sourceVintage": "2026 Gazetteer",
       "officialInfoLinks": [
         {
+          "label": "Yakima County Emergency Management",
+          "url": "https://www.yakimacounty.us/350/Emergency-Management"
+        },
+        {
           "label": "Washington Emergency Management wildfire resources",
           "url": "https://mil.wa.gov/wildfire"
         }
       ]
     }
-  ]
+  ],
+  "linkVerification": {
+    "checkedAt": "2026-10-18",
+    "method": "Official government page content retrieved and reviewed for jurisdiction and purpose. These links are resources, not an assertion of current alert status.",
+    "resources": [
+      {
+        "label": "Chelan County Emergency Management",
+        "url": "https://www.co.chelan.wa.us/emergency-management"
+      },
+      {
+        "label": "Countywide AlertSpokane information",
+        "url": "https://my.spokanecity.org/emergencymanagement/alerts/"
+      },
+      {
+        "label": "Okanogan County Alerts",
+        "url": "https://www.okanogancounty.gov/408/What-is-Okanogan-County-Alerts"
+      },
+      {
+        "label": "Seattle emergency alerts",
+        "url": "https://alert.seattle.gov/"
+      },
+      {
+        "label": "Yakima County Emergency Management",
+        "url": "https://www.yakimacounty.us/350/Emergency-Management"
+      }
+    ]
+  }
 }

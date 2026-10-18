@@ -1,14 +1,12 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import {
   FileSnapshotStore,
   FirmsLiveClient,
   findRepoRoot,
-  parseFirmsCsv,
   publishArchive,
-  sha256,
   sourceCodeFor,
   type RegionConfig,
 } from "@emberready/data";
@@ -26,7 +24,7 @@ const SOURCES: Record<string, { product: string; provider: string; documentation
   },
 };
 
-const OUTPUT_DIR = "data/replay/wa-viirs-noaa20-20261010";
+
 
 function fail(message: string): never {
   console.error(message);
@@ -34,6 +32,7 @@ function fail(message: string): never {
 }
 
 function readRegion(repoRoot: string, regionId: string): RegionConfig {
+  if (regionId !== "wa-demo") fail("Only wa-demo is configured.");
   const regionPath = path.join(repoRoot, "data/regions", `${regionId}.json`);
   try {
     return JSON.parse(readFileSync(regionPath, "utf8")) as RegionConfig;
@@ -60,128 +59,66 @@ async function ingest(repoRoot: string, values: Record<string, string | undefine
   const source = SOURCES[sourceId];
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
-  if (values.raw) {
-    const fetchedAt = values["fetched-at"];
-    if (!fetchedAt || !fetchedAt.endsWith("Z")) fail("Archive ingest requires --fetched-at with a UTC timestamp.");
-    const rawPath = path.resolve(repoRoot, values.raw);
-    const rawBytes = readFileSync(rawPath);
+  const commit = codeCommit(repoRoot);
+  try {
+    let rawBytes: Buffer;
+    let fetchedAt: string;
+    let sourceUrl = source.documentationUrl;
+    let mode: "replay" | "live" = "replay";
+    let emptyWindow: { start: string; end: string; productVersion: string } | undefined;
+    if (values.raw) {
+      if (!values["fetched-at"]) throw new Error("Archive ingest requires --fetched-at.");
+      fetchedAt = values["fetched-at"];
+      rawBytes = readFileSync(path.resolve(repoRoot, values.raw));
+      if (values["source-url"]) {
+        const url = new URL(values["source-url"]);
+        if (url.protocol !== "https:" || url.hostname !== "firms.modaps.eosdis.nasa.gov" || url.search || url.username || url.password || url.pathname.includes("/csv/" + process.env.FIRMS_MAP_KEY)) throw new Error("Use a public NASA source URL without credentials.");
+        if (url.pathname.startsWith("/api/area/csv/")) throw new Error("Use the public API documentation URL.");
+        sourceUrl = url.href;
+      }
+    } else {
+      mode = "live";
+      const days = Number(values.days ?? "1");
+      const sourceCode = sourceCodeFor(sourceId)!;
+      const result = await new FirmsLiveClient({ apiKey: process.env.FIRMS_MAP_KEY }).fetchArea({ sourceCode, bbox: region.bbox, days });
+      if (result.error || result.body === null || !result.fetchedAt || result.fetchStatus !== "ok") throw new Error(`Live ingest failed: ${result.error ?? "unavailable"}`);
+      rawBytes = Buffer.from(result.body);
+      fetchedAt = result.fetchedAt;
+      emptyWindow = { start: new Date(Date.parse(fetchedAt) - days * 86400000).toISOString(), end: fetchedAt, productVersion: "2.0NRT" };
+    }
+    const outputDir = `artifacts/snapshots/${runId}`;
     const published = publishArchive({
-      repoRoot,
-      rawBytes,
-      rawName: path.basename(rawPath),
-      sourceId,
-      provider: source.provider,
-      product: source.product,
-      documentationUrl: values["source-url"] ?? source.documentationUrl,
-      fetchedAt,
-      region,
-      codeCommit: codeCommit(repoRoot),
-      datasetId: "wa-viirs-noaa20-20261010",
-      outputDir: OUTPUT_DIR,
-    });
-    writePointer(repoRoot, {
-      sourceId,
-      regionId,
-      snapshotId: published.manifest.snapshotId,
-      manifestPath: `${OUTPUT_DIR}/manifest.json`,
+      repoRoot, rawBytes, rawName: "source.csv", sourceId, provider: source.provider, product: source.product,
+      documentationUrl: sourceUrl, fetchedAt, region, codeCommit: commit, mode,
+      datasetId: `${regionId}-${sourceId}`, outputDir, runId, emptyWindow,
     });
     writeRun(repoRoot, {
-      runId,
-      state: "published",
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      sourceId,
-      regionId,
-      parameters: { raw: values.raw, fetchedAt },
-      snapshotId: published.manifest.snapshotId,
-      counts: published.manifest.counts,
+      runId, state: "published", startedAt, finishedAt: new Date().toISOString(), codeCommit: commit,
+      transformVersion: published.manifest.transformVersion, sourceId, regionId,
+      parameters: { input: values.raw ? "archive" : "provider", days: values.days ?? null },
+      snapshotId: published.manifest.snapshotId, datasetVersion: published.manifest.datasetVersion, counts: published.manifest.counts,
     });
-    console.log(path.join(repoRoot, OUTPUT_DIR, "manifest.json"));
-    return;
+    console.log(JSON.stringify({ manifest: `${outputDir}/manifest.json`, snapshotId: published.manifest.snapshotId, datasetVersion: published.manifest.datasetVersion }));
+  } catch (error) {
+    writeRun(repoRoot, { runId, state: "failed", startedAt, finishedAt: new Date().toISOString(), codeCommit: commit, sourceId, regionId, error: "ingest-failed" });
+    // Never include a provider URL, response body or credential in diagnostics.
+    if (error instanceof Error && error.message.startsWith("Live ingest failed:")) fail(error.message);
+    fail(`Ingest failed. Review artifacts/runs/${runId}. The previous snapshot remains current.`);
   }
-
-  const days = Number(values.days ?? "1");
-  const client = new FirmsLiveClient({ apiKey: process.env.FIRMS_MAP_KEY });
-  const sourceCode = sourceCodeFor(sourceId);
-  if (!sourceCode) fail(`No FIRMS source code for ${sourceId}`);
-  const result = await client.fetchArea({ sourceCode, bbox: region.bbox, days });
-  if (result.error || !result.body || !result.fetchedAt) {
-    writeRun(repoRoot, {
-      runId,
-      state: "failed",
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      sourceId,
-      regionId,
-      parameters: { days },
-      error: result.error,
-    });
-    fail(`Live ingest failed: ${result.error ?? "empty response"}. The current replay snapshot was left unchanged.`);
-  }
-  const rawBytes = Buffer.from(result.body);
-  const parsed = parseFirmsCsv(result.body, {
-    product: source.product,
-    sourceId,
-    rawSha256: sha256(rawBytes),
-    bbox: region.bbox,
-  });
-  if (parsed.quarantined.length > 0) {
-    writeRun(repoRoot, {
-      runId,
-      state: "failed",
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      sourceId,
-      regionId,
-      parameters: { days },
-      quarantined: parsed.quarantined.length,
-    });
-    fail(`Live ingest quarantined ${parsed.quarantined.length} rows. Nothing was published.`);
-  }
-  const published = publishArchive({
-    repoRoot,
-    rawBytes,
-    rawName: `${sourceId}-${runId}.csv`,
-    sourceId,
-    provider: source.provider,
-    product: source.product,
-    documentationUrl: source.documentationUrl,
-    fetchedAt: result.fetchedAt,
-    region,
-    codeCommit: codeCommit(repoRoot),
-    mode: "live",
-    datasetId: `${sourceId}-live`,
-    outputDir: `artifacts/snapshots/${runId}`,
-  });
-  writeRun(repoRoot, {
-    runId,
-    state: "published",
-    startedAt,
-    finishedAt: new Date().toISOString(),
-    sourceId,
-    regionId,
-    parameters: { days },
-    snapshotId: published.manifest.snapshotId,
-    counts: published.manifest.counts,
-  });
-  console.log(published.manifest.snapshotId);
 }
 
 function validate(repoRoot: string, manifestPath: string | undefined): void {
   if (!manifestPath) fail("Pass --manifest.");
   const absolute = path.resolve(repoRoot, manifestPath);
   const store = new FileSnapshotStore(repoRoot);
-  const manifest = JSON.parse(readFileSync(absolute, "utf8")) as { snapshotId: string };
-  const loaded = store.get(manifest.snapshotId);
-  if (!loaded) fail(`Snapshot ${manifest.snapshotId} failed validation or is not readable.`);
+  const loaded = store.readManifest(absolute);
   console.log(`validated ${loaded.manifest.snapshotId} retained ${loaded.manifest.counts.retainedRows}`);
 }
 
 function replay(repoRoot: string, manifestPath: string | undefined): void {
   if (!manifestPath) fail("Pass --manifest.");
-  const manifest = JSON.parse(readFileSync(path.resolve(repoRoot, manifestPath), "utf8")) as { snapshotId: string };
-  const loaded = new FileSnapshotStore(repoRoot).get(manifest.snapshotId);
-  if (!loaded) fail("Replay manifest could not be loaded.");
+  const loaded = new FileSnapshotStore(repoRoot).readManifest(manifestPath);
+  if (loaded.manifest.mode !== "replay") fail("Expected a replay manifest.");
   const { scope, counts, source } = loaded.manifest;
   console.log(JSON.stringify({
     snapshotId: loaded.manifest.snapshotId,
@@ -195,29 +132,14 @@ function replay(repoRoot: string, manifestPath: string | undefined): void {
   }, null, 2));
 }
 
-function writePointer(repoRoot: string, pointer: { sourceId: string; regionId: string; snapshotId: string; manifestPath: string }): void {
-  const pointerPath = path.join(repoRoot, "data/replay/current.json");
-  mkdirSync(path.dirname(pointerPath), { recursive: true });
-  const temporary = `${pointerPath}.tmp`;
-  writeFileSync(temporary, JSON.stringify(pointer, null, 2) + "\n");
-  renameSync(temporary, pointerPath);
-}
-
 function publish(repoRoot: string, values: Record<string, string | undefined>): void {
   if (!values.manifest) fail("Pass --manifest.");
   if (values.mode !== "replay" && values.mode !== "live") fail("Pass --mode replay or --mode live.");
-  const absolute = path.resolve(repoRoot, values.manifest);
-  const manifest = JSON.parse(readFileSync(absolute, "utf8")) as { snapshotId: string; mode: string; source: { id: string }; scope: { regionId: string } };
-  if (manifest.mode !== values.mode) fail(`Manifest mode is ${manifest.mode}.`);
-  const loaded = new FileSnapshotStore(repoRoot).get(manifest.snapshotId);
-  if (!loaded) fail("Refusing to point at a snapshot that does not validate.");
-  writePointer(repoRoot, {
-    sourceId: manifest.source.id,
-    regionId: manifest.scope.regionId,
-    snapshotId: manifest.snapshotId,
-    manifestPath: path.relative(repoRoot, absolute).split(path.sep).join("/"),
-  });
-  console.log(`current ${manifest.snapshotId}`);
+  const store = new FileSnapshotStore(repoRoot);
+  const loaded = store.readManifest(values.manifest);
+  if (loaded.manifest.mode !== values.mode) fail("Manifest mode does not match.");
+  store.setCurrent(loaded.manifest);
+  console.log(`current ${loaded.manifest.snapshotId}`);
 }
 
 async function main(): Promise<void> {

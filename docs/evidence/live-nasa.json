@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-10-18T05:32:20.170Z",
+  "request": "GET /api/observations?mode=live equivalent server handler",
+  "source": {
+    "provider": "NASA FIRMS",
+    "product": "VIIRS_NOAA20_NRT",
+    "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_24h.csv",
+    "fetchedAt": "2026-10-18T05:32:20.125Z",
+    "newestObservationAt": "2026-10-17T20:49:00Z",
+    "fetchStatus": "ok",
+    "coverageStatus": "unknown",
+    "requestRange": {
+      "regionId": "wa-demo",
+      "bbox": [
+        -124.85,
+        45.5,
+        -116.9,
+        49.05
+      ],
+      "windowStart": "2026-10-17T09:22:00Z",
+      "windowEnd": "2026-10-17T20:49:00Z"
+    }
+  },
+  "snapshotId": "0d97a4114c6dd0fb6f5815e3c98425f62065125c28f292d4e1d88b93a59a070a",
+  "retainedRows": 13,
+  "contextResolved": true,
+  "provenance": {
+    "provenance": {
+      "snapshotId": "0d97a4114c6dd0fb6f5815e3c98425f62065125c28f292d4e1d88b93a59a070a",
+      "mode": "live",
+      "synthetic": false,
+      "source": {
+        "provider": "NASA FIRMS",
+        "product": "VIIRS_NOAA20_NRT",
+        "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_24h.csv",
+        "fetchedAt": "2026-10-18T05:32:20.125Z",
+        "newestObservationAt": "2026-10-17T20:49:00Z",
+        "fetchStatus": "ok",
+        "coverageStatus": "unknown",
+        "requestRange": {
+          "regionId": "wa-demo",
+          "bbox": [
+            -124.85,
+            45.5,
+            -116.9,
+            49.05
+          ],
+          "windowStart": "2026-10-17T09:22:00Z",
+          "windowEnd": "2026-10-17T20:49:00Z"
+        }
+      },
+      "asOf": "2026-10-18T05:32:16.921Z",
+      "rawSha256": "31be2a201d930d4c4fa072b82cf2eb9fe36905f14f3d5b00e77f97ff9aa41c41",
+      "counts": {
+        "rawRows": 1168,
+        "retainedRows": 13,
+        "excludedRows": 1155,
+        "duplicateRows": 0,
+        "quarantinedRows": 0
+      },
+      "coverageStatus": "unknown",
+      "storage": "Process memory. Up to 32 snapshots, cleared at restart.",
+      "attribution": "NASA FIRMS thermal observations. Public US 24-hour file or keyed Area API, filtered to Washington."
+    }
+  },
+  "synthetic": false,
+  "credentialsUsed": false
+}

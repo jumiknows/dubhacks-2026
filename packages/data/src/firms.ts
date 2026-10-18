@@ -28,6 +28,7 @@ export interface FirmsParseResult {
   rawRows: number;
   retained: NormalizedObservation[];
   duplicateRows: number;
+  duplicates: Array<{ rowNumber: number; retainedRowNumber: number }>;
   excluded: ExcludedRecord[];
   quarantined: QuarantineRecord[];
   conflicts: number;
@@ -79,6 +80,7 @@ export function parseFirmsCsv(
     const latitude = Number(latitudeText);
     const longitude = Number(longitudeText);
     if (
+      !latitudeText.trim() || !longitudeText.trim() ||
       !Number.isFinite(latitude) ||
       !Number.isFinite(longitude) ||
       latitude < -90 ||
@@ -95,7 +97,7 @@ export function parseFirmsCsv(
       return;
     }
     const confidenceRaw = (record.confidence ?? "").trim();
-    const confidence = confidenceRaw.toLowerCase();
+    const confidence = ({ l: "low", n: "nominal", h: "high" } as Record<string, string>)[confidenceRaw.toLowerCase()] ?? confidenceRaw.toLowerCase();
     if (confidence !== "low" && confidence !== "nominal" && confidence !== "high") {
       quarantined.push({ rowNumber, reason: "unknown-confidence", value: confidenceRaw });
       return;
@@ -103,7 +105,7 @@ export function parseFirmsCsv(
     const frpText = record.frp ?? "";
     let frpMw: number | null;
     if (frpText.trim() === "") frpMw = null;
-    else if (!Number.isFinite(Number(frpText))) {
+    else if ((!Number.isFinite(Number(frpText)) || Number(frpText) < 0)) {
       quarantined.push({ rowNumber, reason: "invalid-frp", value: frpText });
       return;
     } else frpMw = Number(frpText);
@@ -160,6 +162,7 @@ export function parseFirmsCsv(
 
   const retained: NormalizedObservation[] = [];
   let duplicateRows = 0;
+  const duplicates: Array<{ rowNumber: number; retainedRowNumber: number }> = [];
   let conflicts = 0;
   for (const group of groups.values()) {
     const signatures = new Set(group.map((item) => item.signature));
@@ -176,6 +179,7 @@ export function parseFirmsCsv(
     }
     retained.push(group[0].row);
     duplicateRows += group.length - 1;
+    for (const item of group.slice(1)) duplicates.push({ rowNumber: item.rowNumber, retainedRowNumber: group[0].rowNumber });
   }
 
   retained.sort((a, b) => a.observedAt.localeCompare(b.observedAt) || a.id.localeCompare(b.id));
@@ -183,6 +187,7 @@ export function parseFirmsCsv(
     rawRows: records.length,
     retained,
     duplicateRows,
+    duplicates,
     excluded,
     quarantined,
     conflicts,

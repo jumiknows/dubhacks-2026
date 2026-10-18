@@ -6,6 +6,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3000",
     ...devices["Desktop Chrome"],
+    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
   },
   webServer: {
     command: "npm run start",

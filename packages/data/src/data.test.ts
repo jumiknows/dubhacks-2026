@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { FirmsLiveClient } from "./live";
+import { FirmsLiveClient, PUBLIC_NOAA20_URL } from "./live";
 import { FirmsParseError, parseFirmsCsv } from "./firms";
 import { assertManifestShape, assertRelativePath } from "./manifest";
 import { findRepoRoot } from "./store";
@@ -113,6 +113,77 @@ describe("FIRMS parser", () => {
 });
 
 describe("live cache", () => {
+  it("coalesces concurrent public requests and uses the fixed NOAA-20 URL", async () => {
+    const urls: string[] = [];
+    const client = new FirmsLiveClient({ apiKey: undefined, fetchImpl: (async (url) => {
+      urls.push(String(url));
+      return new Response(`${header}\n`);
+    }) as typeof fetch });
+    const request = { sourceCode: "VIIRS_NOAA20_NRT", bbox, days: 1, publicFeed: true };
+    const results = await Promise.all([client.fetchArea(request), client.fetchArea(request)]);
+    expect(urls).toEqual([PUBLIC_NOAA20_URL]);
+    expect(results[0]).toEqual(results[1]);
+    expect(results[0].fetchStatus).toBe("ok");
+    await client.fetchArea(request);
+    expect(urls).toHaveLength(1);
+  });
+
+  it("rejects invalid bounds, product and time before network access", async () => {
+    let calls = 0;
+    const client = new FirmsLiveClient({ apiKey: "secret-key", fetchImpl: (async () => {
+      calls += 1;
+      return new Response(`${header}\n`);
+    }) as typeof fetch });
+    const request = { sourceCode: "VIIRS_NOAA20_NRT", bbox, days: 1 };
+    for (const invalid of [
+      { ...request, bbox: [-180, -90, 180, 90] as typeof bbox },
+      { ...request, bbox: [-120, 49, -121, 46] as typeof bbox },
+      { ...request, bbox: [NaN, 46, -120, 47] as typeof bbox },
+      { ...request, sourceCode: "../invalid" },
+      { ...request, days: 0 },
+      { ...request, days: 6 },
+      { ...request, days: 1.5 },
+      { ...request, publicFeed: true, days: 2 },
+    ]) expect((await client.fetchArea(invalid)).error).toBe("upstream-failure");
+    expect(calls).toBe(0);
+  });
+
+  it("recovers from a rate limit with at most one retry", async () => {
+    let calls = 0;
+    const client = new FirmsLiveClient({ apiKey: "secret-key", fetchImpl: (async () => {
+      calls += 1;
+      return calls === 1 ? new Response("slow down", { status: 429, headers: { "Retry-After": "0" } }) : new Response(`${header}\n`);
+    }) as typeof fetch });
+    const result = await client.fetchArea({ sourceCode: "VIIRS_NOAA20_NRT", bbox, days: 1 });
+    expect(result.fetchStatus).toBe("ok");
+    expect(calls).toBe(2);
+    expect(JSON.stringify(result)).not.toContain("secret-key");
+  });
+
+  it("stops after two transient failures and respects a longer provider wait", async () => {
+    for (const retryAfter of ["0", "120"]) {
+      let calls = 0;
+      const client = new FirmsLiveClient({ apiKey: "secret-key", fetchImpl: (async () => {
+        calls += 1;
+        return new Response("unavailable", { status: 503, headers: { "Retry-After": retryAfter } });
+      }) as typeof fetch });
+      expect((await client.fetchArea({ sourceCode: "VIIRS_NOAA20_NRT", bbox, days: 1 })).error).toBe("upstream-failure");
+      expect(calls).toBe(retryAfter === "0" ? 2 : 1);
+    }
+  });
+
+  it("uses one total timeout across the retry delay", async () => {
+    let calls = 0;
+    const client = new FirmsLiveClient({ apiKey: undefined, timeoutMs: 10, fetchImpl: (async () => {
+      calls += 1;
+      return new Response("slow down", { status: 429, headers: { "Retry-After": "1" } });
+    }) as typeof fetch });
+    const result = await client.fetchArea({ sourceCode: "VIIRS_NOAA20_NRT", bbox, days: 1, publicFeed: true });
+    expect(result.error).toBe("timeout");
+    expect(result.sourceUrl).toBe(PUBLIC_NOAA20_URL);
+    expect(calls).toBe(1);
+  });
+
   it("times out and serves a stale cached body inside 15 minutes", async () => {
     let now = 1_000_000;
     let calls = 0;

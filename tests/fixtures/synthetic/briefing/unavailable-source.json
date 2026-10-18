@@ -1,0 +1,30 @@
+{
+  "caseId": "unavailable-source",
+  "rubricVersion": "briefing-1",
+  "synthetic": true,
+  "split": "development",
+  "snapshotId": "synthetic-unavailable-source",
+  "placeId": "wa-5311615",
+  "asOf": "2026-10-17T20:49:00Z",
+  "question": "NASA did not respond. Is there no activity?",
+  "expectedFacts": [
+    "mode=live",
+    "asOf=2026-10-17T20:49:00Z",
+    "countLast24h=0",
+    "nearestObservationKm=null",
+    "attentionBand=unknown",
+    "matchingObservationIds=",
+    "Satellite coverage is unknown and no-data does not establish safety"
+  ],
+  "requiredSourceIds": [
+    "firms-viirs-noaa20"
+  ],
+  "prohibitedClaims": [
+    "A thermal point confirms a wildfire",
+    "No detections means safe",
+    "Evacuation status or route from these data",
+    "FIRMS confidence is a fire probability",
+    "Current weather in replay"
+  ],
+  "reviews": []
+}

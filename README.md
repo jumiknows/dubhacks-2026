@@ -2,7 +2,9 @@
 
 Community wildfire briefings from satellite observations.
 
-**Status:** the replay demo, map and list, deterministic briefing, and FIRMS archive ingest are in the repository. Live FIRMS, Grok Voice, a trained wildfire model, and human briefing review are not done.
+**Status:** real NASA replay and public-feed live observations, the accessible map and list, deterministic briefings, and a verified data pipeline are implemented. Grok Voice code is connected but real audio and conversation still need an xAI key. Twelve evaluation cases are prepared and await actual outputs and human review. No wildfire model has been trained.
+
+[Open the private demo](https://emberready.jumiknows.chatgpt.site). Access is limited to the site owner. [Test and deployment evidence](docs/RELEASE_READINESS.md) records what works and the remaining release gates.
 
 EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
 
@@ -29,7 +31,7 @@ npm run dev
 
 On Windows, use `py -3` instead of `python3`.
 
-Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assign yourself, and follow [CONTRIBUTING.md](CONTRIBUTING.md). `npm run dev` starts the replay workspace. Live observations need `FIRMS_MAP_KEY`. Spoken briefing needs `XAI_API_KEY`.
+Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assign yourself, and follow [CONTRIBUTING.md](CONTRIBUTING.md). `npm run dev` starts the replay workspace. Live observations use the public NASA NOAA-20 24-hour CSV by default. `FIRMS_MAP_KEY` selects the bounded SNPP Area API. Spoken briefing and conversation need private `XAI_API_KEY` and access configuration. See [release evidence](docs/RELEASE_READINESS.md).
 
 ## Repository map
 

@@ -62,19 +62,19 @@ export function buildBriefing(input: {
   if (input.fetchStatus === "unavailable") {
     evidence = "The thermal observation source is unavailable. This briefing cannot describe nearby activity from a missing feed.";
   } else if (input.fetchStatus === "stale") {
-    evidence = "The cached live feed is older than the demo freshness window. Review the source before interpreting nearby activity.";
+    evidence = "The live feed could not be refreshed. Review the retained source and retrieval time before interpreting nearby activity.";
   } else if (input.countLast24h === 0) {
-    evidence = "No nominal or high confidence thermal observations were acquired during the 24 hours ending at the cutoff.";
+    evidence = "No nominal or high confidence thermal observations were acquired in the Washington snapshot during the 24 hours ending at the cutoff.";
   } else {
     const nearest = input.nearestObservationKm === null ? "an unknown distance" : formatKm(input.nearestObservationKm);
     const latest = input.latestQualifyingAt ? formatUtc(input.latestQualifyingAt) : "unknown";
-    evidence = `${input.countLast24h} nominal or high confidence thermal observations were acquired during the 24 hours ending at the cutoff. ${input.countWithin25km} of them are within 25 km. The nearest is ${nearest} from the representative place coordinate. The latest qualifying observation time is ${latest}.`;
+    evidence = `${input.countLast24h} nominal or high confidence thermal observations were acquired in the Washington snapshot during the 24 hours ending at the cutoff. ${input.countWithin25km} of them are within 25 km. The nearest is ${nearest} from the representative place coordinate. The latest qualifying observation time is ${latest}.`;
   }
   const retrieved = input.fetchedAt
     ? `The source file was retrieved at ${formatUtc(input.fetchedAt)}.`
     : "The source retrieval time is not available.";
   const band = `Attention band ${input.attentionBand} means ${bandMeaning(input.attentionBand)} Rule version ${ATTENTION_RULE_VERSION}. Distances of 5 km and 25 km sort observations for this demo. They are not a fire probability, a perimeter, or an evacuation instruction.`;
-  const limits = "Evacuation status, road access, and current weather are outside this dataset. Use the official information links.";
+  const limits = "Satellite coverage can be incomplete. No detections does not establish safety. Evacuation status, road access, and current weather are outside this dataset. Use the official information links.";
   const replay = input.mode === "replay"
     ? "This is an observation-time replay. Current weather and current alerts are not included."
     : "Live mode uses the current provider response and does not fill gaps with the replay snapshot.";
@@ -158,7 +158,7 @@ export function buildPlaceContext(input: {
     attentionBand,
     ruleVersion: ATTENTION_RULE_VERSION,
     reasons,
-    sources: [input.source],
+    sources: [{ ...input.source, newestObservationAt: observationsAtOrBefore(input.observations, input.asOf).at(-1)?.observedAt ?? null }],
     officialInfoLinks: input.place.officialInfoLinks,
     briefingText: buildBriefing({
       place: input.place,
@@ -228,7 +228,7 @@ export function buildSnapshotResponse(input: {
     mode: input.mode,
     asOf: input.asOf,
     generatedAt: input.generatedAt,
-    sources: [input.source],
+    sources: [{ ...input.source, newestObservationAt: observationsAtOrBefore(input.observations, input.asOf).at(-1)?.observedAt ?? null }],
     observations,
     warnings: snapshotWarnings(input.mode, observations.length),
   };

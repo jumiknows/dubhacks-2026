@@ -22,7 +22,9 @@ export function parseFirmsAcquisition(date: string, hhmm: string): string | null
 }
 
 export function parseUtc(value: string): number | null {
-  if (!/Z$/.test(value)) return null;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) return null;
+  const canonical = value.includes(".") ? value : value.replace("Z", ".000Z");
+  if (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== canonical) return null;
   const ms = Date.parse(value);
   return Number.isFinite(ms) ? ms : null;
 }

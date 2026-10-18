@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Place, ThermalObservation } from "@emberready/domain";
@@ -13,6 +13,8 @@ interface ObservationMapProps {
 }
 
 export function ObservationMap({ observations, place, selectedId, onSelect }: ObservationMapProps) {
+  const [failure, setFailure] = useState<string | null>(null);
+  const initialPlace = useRef(place);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -21,12 +23,18 @@ export function ObservationMap({ observations, place, selectedId, onSelect }: Ob
   useEffect(() => {
     const container = containerRef.current;
     if (!container || mapRef.current) return;
-    const map = new maplibregl.Map({
+    let map: maplibregl.Map;
+    try { map = new maplibregl.Map({
       container,
       style: process.env.NEXT_PUBLIC_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty",
-      center: [place.longitude, place.latitude],
+      center: [initialPlace.current.longitude, initialPlace.current.latitude],
       zoom: 6,
-    });
+    }); } catch {
+      setFailure("The map is unavailable because WebGL could not start. Use the observation list and briefing below.");
+      return;
+    }
+    map.on("error", () => setFailure("Map tiles could not load. Use the observation list and briefing below."));
+    map.getCanvas().addEventListener("webglcontextlost", () => setFailure("The map lost its graphics connection. Use the observation list below."));
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: false }), "top-right");
     const resize = () => map.resize();
     map.on("load", resize);
@@ -48,7 +56,7 @@ export function ObservationMap({ observations, place, selectedId, onSelect }: Ob
       map.remove();
       mapRef.current = null;
     };
-  }, [place.latitude, place.longitude]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -108,7 +116,12 @@ export function ObservationMap({ observations, place, selectedId, onSelect }: Ob
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
     map.easeTo({ center: [place.longitude, place.latitude], duration: 0 });
+    return () => { map.off("load", apply); };
   }, [observations, place, selectedId]);
 
-  return <div ref={containerRef} className="map-canvas" role="application" aria-label="Map of thermal observations" />;
+  return <>
+    <div ref={containerRef} className="map-canvas" aria-label="Map of thermal observations" />
+    {failure ? <div className="map-fallback" role="status"><p>{failure}</p><a href="#observation-list">Open observation list</a></div> : null}
+    <div className="map-attribution">Basemap: <a href="https://openfreemap.org/">OpenFreeMap</a>, <a href="https://www.openmaptiles.org/">OpenMapTiles</a> and <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a></div>
+  </>;
 }

@@ -156,3 +156,13 @@ h3 { font-size: 14px; margin: 16px 0 8px; }
   .communities, .evidence-panel { border: 0; }
   header, .intro { padding-left: 16px; padding-right: 16px; }
 }
+
+.map-wrap { position: relative; }
+.map-fallback { position: absolute; inset: 24px 24px auto; padding: 16px; background: #fff; border: 1px solid #b8b6af; color: #192823; z-index: 2; }
+.map-attribution { position: absolute; bottom: 0; left: 0; background: #fff; padding: 4px 8px; font-size: 11px; max-width: 100%; }
+button:disabled { cursor: not-allowed; opacity: 0.65; }
+details, .observation-detail { margin-top: 16px; border-top: 1px solid #d1d0c9; padding-top: 12px; }
+code { overflow-wrap: anywhere; font-size: 11px; }
+.voice-transcript { max-height: 240px; overflow-y: auto; white-space: pre-wrap; }
+.voice-question { width: 100%; padding: 8px; border: 1px solid #777; font: inherit; }
+@media print { .communities, .map-area, .actions, .voice-controls, .observation-list { display: none; } .workspace { display: block; } .evidence-panel { width: 100%; overflow: visible; } }
