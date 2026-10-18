@@ -35,7 +35,7 @@ export default function CompareSheet({ compare, trustFloor, onTrustFloor, onChoo
             </h3>
             {tradeoff ? <p className="compare-tradeoff">{tradeoff}</p> : null}
             <p className="shop-meta">
-              {error || (winner ? "Value = bang per buck × fit × trust multiplier." : "Value scores are within 0.05, so ESPER won't call a winner. Pick on what matters to you.")}
+              {error || (winner ? "Value = bang per buck × fit × trust multiplier." : "Value scores are within 0.05, so Esper won't call a winner. Pick on what matters to you.")}
             </p>
           </div>
           <button type="button" className="compare-close" onClick={onClose}>Close</button>

@@ -1,13 +1,15 @@
-# ESPER
+# Esper
 
-Say what you're getting ready for: "camping this weekend", "weekly groceries", "a new laptop". ESPER builds the shopping list, finds store listings for every item, and helps you pick the best one by comparing two listings side by side. Then it keeps the cart and checks out.
+Esper gets you ready for a trip. Say where you're headed ("a week in Tokyo", "beach weekend in Cancún", "business trip to New York") and Esper builds the packing list: carry-on, adapter, power bank, headphones, neck pillow and the rest. It finds store listings for each item, compares two side by side so you can pick the best one, keeps the cart and checks out.
+
+Travel is the featured example. The same flow also plans camping, groceries, a wedding or new electronics.
 
 You can drive all of it four ways, and they share one screen:
 
 | | How |
 |---|---|
 | **Hands** | Pull a group apart with two fists. Fist-hold a piece to open it. Pinch two listings, one per hand, and bring them together to compare. Hold a listing for 1 second, or pinch-drag it onto the cart, to buy it. |
-| **Voice** | Press **Talk** and speak ("compare the tents", "use the winner", "check out"). Gemini Live answers out loud and moves the screen while it talks. |
+| **Voice** | Press **Talk** and speak ("compare the suitcases", "use the winner", "check out"). Gemini Live answers out loud and moves the screen while it talks. |
 | **Typing** | The same requests in the assistant panel on the right. |
 | **Mouse** | Everything above has a click, hold or drag equivalent. |
 
@@ -39,10 +41,10 @@ To ship one origin instead: `npm run build && npm start`. Express then serves th
 
 ## Two-minute demo
 
-1. Type or say **"I need to prepare for camping"**. A red *Camping kit* group appears, and the assistant summarises it.
-2. Pull the group apart (two fists, or click). Open **2-person tent**.
-3. Pinch two listings together (or press **Compare best two**). The sheet shows the scores, why, and a plain trade-off ("Walmart is $22.31 cheaper; Amazon is better reviewed and ships 2 days sooner"). Drag the **trust floor**: it rescores without refetching.
-4. **Choose + add to cart**. The tent turns yellow. Pinch-drag a stove listing onto the cart.
+1. Type or say **"I'm going to Tokyo for a week"**. A red *Trip to Tokyo* group appears with eight things to pack, and Esper summarises it.
+2. Pull the group apart (two fists, or click). Open **Carry-on suitcase**.
+3. Pinch two listings together (or press **Compare best two**): Travelpro on Amazon at $129.99 against Samsonite on Walmart at $89. The sheet shows the scores, why, and a plain trade-off ("Walmart is $40.99 cheaper; Amazon ships 4 days sooner"). When the value scores are within 0.05, Esper says so rather than inventing a winner. Drag the **trust floor**: it rescores without refetching.
+4. **Choose + add to cart**. The suitcase turns yellow. Pinch-drag a travel adapter onto the cart, or say **"show me the neck pillow"**.
 5. Say **"check out"**, then **Place mock order**. The receipt appears, and the items turn green.
 
 ## How it fits together
@@ -55,7 +57,7 @@ client (React + Vite)  ──/api──▶  Express :3001  ──/api/conjure/*�
                          ──/ws-live─▶ voice tunnel  ─────────────────▶  review & website safety
 ```
 
-- **Plans:** `server/services/planner.js` (templates) → `fetchBot.js` (Python marketplace search + store APIs in parallel) → `synthesizeBot.js` (exact-cents validation; the Python weighted scorer picks) → `pipeline.js`.
+- **Plans:** `server/services/planner.js` (templates; a trip is detected from words like "trip" or "flight", or a place: "going to Tokyo", "a week in Lisbon") → `fetchBot.js` (Python marketplace search + store APIs in parallel) → `synthesizeBot.js` (exact-cents validation; the Python weighted scorer picks) → `pipeline.js`.
 - **Compare:** `score = bang per buck × relevancy × trust multiplier` (`api/market/compare_service.py`, explained in [pitch.md](pitch.md)). A tie within 0.05 is reported as a tie, with the concrete trade-offs spelled out.
 - **Assistant:** one tool set in `api/live_tools.py`, used by voice (`api/live.py`) and typing (`api/planner_chat.py`). Tool results become `UI_UPDATE` events the client applies (`client/src/App.jsx`).
 - **Checkout:** `server/services/checkout.js` prices from the server's copy of the plan, never from the browser. One order can span several lists. Mock orders also post to the DummyJSON / Fake Store sandbox carts (`mockOrder.js`).

@@ -66,14 +66,14 @@ test("other upgrade paths are refused and a dead upstream closes the socket", as
 
 test("a built client is served for app routes while /api stays JSON", async (t) => {
   const dist = mkdtempSync(join(tmpdir(), "esper-dist-"));
-  writeFileSync(join(dist, "index.html"), "<!doctype html><title>ESPER</title>");
+  writeFileSync(join(dist, "index.html"), "<!doctype html><title>Esper</title>");
   const server = http.createServer(createApp(undefined, { clientDist: dist }));
   const port = await listen(server);
   const base = `http://127.0.0.1:${port}`;
   close(t, server);
   const page = await fetch(`${base}/gesture-lab`);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /ESPER/);
+  assert.match(await page.text(), /Esper/);
   const missing = await fetch(`${base}/api/nope`);
   assert.equal(missing.status, 404);
   assert.deepEqual(await missing.json(), { error: "Unknown API route" });

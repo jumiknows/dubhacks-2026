@@ -97,6 +97,20 @@ def test_first_message_builds_a_plan(client, planner) -> None:
     assert "Camping kit" in body["reply"]
 
 
+def test_naming_a_trip_starts_a_new_list_but_questions_about_it_do_not(client, planner) -> None:
+    for text in ("I'm flying to Lisbon next month", "planning a beach vacation", "trip to Tokyo in March",
+                 "Beach weekend in Cancún", "a week in Tokyo"):
+        assert actions(chat(client, text, plan_id="plan-1")) == ["PLAN"], text
+        assert planner.calls[-1][:2] == ("POST", "/api/plans")
+    calls = len(planner.calls)
+    body = chat(client, "what's left to buy for my trip?", plan_id="plan-1")
+    assert actions(body) == ["PLAN"] and not any(c[:2] == ("POST", "/api/plans") for c in planner.calls[calls:])
+    body = chat(client, "I'm going to buy the REI one", plan_id="plan-1", focus_item_id="tent")
+    assert not any(c[:2] == ("POST", "/api/plans") for c in planner.calls[calls:])
+    body = chat(client, "what do I still need?", plan_id="plan-1", focus_item_id="tent")
+    assert actions(body) == ["PLAN"] and not any(c[0] == "PATCH" for c in planner.calls[calls:])
+
+
 def test_small_talk_does_not_create_a_plan(client, planner) -> None:
     body = chat(client, "thanks", plan_id="plan-1")
     assert body["events"] == []

@@ -11,7 +11,7 @@
  *   estimatedArrival, shippingPrice, shippingCurrency: only when the source states them
  */
 
-export const USER_AGENT = "Planboard/0.1 (DubHacks 2026 hackathon project)";
+export const USER_AGENT = "Esper/0.1 (DubHacks 2026 hackathon project)";
 
 export class StoreError extends Error {
   constructor(message, { status = null, retryAfterMs = null } = {}) {

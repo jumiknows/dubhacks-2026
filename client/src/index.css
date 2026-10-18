@@ -835,6 +835,7 @@ img.thumb { object-fit: cover; }
 .shell[data-hue="groceries"] { --hue: #1f6b4a; }
 .shell[data-hue="wedding"] { --hue: #8a4d6e; }
 .shell[data-hue="camping"] { --hue: #8a6230; }
+.shell[data-hue="travel"] { --hue: #1d7f8f; }
 .shell[data-hue="electronics"] { --hue: #2a5f9e; }
 .shell[data-hue="custom"] { --hue: #534a86; }
 
@@ -887,6 +888,8 @@ img.thumb { object-fit: cover; }
 .shell[data-hue="camping"] .glow-ring { animation: ring-out 6s ease-out infinite; }
 .shell[data-hue="electronics"] .glow-core { animation: glow-scan 5.5s linear infinite; }
 .shell[data-hue="custom"] .glow-core { animation: glow-drift 11s ease-in-out infinite; }
+.shell[data-hue="travel"] .glow-core { animation: glow-drift 11s ease-in-out infinite; }
+.shell[data-hue="travel"] .glow-ring { animation: ring-out 7s ease-out infinite; }
 
 .home {
   position: relative;
@@ -1765,7 +1768,7 @@ img.thumb { object-fit: cover; }
   .product-facts { grid-template-columns: 1fr 1fr; }
 }
 /* ---------------------------------------------------------------------------
-   ESPER shell: assistant rail, cart dock, compare and cart sheets.
+   Esper shell: assistant rail, cart dock, compare and cart sheets.
    --------------------------------------------------------------------------- */
 
 .shell { --rail: 0px; }

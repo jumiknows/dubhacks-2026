@@ -28,8 +28,8 @@ router = APIRouter()
 MAX_TOOL_ROUNDS = 4
 
 SYSTEM = (
-    "You are ESPER's shopping partner in a chat panel next to the user's shopping board. The board updates as "
-    "you call tools. Build lists with create_plan, show an item's listings with open_item, compare offers with "
+    "You are Esper, a shopping partner that gets people ready for trips, in a chat panel next to the user's "
+    "shopping board. The board updates as you call tools. Build lists with create_plan, show an item's listings with open_item, compare offers with "
     "compare_listings (it picks the two best listings if none are named), choose one with pick_listing, put it in "
     "the cart with add_to_cart, record things already bought with mark_purchased, and open the payment review "
     "with start_checkout. You cannot pay or confirm an order; the user does that on screen. "
@@ -136,10 +136,15 @@ _COMPARE = re.compile(r"\b(compare|vs\.?|versus|which (one |is )?(is )?(better|b
 _PICK = re.compile(r"\b(pick|choose|use|go with|take|select)\b")
 _CART = re.compile(r"\b(add|put|throw)\b.*\bcart\b|\bcart\b")
 _BOUGHT = re.compile(r"\b(already (have|own|got|bought)|bought|purchased|have (one|it|that)|got (one|it|that))\b")
-_UNBOUGHT = re.compile(r"\b(not bought|didn'?t buy|undo|uncheck|still need)\b")
+_UNBOUGHT = re.compile(r"\b(not bought|didn'?t buy|haven'?t bought|undo|uncheck)\b")
 _OPEN = re.compile(r"\b(open|show( me)?|look at|see|listings? for|options for)\b")
-_LIST = re.compile(r"\b(what'?s on|list|total|how much|summary|what do i (still )?need|status)\b")
-_NEW = re.compile(r"\b(i need|i'?m (getting ready|preparing|planning)|get ready|prepare|planning|shopping for|help me (buy|get|plan)|new list|make (me )?a list|going (camping|to))\b")
+_LIST = re.compile(r"\b(what'?s (on|left)|left to (buy|get)|remaining|list|total|how much|summary|what do i (still )?need|status)\b")
+_NEW = re.compile(r"\b(i need|i'?m (getting ready|preparing|planning)|get ready|prepare|planning|shopping for|help me (buy|get|plan)|new list|make (me )?a list|going camping"
+                  r"|(going on|planning|taking|booking|packing for) (a |an |my |our )?(\w+ )?(trip|vacation|holiday|getaway|honeymoon))\b")
+# "I'm flying to Lisbon", "trip to Tokyo": a capitalized place after a travel word starts a new trip list.
+# Checked on the raw text; "what's left for my trip?" stays a question about the current list.
+_DESTINATION = re.compile(r"\b(?:going|headed|heading|off|flying|traveling|travelling|visiting|trip|vacation)\s+(?:to\s+|in\s+)?[A-Z][a-z]"
+                          r"|\b(?:weekend|week|days|nights?|month)\s+(?:in|to|at)\s+[A-Z][a-z]")
 _SMALL_TALK = re.compile(r"^\s*(hi|hello|hey|yo|thanks|thank you|ok(ay)?|cool|nice|help|what can you do)\W*$")
 _WINNER = re.compile(r"\b(winner|best|that one|it|recommended|cheaper|left|right)\b")
 
@@ -169,7 +174,7 @@ async def _rules_turn(ctx: LiveContext, req: PlannerChatRequest) -> dict[str, An
 
     if _SMALL_TALK.match(low):
         return _reply(_summary([]), events)
-    if ctx.plan is None or (_NEW.search(low) and not _COMPARE.search(low)):
+    if ctx.plan is None or ((_NEW.search(low) or _DESTINATION.search(text)) and not _COMPARE.search(low)):
         await run("create_plan", {"prompt": text})
     elif _TRUST.search(low) and _NUMBER.search(low):
         number = _NUMBER.search(low)

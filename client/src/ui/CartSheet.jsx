@@ -88,7 +88,7 @@ export default function CartSheet({
                 ))}
               </ul>
             ) : (
-              <p className="quiet">Hold a listing for a second, drag it here, or tell ESPER “add it to my cart”.</p>
+              <p className="quiet">Hold a listing for a second, drag it here, or tell Esper “add it to my cart”.</p>
             )}
             {stage === "review" ? (
               <footer className="quote">

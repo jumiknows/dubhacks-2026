@@ -5,7 +5,7 @@ import { LiveSession } from "./live.js";
 let nextTurn = 0;
 
 /**
- * The conversation with ESPER. Typed messages go to /planner/chat, or into the voice session when
+ * The conversation with Esper. Typed messages go to /planner/chat, or into the voice session when
  * one is open, so both drive the same tools. `onUi` applies each UI_UPDATE as it arrives;
  * `getContext` returns what the screen shows ({ plan_id, trust_floor, focus_item_id, compare }).
  */

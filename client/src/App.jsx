@@ -443,7 +443,7 @@ function linesInCart(plans, marks) {
 }
 
 function suggestionsFor({ plans, focusId, compare, cartLines }) {
-  if (!plans.length) return ["I'm going camping this weekend", "Weekly groceries for two", "Set me up with a new laptop"];
+  if (!plans.length) return ["I'm going to Tokyo for a week", "Beach weekend in Cancún", "Business trip to New York"];
   const out = [];
   if (compare?.result) out.push("Use the winner and add it to my cart");
   const focused = focusId ? findItem(plans, focusId)?.item : null;

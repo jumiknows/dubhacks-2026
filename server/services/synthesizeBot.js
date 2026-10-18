@@ -21,7 +21,7 @@ export function normalizeCurrency(value) {
   if (typeof value !== "string") return null;
   const code = value.trim().toUpperCase();
   if (!CURRENCIES.has(code)) return null;
-  // This Planboard contract uses cents. Do not misprice zero/three-decimal currencies.
+  // The planner contract uses cents. Do not misprice zero/three-decimal currencies.
   const digits = new Intl.NumberFormat("en", { style: "currency", currency: code })
     .resolvedOptions().maximumFractionDigits;
   return digits === 2 ? code : null;

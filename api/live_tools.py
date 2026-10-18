@@ -29,7 +29,7 @@ FUNCTION_DECLARATIONS: list[dict[str, Any]] = [
                 "prompt": {"type": "STRING", "description": "What they are preparing for, in their words"},
                 "category": {
                     "type": "STRING",
-                    "description": "groceries, wedding, camping, electronics, or custom",
+                    "description": "travel, camping, groceries, wedding, electronics, or custom",
                 },
             },
             "required": ["prompt"],
@@ -174,7 +174,7 @@ class LiveContext:
             return {"error": "prompt is required"}
         category = str(args.get("category") or "").strip().lower()
         body: dict[str, Any] = {"prompt": prompt}
-        if category in {"groceries", "wedding", "camping", "electronics", "custom"}:
+        if category in {"travel", "groceries", "wedding", "camping", "electronics", "custom"}:
             body["category"] = category
         plan = await self._http("POST", "/api/plans", body)
         if "id" not in plan:

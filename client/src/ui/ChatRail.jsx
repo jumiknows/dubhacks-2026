@@ -4,12 +4,12 @@ const VOICE_LABEL = {
   off: "Talk",
   connecting: "Connecting…",
   listening: "Listening · tap to stop",
-  speaking: "ESPER is speaking",
+  speaking: "Esper is speaking",
   error: "Talk",
   unavailable: "Voice off",
 };
 
-/** Conversation with ESPER: history, a composer, and push-to-start voice. */
+/** Conversation with Esper: history, a composer, and push-to-start voice. */
 export default function ChatRail({ open, assistant, suggestions, onToggle }) {
   const { turns, busy, voice, brain, send, startVoice, stopVoice } = assistant;
   const [draft, setDraft] = useState("");
@@ -31,18 +31,18 @@ export default function ChatRail({ open, assistant, suggestions, onToggle }) {
 
   if (!open) {
     return (
-      <button type="button" className={`chat-orb${voiceOn ? " is-live" : ""}`} onClick={onToggle} aria-label="Open the ESPER assistant">
+      <button type="button" className={`chat-orb${voiceOn ? " is-live" : ""}`} onClick={onToggle} aria-label="Open the Esper assistant">
         <span className="chat-orb-core" aria-hidden="true" />
-        <span>Ask ESPER</span>
+        <span>Ask Esper</span>
       </button>
     );
   }
 
   return (
-    <aside className="chat-rail" aria-label="ESPER assistant">
+    <aside className="chat-rail" aria-label="Esper assistant">
       <header className="chat-head">
         <div>
-          <p className="shop-kicker">ESPER assistant</p>
+          <p className="shop-kicker">Esper assistant</p>
           <p className="chat-status">
             <i className={`chat-dot is-${voiceOn ? voice.status : brain || "rules"}`} aria-hidden="true" />
             {voiceOn ? `Voice · ${voice.status}` : brain === "llm" ? "Typed · AI model" : brain === "offline" ? "Assistant offline" : "Typed · offline rules"}
@@ -54,7 +54,7 @@ export default function ChatRail({ open, assistant, suggestions, onToggle }) {
       <ol ref={listRef} className="chat-turns" aria-live="polite">
         {turns.length === 0 ? (
           <li className="chat-turn is-assistant is-intro">
-            Tell me what you're getting ready for, and I'll build the list. Then ask me to open an item, compare two
+            Tell me where you're headed and I'll build the packing list. Then ask me to open an item, compare two
             listings, pick the winner, or check out. You can also just use your hands or the mouse.
           </li>
         ) : null}
@@ -64,7 +64,7 @@ export default function ChatRail({ open, assistant, suggestions, onToggle }) {
             {turn.text}
           </li>
         ))}
-        {busy ? <li className="chat-turn is-assistant is-thinking" aria-label="ESPER is thinking"><i /><i /><i /></li> : null}
+        {busy ? <li className="chat-turn is-assistant is-thinking" aria-label="Esper is thinking"><i /><i /><i /></li> : null}
       </ol>
 
       {suggestions.length ? (
@@ -76,12 +76,12 @@ export default function ChatRail({ open, assistant, suggestions, onToggle }) {
       ) : null}
 
       <form className="chat-compose" onSubmit={submit}>
-        <label className="sr-only" htmlFor="chat-input">Message ESPER</label>
+        <label className="sr-only" htmlFor="chat-input">Message Esper</label>
         <input
           id="chat-input"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={voiceOn ? "Talk, or type here too…" : "Ask ESPER…"}
+          placeholder={voiceOn ? "Talk, or type here too…" : "Ask Esper…"}
           maxLength={1000}
           autoComplete="off"
         />

@@ -1,6 +1,6 @@
 // Gemini Live voice session through the /ws-live relay (the API key never reaches the browser).
 // Mic: 16 kHz PCM16 mono, sent as binary frames. Speaker: Gemini's 24 kHz PCM16 chunks.
-// The mic is paused while ESPER speaks so speakers can't feed back into it.
+// The mic is paused while Esper speaks so speakers can't feed back into it.
 
 const MIC_RATE = 16000;
 const SPEAKER_RATE = 24000;
@@ -112,7 +112,7 @@ export class LiveSession {
       }
       pending.length = 0;
       pendingLength = 0;
-      // Half duplex: drop mic audio while ESPER is talking.
+      // Half duplex: drop mic audio while Esper is talking.
       if (this.playing.size || this.ws?.readyState !== WebSocket.OPEN) return;
       this.ws.send(toPcm16(downsample(joined, ctx.sampleRate, MIC_RATE)));
     };

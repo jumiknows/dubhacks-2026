@@ -7,7 +7,7 @@ const HINTS = [
   { title: 'Inspect a piece', text: 'Grab a piece with one fist and hold, or click it. Its store listings fill the screen.' },
   { title: 'Compare', text: 'Pinch two listings, one in each hand, and bring them together. Or press Compare on two of them.' },
   { title: 'Add to cart', text: 'Hold a listing for 1 second with a fist or the mouse, or drag it onto the cart. It turns yellow.' },
-  { title: 'Ask ESPER', text: 'Type or talk in the panel on the right: “compare the tents”, “use the winner”, “check out”.' },
+  { title: 'Ask Esper', text: 'Type or talk in the panel on the right: “compare the suitcases”, “use the winner”, “check out”.' },
   { title: 'Colors', text: 'Black is owned. Green is purchased. Yellow is in the cart. Red still needs buying.' },
 ];
 

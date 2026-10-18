@@ -66,10 +66,11 @@ export default function PlannerUI({
         <span className="glow-ring" />
       </div>
       <section className="home">
-        <p className="eyebrow">ESPER</p>
-        <h1>What do you need to get ready?</h1>
+        <p className="eyebrow">Esper</p>
+        <h1>Where are you headed?</h1>
         <p className="lede">
-          Say it, type it, or pick it up with your hands. ESPER builds the list, compares the listings and keeps the cart.
+          Tell Esper about the trip. It builds the packing list, compares listings across stores, and keeps the cart.
+          Say it, type it, or pick things up with your hands.
         </p>
         <form className="prompt" onSubmit={onPlan}>
           <label className="sr-only" htmlFor="plan-prompt">
@@ -79,10 +80,10 @@ export default function PlannerUI({
             id="plan-prompt"
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder="Camping this weekend, weekly groceries, a new laptop…"
+            placeholder="A week in Tokyo, a beach weekend in Cancún, a ski trip…"
           />
           <button className="transition duration-200 ease-snap active:scale-[0.98]" type="submit" disabled={loading || !prompt.trim()}>
-            {loading ? "Planning…" : "Build list"}
+            {loading ? "Packing…" : "Build list"}
           </button>
         </form>
         {error ? (
