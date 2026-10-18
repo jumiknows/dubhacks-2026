@@ -1862,7 +1862,7 @@ body:has(.cart-layer) .gesture-lab-launch { display: none; }
 
 @media (max-width: 900px) {
   .chat-rail { width: auto; left: 0; top: auto; height: min(70vh, 34rem); border-left: 0; border-top: 1px solid rgba(126, 224, 255, .16); border-radius: 20px 20px 0 0; }
-  .chat-orb { top: auto; bottom: 1rem; transform: none; }
+  .chat-orb { top: auto; bottom: 5rem; transform: none; }
 }
 
 /* Cart dock: also the drop zone for listings */

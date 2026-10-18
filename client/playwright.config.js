@@ -10,7 +10,7 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:5187',
     ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
     viewport: { width: 1440, height: 1100 },
-    launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

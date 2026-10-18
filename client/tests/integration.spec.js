@@ -43,7 +43,8 @@ test('multiple plans retain selected offers through comparison, deliberate cart 
   await expect(dialog).toContainText('Demo data');
   await dialog.getByRole('button', { name: 'Compare best two', exact: true }).click();
   const comparison = page.getByRole('dialog', { name: 'Compare Tent listings', exact: true });
-  await expect(comparison).toContainText('Lower price within your trust floor.');
+  await expect(comparison.getByRole('heading', { name: 'Camp tent wins', exact: true })).toBeVisible();
+  await expect(comparison).toContainText('Sample Camp is $20.00 cheaper');
   await comparison.getByRole('button', { name: 'Choose B + add to cart', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Cart, 1 item/ })).toContainText('$60.00');
   expect(selected).toBe('offer-b');
