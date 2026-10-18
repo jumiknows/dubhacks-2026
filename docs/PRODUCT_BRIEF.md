@@ -32,10 +32,12 @@ The memorable demo moment is hearing Grok explain the exact place and time selec
 | Priority | Deliverable |
 | --- | --- |
 | P0 | One runnable app with real NASA observations and a verified replay dataset |
+| P0 | Reproducible data job, raw-source lineage, quality report and immutable snapshot interface |
 | P0 | Map, accessible place list, source inspector, and explicit freshness states |
 | P0 | Deterministic proximity context and observation change summary |
 | P0 | Actual Grok Voice integration with readable transcript and speech fallback |
 | P0 | A reliable deployed demo, regression checks, and Cursor build evidence |
+| P0 | Human-reviewed cases proving the briefing matches its selected evidence |
 | P1 | NWS weather context, shareable briefing, and a second reviewed language |
 | P2 | NASA dated imagery comparison and a terrain or contour layer |
 
@@ -64,6 +66,8 @@ Replay reconstructs satellite observation timestamps. It does not establish when
 Use a calm map with strong typography, a compact place list, a right-side evidence panel, and a timeline along the bottom. Use amber for thermal observations, blue for selection, and gray for missing data. Reserve animation for timeline transitions and honor reduced motion.
 
 The initial screen should answer three questions: where am I looking, when was this observed, and what can I inspect next? Avoid decorative KPI cards and full-screen chat.
+
+Use the [interactive design reference](prototype/README.md) for layout and interaction direction. Its fictional terrain, places and observations are visibly synthetic. Replace them with real data and an actual Grok integration in Cursor. The backend and later model research follow [data architecture](DATA_BACKEND.md) and [labeling/evaluation](LABELING_AND_ML.md).
 
 ## Acceptance targets
 

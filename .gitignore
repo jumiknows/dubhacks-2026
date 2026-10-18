@@ -21,6 +21,7 @@ coverage/
 .turbo/
 playwright-report/
 test-results/
+artifacts/
 
 # Local editor and operating system files
 .DS_Store
