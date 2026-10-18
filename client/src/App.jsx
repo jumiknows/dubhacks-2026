@@ -1,110 +1,31 @@
-import { useEffect, useState } from "react";
-import { createPlan, getMe, setPurchased } from "./api.js";
-import AccountChip from "./onboarding/AccountChip.jsx";
-import Onboarding from "./onboarding/Onboarding.jsx";
+import { useState } from "react";
+import { createPlan, setPurchased } from "./api.js";
 import PlannerUI from "./ui/PlannerUI.jsx";
-
-const TABS = [
-  { id: "groceries", label: "Groceries", prompt: "Weekly groceries for two people" },
-  { id: "wedding", label: "Wedding", prompt: "I need to plan a small outdoor wedding." },
-  { id: "camping", label: "Camping", prompt: "I need to prepare for camping." },
-  { id: "electronics", label: "Electronics", prompt: "Keep my laptop, phone, and headphones current." },
-  { id: "custom", label: "Custom", prompt: "" },
-];
-
-/** ?google=connected|denied|expired|error after the Google redirect; ?onboarding replays setup. */
-function readLaunchParams() {
-  const params = new URLSearchParams(window.location.search);
-  const google = params.get("google");
-  const replay = params.has("onboarding");
-  if (google || replay) window.history.replaceState(null, "", window.location.pathname);
-  return { google, replay };
-}
+import { TONES } from "./ui/shopState.js";
 
 export default function App() {
-  const [launch] = useState(readLaunchParams);
-  const [me, setMe] = useState(null);
-  const [onboarding, setOnboarding] = useState(null);
-  const [initialStart, setInitialStart] = useState(null);
-
-  useEffect(() => {
-    // If the server is down or slow, open the planner rather than a blank screen.
-    let settled = false;
-    const fallback = window.setTimeout(() => {
-      if (!settled) setOnboarding(false);
-    }, 3000);
-    getMe()
-      .then((body) => {
-        setMe(body);
-        setOnboarding((current) => (current === false && !launch.replay ? false : launch.replay || !body.profile?.completedAt));
-      })
-      .catch(() => setOnboarding(false))
-      .finally(() => {
-        settled = true;
-        window.clearTimeout(fallback);
-      });
-    return () => window.clearTimeout(fallback);
-  }, [launch]);
-
-  if (onboarding === null) return <main className="onb-boot" aria-busy="true" />;
-  if (onboarding) {
-    return (
-      <Onboarding
-        me={me}
-        googleStatus={launch.google}
-        onFinish={(start) => {
-          setInitialStart(start);
-          setOnboarding(false);
-        }}
-      />
-    );
-  }
-  return (
-    <>
-      <Planner initialStart={initialStart} />
-      <AccountChip me={me} />
-    </>
-  );
-}
-
-function Planner({ initialStart }) {
-  const [category, setCategory] = useState("groceries");
-  const [prompt, setPrompt] = useState(TABS[0].prompt);
-  const [plan, setPlan] = useState(null);
+  const [prompt, setPrompt] = useState("");
+  const [plans, setPlans] = useState([]);
+  const [marks, setMarks] = useState({});
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-
-  function onSelectCategory(id) {
-    const tab = TABS.find((item) => item.id === id);
-    setCategory(id);
-    setPrompt(tab ? tab.prompt : "");
-    setPlan(null);
-    setError("");
-    setStatus("idle");
-  }
-
-  // A calendar suggestion picked during onboarding starts that plan right away.
-  useEffect(() => {
-    if (!initialStart) return;
-    setCategory(initialStart.category);
-    setPrompt(initialStart.prompt);
-    buildPlan(initialStart.prompt, initialStart.category);
-    // Run once, for the suggestion the planner opened with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [focusId, setFocusId] = useState(null);
 
   async function onPlan(event) {
     event.preventDefault();
-    buildPlan(prompt.trim(), category);
-  }
-
-  async function buildPlan(text, planCategory) {
+    const text = prompt.trim();
     if (!text) return;
 
     setStatus("loading");
     setError("");
     try {
-      setPlan(await createPlan(text, planCategory));
+      const next = await createPlan(text);
+      const stamped = {
+        ...next,
+        items: (next.items || []).map((item) => ({ ...item, planId: next.id })),
+      };
+      setPlans((current) => [...current, stamped]);
+      setPrompt("");
       setStatus("idle");
     } catch (err) {
       setStatus("error");
@@ -112,28 +33,62 @@ function Planner({ initialStart }) {
     }
   }
 
+  function onMark(itemId, tone) {
+    setMarks((current) => ({ ...current, [itemId]: tone }));
+    if (tone === TONES.purchased) {
+      const found = findItem(plans, itemId);
+      if (found && !found.item.purchased) patchPurchased(found.plan, found.item, true);
+    }
+  }
+
   async function onToggle(item) {
-    if (!plan) return;
+    const found = findItem(plans, item.id);
+    if (!found) return;
     setError("");
     try {
-      setPlan(await setPurchased(plan.id, item.id, !item.purchased));
+      await patchPurchased(found.plan, item, !item.purchased);
+      setMarks((current) => ({
+        ...current,
+        [item.id]: item.purchased ? TONES.needed : TONES.purchased,
+      }));
     } catch (err) {
       setError(err.message);
     }
   }
 
+  async function patchPurchased(plan, item, purchased) {
+    const updated = await setPurchased(plan.id, item.id, purchased);
+    setPlans((current) => current.map((row) => (row.id === updated.id ? stamp(updated) : row)));
+  }
+
   return (
     <PlannerUI
-      tabs={TABS}
-      category={category}
       prompt={prompt}
-      plan={plan}
+      plans={plans}
+      marks={marks}
       status={status}
       error={error}
-      onSelectCategory={onSelectCategory}
+      focusId={focusId}
       onPromptChange={setPrompt}
       onPlan={onPlan}
       onToggle={onToggle}
+      onMark={onMark}
+      onInspect={setFocusId}
     />
   );
+}
+
+function stamp(plan) {
+  return {
+    ...plan,
+    items: (plan.items || []).map((item) => ({ ...item, planId: plan.id })),
+  };
+}
+
+function findItem(plans, itemId) {
+  for (const plan of plans) {
+    const item = plan.items.find((row) => row.id === itemId);
+    if (item) return { plan, item };
+  }
+  return null;
 }

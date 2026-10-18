@@ -1,13 +1,14 @@
 import { useState } from 'react';
 
-const KEY = 'conjure.gesture.hintsSeen.pinch-swipe-v1';
+const KEY = 'conjure.gesture.hintsSeen.shop-board-v1';
 const HINTS = [
   { title: 'Point', text: 'Point with your index finger. That is the cursor.' },
-  { title: 'Grab', text: 'Close the whole fist, thumb included, to highlight a control. Open the hand to confirm it.' },
-  { title: 'Pinch, then swipe', text: 'Touch thumb and index together, then move left, right, up, or down. A swipe without a pinch is ignored.' },
-  { title: 'Swipe left', text: 'While pinched, move left to open the shopping list from your prompt.' },
-  { title: 'Swipe right', text: 'While pinched, move right to step back. The hand returning after a left swipe is ignored.' },
-  { title: 'Scroll', text: 'While pinched, swipe up or down to move one item. Wait half a second before the next swipe.' },
+  { title: 'Scroll the list', text: 'One finger: pan up or down through every query you have sent. Pinch and swipe up or down does the same.' },
+  { title: 'Split a group', text: 'Grab the same item group with both hands and pull them apart. Its pieces line up so you can pan them left and right.' },
+  { title: 'Inspect a piece', text: 'Grab one piece with one fist and hold. It lifts to the middle with products you can buy.' },
+  { title: 'Add to cart', text: 'Grab a product and hold for two seconds. It turns yellow (in the cart). Swipe up, or bring both fists together, to cancel.' },
+  { title: 'Recombine', text: 'Swipe up or down to close the split and keep moving through the list. Bring both fists together to close the split without moving.' },
+  { title: 'Colors', text: 'Black is owned. Green is purchased. Yellow is in the cart. Red still needs buying.' },
 ];
 
 
