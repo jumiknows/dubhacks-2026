@@ -8,7 +8,7 @@ const HINTS = [
   { title: 'Inspect a piece', text: 'Grab one piece with one fist and hold. It lifts to the middle with products you can buy.' },
   { title: 'Add to cart', text: 'Grab a product and hold for two seconds. It turns yellow (in the cart). Swipe up, or bring both fists together, to cancel.' },
   { title: 'Recombine', text: 'Swipe up or down to close the split and keep moving through the list. Bring both fists together to close the split without moving.' },
-  { title: 'Colors', text: 'Black is owned. Green is purchased. Yellow is in the cart. Red still needs buying.' },
+  { title: 'Status', text: 'Each item is labeled owned, purchased, in cart, or to buy. The cart always uses the offer you chose.' },
 ];
 
 

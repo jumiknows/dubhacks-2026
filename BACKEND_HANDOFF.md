@@ -1,5 +1,12 @@
 # Backend handoff
 
+The current `integration/cohesive-esper` application also integrates the shopping
+board, onboarding/calendar, marketplace adapters, voice, checkout, and assistant
+interfaces. Use the root [README](README.md) for current setup and verification.
+The branch validation and remaining-work notes below describe earlier backend
+snapshots; the frontend and production serving boundaries have since changed.
+Express now serves `client/dist` when built and proxies `/ws-live` to Python.
+
 This branch contains a locally integrated hackathon backend. It does not turn the demo
 inventory, synthetic reviews, or mock payment intents into live integrations.
 

@@ -22,6 +22,7 @@ export function toneLabel(tone) {
 
 export function groupTone(items, marks) {
   const tones = items.map((item) => itemTone(item, marks));
+  if (!tones.length) return TONES.needed;
   if (tones.every((tone) => tone === TONES.owned)) return TONES.owned;
   if (tones.every((tone) => tone === TONES.purchased || tone === TONES.owned)) return TONES.purchased;
   if (tones.some((tone) => tone === TONES.cart) && tones.every((tone) => tone !== TONES.needed)) return TONES.cart;

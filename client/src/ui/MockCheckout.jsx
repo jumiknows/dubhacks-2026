@@ -7,6 +7,7 @@ import { money } from "./format.js";
  */
 export function MockCheckoutSheet({ checkout, items, onPlace, onCancel }) {
   const [placing, setPlacing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const lines = items.filter((item) => checkout.itemIds.includes(item.id));
   const currency = checkout.currency.toUpperCase();
 
@@ -18,6 +19,8 @@ export function MockCheckoutSheet({ checkout, items, onPlace, onCancel }) {
       setPlacing(false);
     }
   }
+
+  async function cancel() { setCancelling(true); try { await onCancel(); } finally { setCancelling(false); } }
 
   return (
     <section className="panel cart mock-checkout" aria-label="Mock checkout">
@@ -41,10 +44,10 @@ export function MockCheckoutSheet({ checkout, items, onPlace, onCancel }) {
         <strong>{money(checkout.amount / 100, currency)}</strong>
       </footer>
       <div className="mock-actions">
-        <button type="button" className="ghost" onClick={onCancel} disabled={placing}>
-          Back to cart
+        <button type="button" className="ghost" onClick={cancel} disabled={placing || cancelling}>
+          {cancelling ? "Cancelling…" : "Back to cart"}
         </button>
-        <button type="button" className="confirm" onClick={place} disabled={placing}>
+        <button type="button" className="confirm" onClick={place} disabled={placing || cancelling}>
           {placing ? "Placing order…" : "Place mock order"}
         </button>
       </div>

@@ -5,10 +5,11 @@ import App from "./App.jsx";
 import "./index.css";
 const GestureLab = React.lazy(() => import('./gesture-lab/GestureLab.jsx'));
 const isGestureLab = window.location.pathname.replace(/\/+$/, '') === '/gesture-lab';
+const showGestureDebug = !isGestureLab && new URLSearchParams(window.location.search).has('gdebug');
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <GestureProvider poseDebug={!isGestureLab}>
+    <GestureProvider poseDebug={showGestureDebug}>
       {isGestureLab
         ? <React.Suspense fallback={<p>Loading gesture lab…</p>}><GestureLab /></React.Suspense>
         : <><App /><a className="gesture-lab-launch" href="/gesture-lab" data-gesture-ignore>Test gestures · spawn test objects</a></>}

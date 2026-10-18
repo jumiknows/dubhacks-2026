@@ -90,7 +90,10 @@ function normalizeListing(raw, index) {
     trust: Number.isFinite(raw.trust) ? raw.trust : null,
     score: Number.isFinite(raw.score) ? raw.score : null,
     flags: Array.isArray(raw.flags) ? raw.flags.filter((flag) => typeof flag === "string") : [],
-    warnings: isMock ? ["Demo listing: price, stock, dimensions and shipping duration are sample data."] : [],
+    warnings: [
+      ...(Array.isArray(raw.warnings) ? raw.warnings.filter((warning) => typeof warning === "string") : []),
+      ...(isMock ? ["Demo listing: price, stock, dimensions and shipping duration are sample data."] : []),
+    ],
   };
 }
 
@@ -102,7 +105,7 @@ function centsAmount(value, currency) {
 export async function synthesize(item, products, options = {}) {
   const originals = (Array.isArray(products) ? products : []).map(normalizeListing).filter(Boolean);
   let ranking = null;
-  if (originals.length && originals.some((product) => product.source === "selenium")) {
+  if (originals.length > 1 && originals.some((product) => product.source === "selenium")) {
     try {
       const result = await marketPost("/market/synthesize", {
         item: { name: item.name, quantity: item.quantity, unit: item.unit, reason: item.reason },

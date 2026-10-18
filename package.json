@@ -7,15 +7,18 @@
     "gesture_pipeline"
   ],
   "scripts": {
-    "dev": "concurrently -n api,server,client -c magenta,blue,green \"npm run api\" \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev": "concurrently -k -n api,server,client -c magenta,blue,green \"npm run api\" \"npm run dev -w server\" \"npm run dev -w client\"",
     "api": "node scripts/run-api.mjs",
     "api:setup": "node scripts/setup-api.mjs",
     "test:api": "node scripts/test-api.mjs",
     "test:server": "npm run test -w server",
+    "test:client": "npm run test:unit -w client",
+    "test:e2e": "npm run test:e2e -w client",
     "test:gesture-engine": "npm run test -w conjure-gestures",
     "typecheck:gestures": "npm run typecheck -w conjure-gestures",
     "smoke:backend": "node scripts/smoke-backend.mjs",
-    "test": "npm run test:server && npm run test:api",
+    "smoke:app": "node scripts/smoke-backend.mjs --browser",
+    "test": "npm run test:server && npm run test:api && npm run test:client && npm run test:gesture-engine",
     "build": "npm run build -w client",
     "start": "npm run start -w server"
   },

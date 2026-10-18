@@ -1,3 +1,6 @@
+process.env.PYTHON_API_URL = "http://127.0.0.1:1";
+process.env.STORES_LIVE = "false";
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { MAX_MONEY_CENTS, normalizeCurrency, parseCents, synthesize, validDate } from "../services/synthesizeBot.js";

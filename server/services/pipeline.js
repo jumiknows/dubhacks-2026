@@ -10,7 +10,7 @@ import { MAX_MONEY_CENTS, normalizeCurrency, parseCents, synthesize, validDate, 
 export async function attachOffers(items, options = {}) {
   return Promise.all(
     items.map(async (item) => {
-      if (item.purchased || item.synthesis) return item;
+      if (item.purchased || item.owned || item.synthesis) return item;
 
       const fetched = await fetchProducts(item.name, options);
       const products = await shortlistTop(fetched, options);
@@ -48,27 +48,22 @@ async function shortlistTop(products, options) {
 }
 
 /** Make one of the item's own listings the offer. Returns null if the id isn't one of them. */
-export function pickListing(item, listingId) {
+export async function pickListing(item, listingId) {
   const listing = (item.products || []).find((product) => product.id === listingId);
   if (!listing) return null;
-  const quantity = item.quantity > 0 ? item.quantity : 1;
-  const total = typeof listing.price === "number" ? Math.round(listing.price * quantity * 100) / 100 : null;
+  const synthesis = await synthesize(item, [listing]);
   return {
     ...item,
+    selectedListingId: listingId,
     synthesis: {
-      ...item.synthesis,
-      summary: `${listing.title} from ${listing.store}`,
-      image: listing.image,
-      dimensions: listing.dimensions,
-      totalPrice: total,
-      currency: listing.currency || "USD",
-      best: listing,
+      ...synthesis,
+      alternatives: (item.products || []).filter((product) => product.id !== listingId),
     },
   };
 }
 
 export function quotePlan(items, { budgetMax = null } = {}) {
-  const open = items.filter((item) => !item.purchased);
+  const open = items.filter((item) => !item.purchased && !item.owned);
   const currencies = new Set(open.map((item) => normalizeCurrency(item.synthesis?.currency)).filter(Boolean));
   const currency = open.length === 0 ? "USD" : currencies.size === 1 ? [...currencies][0] : null;
   let knownCents = 0n;
@@ -97,7 +92,8 @@ export function quotePlan(items, { budgetMax = null } = {}) {
     budgetCurrency: "USD",
     overBudget: budgetMax !== null && subtotalComplete && currency === "USD" ? knownSubtotal > budgetMax : null,
     toBuyCount: open.length,
-    purchasedCount: items.length - open.length,
+    purchasedCount: items.filter((item) => item.purchased).length,
+    ownedCount: items.filter((item) => item.owned && !item.purchased).length,
     totalPrice: subtotalComplete ? knownSubtotal : null,
     currency,
     readyBy: dates.length && dates.every(Boolean) ? dates.sort().at(-1) : null,

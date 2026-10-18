@@ -1,6 +1,8 @@
 export function money(amount, currency = "USD") {
-  if (typeof amount !== "number") return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return "—";
+  if (!currency) return `${amount.toFixed(2)} (currency unknown)`;
+  try { return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount); }
+  catch { return `${amount.toFixed(2)} (currency unknown)`; }
 }
 
 export function formatDate(iso) {

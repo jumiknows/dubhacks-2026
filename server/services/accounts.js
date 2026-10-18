@@ -46,7 +46,8 @@ export function emptyProfile() {
 function readCookie(req) {
   const header = req.headers.cookie || "";
   const match = header.split(/;\s*/).find((part) => part.startsWith(`${COOKIE}=`));
-  return match ? decodeURIComponent(match.slice(COOKIE.length + 1)) : null;
+  try { return match ? decodeURIComponent(match.slice(COOKIE.length + 1)) : null; }
+  catch { return null; }
 }
 
 function cookie(value, maxAge) {

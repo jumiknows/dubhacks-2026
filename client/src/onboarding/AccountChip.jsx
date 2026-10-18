@@ -57,7 +57,7 @@ export default function AccountChip({ me }) {
           <button role="menuitem" type="button" onClick={() => run(signOut)}>Sign out</button>
           {confirming ? (
             <div className="acct-confirm">
-              <p>Delete your Planboard account and disconnect Google? This cannot be undone.</p>
+              <p>Delete your ESPER account and disconnect Google? This cannot be undone.</p>
               <button type="button" className="acct-danger" onClick={() => run(deleteAccount)}>Delete account</button>
               <button type="button" onClick={() => setConfirming(false)}>Cancel</button>
             </div>

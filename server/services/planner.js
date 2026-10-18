@@ -92,6 +92,7 @@ export function generatePlan({ prompt, category }) {
       unit: item.unit ?? null,
       reason: item.reason,
       purchased: false,
+      owned: false,
       products: [],
       synthesis: null,
     })),
@@ -100,11 +101,12 @@ export function generatePlan({ prompt, category }) {
 
 export function validatePlanRequest(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return "Expected a JSON object";
-  if (Object.keys(body).some((key) => !["prompt", "category", "marketplaces"].includes(key))) return "Only prompt, category and marketplaces are accepted";
+  if (Object.keys(body).some((key) => !["prompt", "category", "marketplaces", "async"].includes(key))) return "Only prompt, category, marketplaces and async are accepted";
   if (typeof body.prompt !== "string" || !body.prompt.trim()) return "prompt is required";
   if (body.prompt.length > 2000) return "prompt must be at most 2000 characters";
   if (body.category !== undefined && typeof body.category !== "string") return "category must be a string";
   if (body.category && !["", "groceries", "wedding", "camping", "custom", "electronics"].includes(body.category.trim())) return "Unsupported category";
+  if (body.async !== undefined && typeof body.async !== "boolean") return "async must be a boolean";
   if (body.marketplaces !== undefined && (!Array.isArray(body.marketplaces) || body.marketplaces.length < 1 ||
       body.marketplaces.length > 3 || body.marketplaces.some((name) => !["amazon", "ebay", "walmart"].includes(name)))) {
     return "marketplaces must contain amazon, ebay or walmart";

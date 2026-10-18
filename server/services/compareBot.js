@@ -27,7 +27,7 @@ function finish(item, trustFloor) {
   const initial = bang * relevancy;
   return {
     ...item,
-    in_stock: item.in_stock ?? item.inStock ?? true,
+    in_stock: item.in_stock ?? item.inStock ?? false,
     initial_value: round4(initial),
     trust_multiplier: round4(mult),
     score: round4(initial * mult),

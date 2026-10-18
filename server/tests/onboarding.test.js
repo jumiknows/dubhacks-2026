@@ -245,23 +245,23 @@ describe("occasions", () => {
 
 describe("preferences shape offers", () => {
   const products = [
-    { id: "a", store: "Cheap", title: "Tent", price: 40, inStock: true, shippingDays: 9 },
-    { id: "b", store: "Fast", title: "Tent", price: 70, inStock: true, shippingDays: 1 },
-    { id: "c", store: "eBay seller", title: "Tent", price: 30, inStock: true, shippingDays: 5, source: "ebay" },
+    { id: "a", store: "Cheap", title: "Tent", price: 40, currency: "USD", trust: 0.9, inStock: true, shippingDays: 9 },
+    { id: "b", store: "Fast", title: "Tent", price: 70, currency: "USD", trust: 0.6, inStock: true, shippingDays: 1 },
+    { id: "c", store: "eBay seller", title: "Tent", price: 30, currency: "USD", trust: 0.4, inStock: true, shippingDays: 5, source: "ebay" },
   ];
   const item = { name: "Tent", quantity: 1 };
 
-  it("picks by price, speed or retailer", async () => {
+  it("picks by price, reported speed or explicit trust evidence", async () => {
     assert.equal((await synthesize(item, products)).best.id, "c");
     assert.equal((await synthesize(item, products, { priority: "speed" })).best.id, "b");
     const trusted = await synthesize(item, products, { priority: "trusted" });
     assert.equal(trusted.best.id, "a");
-    assert.equal(trusted.choice, "From a major retailer");
+    assert.equal(trusted.choice, "Highest available trust score; missing evidence remains unknown");
   });
 
   it("flags a plan over the onboarding budget", () => {
-    const items = [{ purchased: false, synthesis: { totalPrice: 120, shippingDate: null } }];
+    const items = [{ purchased: false, quantity: 1, synthesis: { totalPrice: 120, currency: "USD", shippingDate: null } }];
     assert.equal(quotePlan(items, { budgetMax: 100 }).overBudget, true);
-    assert.equal(quotePlan(items).overBudget, false);
+    assert.equal(quotePlan(items).overBudget, null);
   });
 });

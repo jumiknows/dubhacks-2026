@@ -124,7 +124,7 @@ export default function Onboarding({ me, googleStatus, onFinish }) {
     <main className="onb">
       <div className="onb-glow" aria-hidden="true" />
       <header className="onb-top">
-        <p className="eyebrow">Planboard</p>
+        <p className="eyebrow">ESPER</p>
         {step >= 1 && step <= 3 ? (
           <button type="button" className="onb-link" onClick={skipSetup} disabled={saving}>Skip setup</button>
         ) : null}

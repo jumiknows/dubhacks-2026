@@ -1,75 +1,73 @@
 # ESPER
 
-A shopping planner and Conjure shopping-assistant backend. A prompt becomes a checklist; purchased items drop out of its buy list. The current product offers and review datasets are explicitly demo data, not live retailer quotes.
+ESPER combines shopping lists, store offers, comparison, review evidence, voice, hand gestures, and checkout in one React/Vite application with Express and Python/FastAPI services.
 
-React/Vite talks to Express for plans. Express also exposes the Python/FastAPI assistant through `/api/conjure/*`. The assistant supports a configured Gemini/OpenAI-compatible provider, deterministic fallback, search, trust reports, feedback, and signed mock checkout. See [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md) for integration boundaries and remaining frontend work.
+## Run locally
 
-Review evidence and website safety have standalone workbenches at
-`/api/conjure/reviews/workbench` and `/api/conjure/websites/workbench` on the Express
-server. See [website setup](docs/website-safety.md): live fetching now holds without
-registered merchant origins and completed reputation checks. Offline demos stay explicit.
-
-## Setup
+Use Node.js 22+ and Python 3.11+.
 
 ```bash
-npm ci              # Node 24; installs the locked dependencies
-npm run api:setup   # once: creates api/.venv and installs the Python API (needs Python 3.11+)
-npm run dev         # starts the Conjure API, the Express server, and the client
+npm ci
+npm run api:setup
+npm run dev
 ```
 
-All external credentials are optional and stay in the ignored `api/.env`. For Gemini, use the settings documented in [api/README.md](api/README.md). An absent key selects the deterministic fallback. `server/.env` is optional; it can configure the gateway origin and timeout without containing an LLM key.
+Setup creates `api/.venv`; development and tests use that environment. `PYTHON` can select another Python 3.11+ interpreter for development. Stop the development command to stop all three services.
 
-Run the offline backend tests and frontend build:
+- Application: http://localhost:5173
+- Express: http://localhost:3001
+- Python API docs: http://localhost:8000/docs
+- Health: `/api/health` and `/api/conjure/health`
 
-```bash
-npm test
-npm run build
-```
+Copy `server/.env.example` to `server/.env` and `api/.env.example` to `api/.env` to configure optional integrations. Keep credentials in these ignored files. The application supports offline sample data. Google, live retailer APIs, Gemini voice, and Stripe test mode require their respective configuration; the UI reports availability and data provenance.
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3001 (the frontend proxies `/api/*` to it)
-- Conjure API: http://localhost:8000 · docs http://localhost:8000/docs · health http://localhost:8000/health (see `api/README.md`)
+For the built application, run `npm run build`, keep Python running with `npm run api`, and run `npm start` to serve the application and its API on port 3001. Set `CLIENT_URL` and `APP_ORIGIN` in `server/.env` to that application origin so Google and checkout return to it.
 
-## How a plan is built
+## Application flow
 
-1. `server/services/planner.js` uses deterministic checklist templates; it is separate from the Python conversational agent.
-2. `server/services/fetchBot.js` returns labelled mock listings. Live retailer retrieval still requires a source integration.
-3. `server/services/synthesizeBot.js` validates offers, compares matching explicit currencies, and calculates merchandise subtotals with integer cents. It does not convert currencies or invent delivery dates.
-4. `server/services/pipeline.js` attaches the offers and reports incomplete totals honestly. `fullTotal` stays unknown without agreed shipping/tax charge scope.
-5. `client/src/ui/` renders the existing plan contract. The frontend team still needs to display demo/warning metadata and connect the separate Conjure chat interface.
+Complete or skip onboarding, choose a calendar suggestion or describe a shopping task, and build a list. Multiple lists share the shopping board. Open a group with a click or hand gesture, inspect items, compare listings, select an offer, and add it to the cart. Purchased items update the server plan and its quote. Checkout returns to the same application and refreshes the paid plan.
 
-## First-run setup (onboarding)
+The assistant uses `/api/conjure/*` for conversational search and evidence. Its labelled demo catalog is separate from marketplace offers. Review and website workbenches are available at `/api/conjure/reviews/workbench` and `/api/conjure/websites/workbench`.
 
-New users see a short setup before the planner: **Continue with Google** (calendar access), three questions answered by hand gesture, key or tap, then suggested lists for upcoming calendar events such as "Camping at Rainier". Answers set how offers are picked (lowest price, fast shipping or major retailers) and the plan budget. Add `?onboarding` to the URL to replay it.
+Voice uses `/ws-live` and the same planner routes as the board. An initial checklist can appear while offers load; subsequent updates hydrate the complete plan. Missing voice configuration leaves text and pointer controls available.
 
-Google sign-in needs a one-time setup. Without it, setup skips the Google step and still runs the questions.
+The [gesture module](gesture_pipeline/README.md) supplies pointer, pinch, drag, swipe, split, and recombine interactions. `/gesture-lab` retains camera-free replays, live assessments, and JSON export. See [two-hand gestures](docs/two-hand-gestures.md) for tuning and tests.
 
-1. In Google Cloud Console, create an OAuth client of type **Web application**.
-2. Add the redirect URI `http://localhost:5173/api/auth/google/callback`.
-3. On the OAuth consent screen, add the scope `calendar.readonly` and, while the app is in testing, each tester's Google account as a test user.
-4. Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `server/.env` and restart.
+## Data and checkout
 
-Signing in with Google creates the user's Planboard account; there are no passwords. Only event titles and dates are read. Accounts and sessions are saved in `server/data/accounts.json` (gitignored), with session ids hashed and Google tokens encrypted. Users can sign out, redo setup, or delete their account from the account button in the top-left corner.
+Checklist generation uses explicit templates. Marketplace search combines the Python marketplace service and configured store adapters, with labelled fixture fallback. Selenium is optional (`SELENIUM_ENABLED=true`); store adapters are controlled by `STORES_LIVE` and provider settings in `server/.env.example`.
+
+Prices are validated and calculated in integer cents. Quotes distinguish known merchandise subtotals, missing prices, mixed currencies, shipping, tax, and arrival evidence. The cart uses server-selected offers and server prices. Missing configuration uses an explicitly labelled mock checkout; `STRIPE_SECRET_KEY=sk_test_...` enables Stripe test Checkout. `MOCK_ORDER_SANDBOX=off` keeps sample orders offline.
+
+Accounts and preferences persist under ignored `server/data/`. Planner lists and checkout sessions currently live in server memory; restarting Express expires them. The application restores the current browser or signed-in account’s lists while their server plans remain available.
 
 ## API
 
-- `POST /api/plans` `{ prompt, category }` → plan, including `items[].products`, `items[].synthesis`, and `quote`
-- `GET /api/plans/:id`
-- `GET /api/me` → signed-in user, saved setup answers, Google status
-- `PUT /api/me/profile` `{ focus, priority, budget }` → saves setup answers
-- `GET /api/auth/google/start` → Google consent screen; returns to `/?google=connected`
-- `GET /api/calendar/suggestions` → upcoming events that need a list
-- `POST /api/auth/logout` `{ revoke?: boolean }`
-- `DELETE /api/me` → deletes the account and revokes Google access
-- `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
-- `/api/conjure/*` → allowed Python assistant endpoints, including streamed `/chat`, `/session`, `/products/search`, `/products/recommend`, `/trust/:id`, and signed mock checkout
+- `POST /api/plans` — `{prompt, category?, marketplaces?, async?}`; `async:true` returns a checklist while offers load.
+- `GET /api/plans/:id` — retrieve the complete plan and pricing status.
+- `PATCH /api/plans/:id/items/:itemId` — `{purchased:boolean}`.
+- `PUT /api/plans/:id/items/:itemId/listing` — `{listingId}` selects an existing offer.
+- `POST /api/compare` and `POST /api/top` — marketplace comparison and ranking.
+- `POST /api/checkout` — `{planId,itemIds}`; `GET /api/checkout/:sessionId` confirms the result.
+- `POST /api/checkout/:sessionId/cancel` — cancels an open checkout and releases its item reservations.
+- `/api/me`, `/api/me/profile`, `/api/auth/*`, `/api/calendar/suggestions` — onboarding and account integration.
+- `/api/conjure/*` — bounded gateway for assistant sessions, streamed chat, catalog search, recommendations, trust, reviews, website assessments, and signed demo checkout.
 
-`category` accepts `groceries`, `wedding`, `camping`, `custom`, and the teammate frontend's `electronics` tab. Electronics currently uses custom checklist parsing; there is no dedicated electronics inventory. If the prompt mentions a supported template occasion, that list wins over the selected tab.
+See [backend contracts](BACKEND_HANDOFF.md), [review insights](docs/review-insights.md), and [website safety](docs/website-safety.md) for provider setup and evidence boundaries. Historical branch validation in the handoff describes those branch snapshots.
 
-`npm run dev` starts all three services. `npm start` starts Express only; it does not serve a built frontend or start Python. Gateway configuration: `CONJURE_API_URL=http://127.0.0.1:8000` and `CONJURE_API_TIMEOUT_MS=125000` (maximum 180000). The URL must be a credential-free HTTP(S) origin. Keep the Python turn budget below the gateway timeout.
+## Verification
 
-## Team workflow
+```bash
+npm test                   # server, Python, client units, gesture engine
+npm run typecheck:gestures
+npm run build
+npm run smoke:backend      # real local HTTP integration, offline providers
+npm run smoke:app          # built app against real local services in Chromium
+npm run test:e2e           # browser application and gesture-lab checks
+```
 
-- Review the local changes on your existing feature branch before committing and pushing manually.
-- Coordinate integration with the backend and frontend owners; preserve both the AI lifecycle and recommendation route when resolving overlapping changes.
-- Never commit `.env` (it's gitignored)
+Install the test browser once with `npx playwright install chromium` if needed. All default verification uses offline providers or controlled fixtures. Live provider checks are opt-in.
+
+## Integration
+
+`integration/cohesive-esper` includes the latest safety/review backend, store APIs and Stripe checkout, onboarding/calendar, final shopping board, and voice pipeline, plus the existing AI, marketplace, and gesture branches. The useful local voice work was integrated explicitly; original stashes remain available. Superseded branch tips remain in the ancestry through their feature merges.

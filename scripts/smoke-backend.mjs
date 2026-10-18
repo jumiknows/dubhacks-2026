@@ -7,11 +7,21 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createApp } from "../server/index.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const live = process.argv.includes("--live-ai");
-if (process.argv.slice(2).some(arg => arg !== "--live-ai")) throw new Error("Unknown smoke-check option");
+const browser = process.argv.includes("--browser");
+if (process.argv.slice(2).some(arg => !["--live-ai", "--browser"].includes(arg))) throw new Error("Unknown smoke-check option");
+if (browser && !existsSync(join(root, "client", "dist", "index.html"))) throw new Error("Run npm run build before the browser smoke check");
+// Set deterministic modes before importing services that load server/.env.
+process.env.STRIPE_SECRET_KEY = "";
+process.env.STORES_LIVE = "false";
+process.env.MOCK_ORDER_SANDBOX = "off";
+const { createApp } = await import("../server/index.js");
+const { configureStripe } = await import("../server/services/checkout.js");
+const { useAccountStore } = await import("../server/services/accounts.js");
+configureStripe({ mockOrder: { env: { MOCK_ORDER_SANDBOX: "off" } } });
+useAccountStore({ sessions: new Map(), accounts: new Map(), save() {} });
 const pythonPath = join(root, "api", ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
 if (!existsSync(pythonPath)) throw new Error("Run npm run api:setup first");
 
@@ -27,18 +37,21 @@ for (const name of ["catalog.json", "merchants.json", "trust_reports.json"]) {
 }
 const before = hashes();
 const env = { ...process.env, PYTHONDONTWRITEBYTECODE: "1", DEMO_SERVER_SIGNING: "false",
-  ELEVENLABS_API_KEY: "", STRIPE_SECRET_KEY: "",
+  ELEVENLABS_API_KEY: "", STRIPE_SECRET_KEY: "", GEMINI_API_KEY: "", SELENIUM_ENABLED: "false",
   WEBSITE_WEBRISK_API_KEY: "", WEBSITE_PHISHTANK_API_KEY: "", WEBSITE_PHISHTANK_ENABLED: "false",
   WEBSITE_MERCHANTS: "{}", WEBSITE_BLOCKED_HOSTS: "[]" };
 if (!live) env.LLM_API_KEY = "";
 let python;
 let server;
+let cookie = "";
 
 async function json(base, path, method = "GET", body) {
   const response = await fetch(base + path, { method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    headers: { cookie, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10000) });
   assert(response.ok, `${path} returned HTTP ${response.status}`);
+  const setCookie = response.headers.get("set-cookie");
+  if (setCookie) cookie = setCookie.split(";")[0];
   return response.json();
 }
 
@@ -57,6 +70,7 @@ try {
     python.once("error", () => { clearTimeout(timer); reject(new Error("Could not start the local Python backend")); });
     python.once("exit", () => { clearTimeout(timer); reject(new Error("Python exited during the smoke check; details withheld")); });
   });
+  process.env.PYTHON_API_URL = pythonOrigin;
   server = createApp({ baseUrl: pythonOrigin }).listen(0, "127.0.0.1");
   await once(server, "listening");
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -70,6 +84,30 @@ try {
   const updated = await json(base, `/api/plans/${plan.id}/items/${plan.items[0].id}`, "PATCH", { purchased: true });
   assert(updated.items[0].purchased);
   console.log("PASS: frontend plan creation and purchased-item update");
+
+  await json(base, "/api/me/profile", "PUT", { focus: "outdoors", priority: "price", budget: "100-300" });
+  let pending = await json(base, "/api/plans", "POST", { prompt: "camping", async: true });
+  assert(pending.status === "pricing" && pending.items.length === 8);
+  for (let attempt = 0; attempt < 100 && pending.status === "pricing"; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    pending = await json(base, `/api/plans/${pending.id}`);
+  }
+  assert.equal(pending.status, "ready");
+  const item = pending.items.find(row => row.products.length >= 2);
+  assert(item, "Expected fixture offers after background pricing");
+  const compared = await json(base, "/api/compare", "POST", {
+    left: item.products[0], right: item.products[1], trust_floor: 0.65,
+  });
+  assert(compared.left && compared.right && compared.trust_floor === 0.65);
+  const selected = await json(base, `/api/plans/${pending.id}/items/${item.id}/listing`, "PUT", { listingId: item.products[1].id });
+  assert.equal(selected.items.find(row => row.id === item.id).synthesis.best.id, item.products[1].id);
+  const startedCheckout = await json(base, "/api/checkout", "POST", { planId: pending.id, itemIds: [item.id] });
+  assert(startedCheckout.mock && startedCheckout.amount > 0);
+  const paid = await json(base, `/api/checkout/${startedCheckout.id}`);
+  assert(paid.mock && paid.status === "paid" && paid.plan.items.find(row => row.id === item.id).purchased);
+  const history = await json(base, "/api/plans");
+  assert(history.plans.some(row => row.id === pending.id));
+  console.log("PASS: profile preferences, async pricing, comparison, persisted offer selection, offline checkout and list history");
 
   const products = await json(base, "/api/conjure/products/search?q=moisturizer&max_price=40");
   assert(products.length > 0 && products.every(product => product.price <= 40));
@@ -140,6 +178,10 @@ try {
   assert(done.source === (live ? "llm" : "fallback"), "Unexpected agent source; provider details withheld");
   assert(source === (live ? "llm" : "fallback"), "Agent only completed a partial turn; provider details withheld");
   console.log(`PASS: ${done.source} SSE actions, factual response, constraints and valid audit (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+  if (browser) {
+    const { smokeBrowser } = await import("./smoke-browser.mjs");
+    await smokeBrowser(base, cookie);
+  }
 } finally {
   if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
   if (python && python.exitCode === null && python.signalCode === null) {

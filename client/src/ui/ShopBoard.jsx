@@ -15,6 +15,8 @@ export default function ShopBoard({
   onMark,
   onToggle,
   onInspect,
+  onAddListing,
+  renderInspector,
 }) {
   const listRef = useRef(null);
   const stripRef = useRef(null);
@@ -92,7 +94,8 @@ export default function ShopBoard({
       setHoldProgress(Math.min(1, elapsed / HOLD_MS));
       if (elapsed >= HOLD_MS) {
         clearHold();
-        onMark(item.id, "cart");
+        if (onAddListing) onAddListing(item, product).catch(() => undefined);
+        else onMark?.(item.id, "cart");
       }
     }, 50);
   }
@@ -246,7 +249,7 @@ export default function ShopBoard({
               className={`shop-group is-${tone} ${open ? "is-split" : ""}`}
             >
               {open ? (
-                <div ref={stripRef} className="shop-strip" data-gesture-scroll data-gesture-step aria-label="Pieces">
+                <><button type="button" className="esper-collapse" onClick={() => recombine()}>Back to all lists</button><div ref={stripRef} className="shop-strip" data-gesture-scroll data-gesture-step aria-label="Pieces">
                   {plan.items.map((item) => (
                     <PieceCard
                       key={item.id}
@@ -256,19 +259,21 @@ export default function ShopBoard({
                       onOpen={() => openItem(item.id)}
                     />
                   ))}
-                </div>
+                </div></>
               ) : (
-                <header className="shop-group-head">
-                  <p className="shop-kicker">{toneLabel(tone)}</p>
+                <button type="button" className="shop-group-head" onClick={() => splitGroup(plan.id)} aria-label={`Open ${plan.title}`} aria-expanded={false}>
+                  <span className="shop-kicker">{toneLabel(tone)} · {plan.items.length} items{plan.status === "pricing" ? " · Finding prices…" : ""}</span>
                   <h3>{plan.title}</h3>
-                </header>
+                  <span className="shop-meta">{plan.prompt}</span>
+                  <span className="shop-hint">Open list ↗</span>
+                </button>
               )}
             </article>
           );
         })}
       </div>
 
-      {inspectItem ? (
+      {inspectItem && renderInspector ? renderInspector({ item: inspectItem, tone: itemTone(inspectItem, marks), holding, holdProgress, onClose: closeInspect }) : inspectItem ? (
         <InspectStage
           item={inspectItem}
           tone={itemTone(inspectItem, marks)}

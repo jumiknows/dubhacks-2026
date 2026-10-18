@@ -104,7 +104,7 @@ describe("mock checkout places one order", () => {
         quantity: 1,
         purchased: false,
         products: [],
-        synthesis: { totalPrice: 55.99, currency: "USD", best: { id: "fakestore-3", source: "fakestore" } },
+        synthesis: { totalPrice: 55.99, currency: "USD", best: { id: "fakestore-3", source: "fakestore", price: 55.99, currency: "USD", inStock: true } },
       },
     ];
     const plan = savePlan({ id: "plan-mock-order", items, quote: quotePlan(items) });

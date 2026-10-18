@@ -21,6 +21,8 @@ const MARKETS = (process.env.MARKETPLACES || "amazon,ebay,walmart")
 export async function fetchProducts(query, options = {}) {
   const [market, stores] = await Promise.all([searchPython(query, options), searchStoreApis(query)]);
   const live = [...(market || []), ...stores];
+  const real = live.filter((product) => !product.isMock);
+  if (real.length) return real;
   if (live.length) return live;
   return searchCatalog(query);
 }
@@ -93,9 +95,9 @@ export function toRaw(product) {
     prime: product.prime ?? false,
     coupon: product.coupon || 0,
     shipping_fee: product.shipping_fee || 0,
-    bang_per_buck: product.bang_per_buck ?? 0.5,
-    relevancy: product.relevancy ?? 1,
-    trust: product.trust ?? 0.5,
+    bang_per_buck: product.bang_per_buck ?? null,
+    relevancy: product.relevancy ?? null,
+    trust: product.trust ?? null,
     initial_value: product.initial_value ?? null,
     trust_multiplier: product.trust_multiplier ?? null,
     score: product.score ?? null,
