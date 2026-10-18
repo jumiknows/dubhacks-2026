@@ -6,9 +6,12 @@ Every call has a hard timeout; callers fall back to the deterministic agent on a
 
 from __future__ import annotations
 
+import asyncio
+import copy
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -40,6 +43,10 @@ class LLMClient:
         s = get_settings()
         self._model = s.llm_model
         self._reasoning_effort = s.llm_reasoning_effort
+        if (not self._reasoning_effort and self._model.startswith("gemini-3")
+                and urlsplit(s.llm_base_url).hostname == "generativelanguage.googleapis.com"):
+            self._reasoning_effort = "low"
+        self._max_tokens = s.llm_max_tokens
         self._http = httpx.AsyncClient(
             base_url=s.llm_base_url.rstrip("/") + "/",
             headers={"Authorization": f"Bearer {s.llm_api_key}"},
@@ -52,34 +59,76 @@ class LLMClient:
     async def complete(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None, timeout_s: float
     ) -> Completion:
-        body: dict[str, Any] = {"model": self._model, "messages": messages, "temperature": 0.2, "max_tokens": 400}
+        if timeout_s <= 0:
+            raise LLMError("LLM request budget exhausted")
+        body: dict[str, Any] = {
+            "model": self._model, "messages": messages, "temperature": 0.2,
+            "max_tokens": self._max_tokens,
+        }
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"
         if self._reasoning_effort:
             body["reasoning_effort"] = self._reasoning_effort
         try:
-            resp = await self._http.post("chat/completions", json=body, timeout=max(0.5, timeout_s))
-        except httpx.TimeoutException as exc:
+            # httpx alone limits individual I/O phases, not total elapsed time.
+            async with asyncio.timeout(timeout_s):
+                resp = await self._http.post("chat/completions", json=body, timeout=timeout_s)
+        except (httpx.TimeoutException, TimeoutError) as exc:
             raise LLMError(f"LLM timed out after {timeout_s:.1f}s") from exc
         except httpx.HTTPError as exc:
             raise LLMError(f"LLM request failed: {type(exc).__name__}") from exc
         if resp.status_code != 200:
-            raise LLMError(f"LLM returned HTTP {resp.status_code}: {resp.text[:200]}")
+            # Provider error bodies can echo credentials or prompts. Keep them out of logs.
+            raise LLMError(f"LLM returned HTTP {resp.status_code}")
         try:
-            msg = resp.json()["choices"][0]["message"]
-            calls = [
-                ToolCall(id=c.get("id") or f"call_{i}", name=c["function"]["name"], arguments=c["function"].get("arguments") or "{}")
-                for i, c in enumerate(msg.get("tool_calls") or [])
-            ]
+            payload = resp.json()
+            if not isinstance(payload, dict) or not isinstance(payload.get("choices"), list):
+                raise ValueError
+            choice = payload["choices"][0]
+            if not isinstance(choice, dict):
+                raise ValueError
+            if choice.get("finish_reason") in {"length", "max_tokens", "MAX_TOKENS", "content_filter"}:
+                raise LLMError("LLM response was truncated or blocked")
+            msg = choice["message"]
+            if not isinstance(msg, dict):
+                raise ValueError
+            content = msg.get("content")
+            if content is not None and not isinstance(content, str):
+                raise ValueError
+            raw_calls = msg.get("tool_calls") or []
+            if not isinstance(raw_calls, list) or len(raw_calls) > 32:
+                raise ValueError
+            calls: list[ToolCall] = []
+            replay_calls: list[dict[str, Any]] = []
+            for i, call in enumerate(raw_calls):
+                if not isinstance(call, dict) or not isinstance(call.get("function"), dict):
+                    raise ValueError
+                name = call["function"].get("name")
+                arguments = call["function"].get("arguments", "{}")
+                call_id = call.get("id") or f"call_{i}"
+                if not isinstance(name, str) or not name or not isinstance(arguments, str):
+                    raise ValueError
+                if not isinstance(call_id, str) or not call_id:
+                    raise ValueError
+                if "extra_content" in call and not isinstance(call["extra_content"], dict):
+                    raise ValueError
+                calls.append(ToolCall(id=call_id, name=name, arguments=arguments))
+                replay = copy.deepcopy(call)
+                replay.update(id=call_id, type="function")
+                replay_calls.append(replay)
+            if not calls and not (content or "").strip():
+                raise LLMError("LLM returned no usable content")
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMError("LLM response was malformed") from exc
-        raw = {"role": "assistant", "content": msg.get("content") or ""}
+        raw = {"role": "assistant", "content": content or ""}
         if calls:
-            raw["tool_calls"] = [
-                {"id": c.id, "type": "function", "function": {"name": c.name, "arguments": c.arguments}} for c in calls
-            ]
-        return Completion(content=(msg.get("content") or "").strip(), tool_calls=calls, raw_message=raw)
+            # Gemini requires opaque thought signatures on subsequent tool rounds.
+            # Preserve each provider call, including extra_content, exactly as received.
+            raw["tool_calls"] = replay_calls
+        if isinstance(msg.get("extra_content"), dict):
+            raw["extra_content"] = copy.deepcopy(msg["extra_content"])
+        return Completion(content=(content or "").strip(), tool_calls=calls, raw_message=raw)
 
 
 _client: LLMClient | None = None

@@ -119,11 +119,13 @@ def test_injection_caps_tier() -> None:
 
 
 @pytest.fixture(scope="module")
-def mock_reports() -> dict[str, TrustReport]:
+def mock_reports(tmp_path_factory) -> dict[str, TrustReport]:
     from api.trust.make_mock import generate
 
-    generate(DATA_DIR)
-    return {r["product_id"]: TrustReport.model_validate(r) for r in json.loads((DATA_DIR / "trust_reports.json").read_text())}
+    # Exercise the real generator without overwriting the team's checked-in demo data.
+    out_dir = tmp_path_factory.mktemp("trust-mock")
+    generate(out_dir)
+    return {r["product_id"]: TrustReport.model_validate(r) for r in json.loads((out_dir / "trust_reports.json").read_text())}
 
 
 def test_seeded_cases_flagged(mock_reports: dict[str, TrustReport]) -> None:

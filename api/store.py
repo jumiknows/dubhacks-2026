@@ -53,6 +53,14 @@ def load(data_dir: Path = DATA_DIR) -> Store:
         r.product_id: r
         for r in (TrustReport.model_validate(x) for x in json.loads((data_dir / "trust_reports.json").read_text()))
     }
+    # Older checked-in demo reports say an injected review was "ignored", although
+    # its statistics still contributed. Correct that explanation in memory without
+    # regenerating shared fixtures or changing any scores/evidence.
+    for report in trust.values():
+        if report.security_flags:
+            report.top_reasons = [reason.replace(
+                "it was ignored", "its instructions are not followed, but it still contributes to review statistics",
+            ) for reason in report.top_reasons]
     merchants = {
         m.id: m for m in (Merchant.model_validate(x) for x in json.loads((data_dir / "merchants.json").read_text()))
     }

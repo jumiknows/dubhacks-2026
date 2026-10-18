@@ -85,6 +85,10 @@ export function toRaw(product) {
     trust_multiplier: product.trust_multiplier ?? null,
     score: product.score ?? null,
     flags: product.flags || [],
+    description: product.description ?? null,
+    source: product.source ?? null,
+    isMock: product.isMock === true,
+    warnings: product.warnings || [],
   };
 }
 
@@ -152,6 +156,9 @@ function unlisted(query) {
     bang_per_buck: 0.35,
     relevancy: 0.4,
     trust: 0.2,
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["No demo listing matches this query; no live store lookup was performed."],
   });
 }
 
@@ -183,6 +190,9 @@ function listing({
     relevancy: 0.8,
     trust: 0.7,
     marketplace: "amazon",
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["Sample listing; price, stock, dimensions and shipping duration are not live merchant data."],
   };
 }
 

@@ -2,9 +2,11 @@
   "name": "server",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=24" },
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env index.js",
-    "start": "node --env-file-if-exists=.env index.js"
+    "start": "node --env-file-if-exists=.env index.js",
+    "test": "node --import ./tests/setup.js --test tests/*.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

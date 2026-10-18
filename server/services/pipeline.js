@@ -1,5 +1,5 @@
 import { fetchProducts, toRaw, toValued } from "./fetchBot.js";
-import { synthesize } from "./synthesizeBot.js";
+import { MAX_MONEY_CENTS, normalizeCurrency, parseCents, synthesize, validDate, validQuantity } from "./synthesizeBot.js";
 import { topItems } from "./topItemsBot.js";
 
 export async function attachOffers(items, options = {}) {
@@ -16,9 +16,12 @@ export async function attachOffers(items, options = {}) {
       });
       const shortlist = await shortlistTop(fetched, options);
       const synthesis = await synthesize(item, shortlist);
-      const image = synthesis?.image || shortlist.find((product) => product.image)?.image || null;
 
-      return { ...item, products: shortlist, synthesis, image };
+      // Expose the same sanitized listings used by synthesis, including sources
+      // and nulls for unsafe URLs/prices, rather than leaking unvalidated raw data.
+      const products = [synthesis.best, ...synthesis.alternatives].filter(Boolean);
+      const image = synthesis.image || products.find((product) => product.image)?.image || null;
+      return { ...item, products, synthesis, image };
     })
   );
 }
@@ -44,21 +47,43 @@ async function shortlistTop(products, options) {
 
 export function quotePlan(items) {
   const open = items.filter((item) => !item.purchased);
-  const prices = open
-    .map((item) => item.synthesis?.totalPrice)
-    .filter((price) => typeof price === "number");
-  const dates = open
-    .map((item) => item.synthesis?.shippingDate)
-    .filter(Boolean)
-    .sort();
-
-  const total = prices.reduce((sum, price) => sum + price, 0);
-
+  const currencies = new Set(open.map((item) => normalizeCurrency(item.synthesis?.currency)).filter(Boolean));
+  const currency = open.length === 0 ? "USD" : currencies.size === 1 ? [...currencies][0] : null;
+  let knownCents = 0n;
+  let missingPriceCount = 0;
+  const warnings = [];
+  for (const item of open) {
+    const offer = item.synthesis;
+    const cents = parseCents(offer?.totalPrice, offer?.currency);
+    if (!currency || offer?.currency !== currency || cents === null || !validQuantity(item.quantity)) {
+      missingPriceCount++;
+    } else {
+      knownCents += BigInt(cents);
+    }
+  }
+  const safeAmount = knownCents <= MAX_MONEY_CENTS;
+  const subtotalComplete = missingPriceCount === 0 && safeAmount;
+  const knownSubtotal = currency && safeAmount ? Number(knownCents) / 100 : null;
+  const dates = open.map((item) => item.synthesis?.isMock ? null : validDate(item.synthesis?.estimatedArrival));
+  if (missingPriceCount) warnings.push("Some items lack comparable prices; the full merchandise subtotal is unknown.");
+  if (!safeAmount) warnings.push("Merchandise subtotal exceeds the supported safe amount.");
+  if (currencies.size > 1) warnings.push("Mixed currencies were not added or converted.");
+  if (open.length) warnings.push("Merchandise subtotal excludes shipping and tax; the delivered total is unknown.");
+  if (dates.some((date) => !date)) warnings.push("An arrival date is missing; ready-by date is unknown.");
   return {
     toBuyCount: open.length,
     purchasedCount: items.length - open.length,
-    totalPrice: Math.round(total * 100) / 100,
-    currency: "USD",
-    readyBy: dates.at(-1) || null,
+    totalPrice: subtotalComplete ? knownSubtotal : null,
+    currency,
+    readyBy: dates.length && dates.every(Boolean) ? dates.sort().at(-1) : null,
+    priceScope: "items_only",
+    knownSubtotal,
+    missingPriceCount,
+    subtotalComplete,
+    costComplete: open.length === 0,
+    fullTotal: open.length === 0 ? 0 : null,
+    isMock: open.some((item) => item.synthesis?.isMock),
+    source: "plan_merchandise_quote",
+    warnings,
   };
 }
