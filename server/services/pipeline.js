@@ -1,25 +1,38 @@
-import { fetchProducts } from "./fetchBot.js";
+import { fetchProducts, toRaw, toValued } from "./fetchBot.js";
 import { synthesize } from "./synthesizeBot.js";
+import { topItems } from "./topItemsBot.js";
 
-/**
- * Awaits the fetch-bot promise (a list of products), then the
- * synthesis-bot promise (image, dimensions, ship date, total).
- * Neither bot is implemented here.
- */
-export async function attachOffers(items) {
+export async function attachOffers(items, options = {}) {
   return Promise.all(
     items.map(async (item) => {
       if (item.purchased || item.synthesis) return item;
 
-      const productsPromise = fetchProducts(item.name);
-      const products = await productsPromise;
+      const fetched = await fetchProducts(item.name, options);
+      const shortlist = await shortlistTop(fetched, options);
+      const synthesis = await synthesize(item, shortlist);
 
-      const synthesisPromise = synthesize(item, products);
-      const synthesis = await synthesisPromise;
-
-      return { ...item, products, synthesis };
+      return { ...item, products: shortlist, synthesis };
     })
   );
+}
+
+async function shortlistTop(products, options) {
+  try {
+    const result = await topItems(products.map(toValued), {
+      limit: options.topLimit ?? 10,
+      trustFloor: options.trustFloor ?? 0.5,
+      minPrice: options.minPrice,
+      maxPrice: options.maxPrice,
+      brandsInclude: options.brandsInclude,
+      brandsExclude: options.brandsExclude,
+    });
+    if (result?.items?.length) return result.items.map(toRaw);
+  } catch {
+    /* Python top endpoint may be down; keep scored search hits. */
+  }
+  return [...products]
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, options.topLimit ?? 10);
 }
 
 export function quotePlan(items) {

@@ -1,0 +1,422 @@
+[
+  {
+    "id": "p01",
+    "title": "Lumenroot Ceramide Barrier Cream",
+    "brand": "Lumenroot",
+    "price": 28.0,
+    "image": "/static/products/p01.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "ceramides",
+      "hydrating": true
+    },
+    "rating_listed": 4.2,
+    "review_count": 75,
+    "summary": "A whipped moisturizer with ceramides for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p02",
+    "title": "Kelpwise Deep Hydration Cream",
+    "brand": "Kelpwise",
+    "price": 34.0,
+    "image": "/static/products/p02.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "hyaluronic acid",
+      "hydrating": true
+    },
+    "rating_listed": 4.3,
+    "review_count": 92,
+    "summary": "A rich moisturizer with hyaluronic acid for dry skin. Fragrance-free.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p03",
+    "title": "Oatmere Colloidal Oat Daily Lotion",
+    "brand": "Oatmere",
+    "price": 22.0,
+    "image": "/static/products/p03.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 100,
+      "key_ingredient": "colloidal oatmeal",
+      "hydrating": true
+    },
+    "rating_listed": 4.3,
+    "review_count": 144,
+    "summary": "A whipped moisturizer with colloidal oatmeal for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p04",
+    "title": "Velvessa Squalane Gel Cream",
+    "brand": "Velvessa",
+    "price": 36.0,
+    "image": "/static/products/p04.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,combination,sensitive",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "squalane",
+      "hydrating": true
+    },
+    "rating_listed": 4.1,
+    "review_count": 149,
+    "summary": "A rich moisturizer with squalane for dry or combination or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p05",
+    "title": "Brightfern Cloud Whip Moisturizer",
+    "brand": "Brightfern",
+    "price": 32.0,
+    "image": "/static/products/p05.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "shea butter",
+      "hydrating": true
+    },
+    "rating_listed": 4.4,
+    "review_count": 120,
+    "summary": "A lightweight moisturizer with shea butter for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_bargainbay",
+    "seeded_for_demo": true
+  },
+  {
+    "id": "p06",
+    "title": "Halvora Peptide Comfort Moisturizer",
+    "brand": "Halvora",
+    "price": 38.0,
+    "image": "/static/products/p06.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "peptides",
+      "hydrating": true
+    },
+    "rating_listed": 4.6,
+    "review_count": 15,
+    "summary": "A whipped moisturizer with peptides for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": true
+  },
+  {
+    "id": "p07",
+    "title": "Petalgrove Rose Rich Cream",
+    "brand": "Petalgrove",
+    "price": 30.0,
+    "image": "/static/products/p07.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": false,
+      "skin_type": "dry",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "rose oil",
+      "hydrating": true
+    },
+    "rating_listed": 4.1,
+    "review_count": 93,
+    "summary": "A lightweight moisturizer with rose oil for dry skin. Contains fragrance.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p08",
+    "title": "Auralune Overnight Repair Cream",
+    "brand": "Auralune",
+    "price": 58.0,
+    "image": "/static/products/p08.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 50,
+      "key_ingredient": "retinal",
+      "hydrating": true
+    },
+    "rating_listed": 4.2,
+    "review_count": 113,
+    "summary": "A rich moisturizer with retinal for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p09",
+    "title": "Mossbay Light Water Cream",
+    "brand": "Mossbay",
+    "price": 26.0,
+    "image": "/static/products/p09.svg",
+    "subcategory": "moisturizer",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "oily,combination",
+      "spf": 0,
+      "size_ml": 75,
+      "key_ingredient": "niacinamide",
+      "hydrating": false
+    },
+    "rating_listed": 4.0,
+    "review_count": 83,
+    "summary": "A whipped moisturizer with niacinamide for oily or combination skin. Fragrance-free.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p10",
+    "title": "Clearbrook Gentle Milk Cleanser",
+    "brand": "Clearbrook",
+    "price": 16.0,
+    "image": "/static/products/p10.svg",
+    "subcategory": "cleanser",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 200,
+      "key_ingredient": "glycerin",
+      "hydrating": true
+    },
+    "rating_listed": 4.5,
+    "review_count": 77,
+    "summary": "A gentle cleanser with glycerin for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p11",
+    "title": "Fernhollow Clarifying Gel Cleanser",
+    "brand": "Fernhollow",
+    "price": 14.0,
+    "image": "/static/products/p11.svg",
+    "subcategory": "cleanser",
+    "attributes": {
+      "fragrance_free": false,
+      "skin_type": "oily",
+      "spf": 0,
+      "size_ml": 150,
+      "key_ingredient": "salicylic acid",
+      "hydrating": false
+    },
+    "rating_listed": 4.3,
+    "review_count": 159,
+    "summary": "A low-foam cleanser with salicylic acid for oily skin. Contains fragrance.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p12",
+    "title": "Quillow Cream-to-Foam Cleanser",
+    "brand": "Quillow",
+    "price": 19.0,
+    "image": "/static/products/p12.svg",
+    "subcategory": "cleanser",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,normal",
+      "spf": 0,
+      "size_ml": 150,
+      "key_ingredient": "ceramides",
+      "hydrating": true
+    },
+    "rating_listed": 4.0,
+    "review_count": 71,
+    "summary": "A gentle cleanser with ceramides for dry or normal skin. Fragrance-free.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": true
+  },
+  {
+    "id": "p13",
+    "title": "Tidewell Foaming Face Wash",
+    "brand": "Tidewell",
+    "price": 12.0,
+    "image": "/static/products/p13.svg",
+    "subcategory": "cleanser",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "normal,oily",
+      "spf": 0,
+      "size_ml": 200,
+      "key_ingredient": "green tea",
+      "hydrating": false
+    },
+    "rating_listed": 4.4,
+    "review_count": 81,
+    "summary": "A creamy cleanser with green tea for normal or oily skin. Fragrance-free.",
+    "merchant_id": "m_bargainbay",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p14",
+    "title": "Sunveil Mineral Sunscreen SPF 50",
+    "brand": "Sunveil",
+    "price": 24.0,
+    "image": "/static/products/p14.svg",
+    "subcategory": "sunscreen",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "sensitive",
+      "spf": 50,
+      "size_ml": 50,
+      "key_ingredient": "zinc oxide",
+      "hydrating": false
+    },
+    "rating_listed": 4.3,
+    "review_count": 65,
+    "summary": "A sheer SPF 50 sunscreen with zinc oxide for sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p15",
+    "title": "Shadeleaf Daily Fluid SPF 30",
+    "brand": "Shadeleaf",
+    "price": 18.0,
+    "image": "/static/products/p15.svg",
+    "subcategory": "sunscreen",
+    "attributes": {
+      "fragrance_free": false,
+      "skin_type": "normal,combination",
+      "spf": 30,
+      "size_ml": 50,
+      "key_ingredient": "avobenzone",
+      "hydrating": false
+    },
+    "rating_listed": 4.2,
+    "review_count": 173,
+    "summary": "A lightweight SPF 30 sunscreen with avobenzone for normal or combination skin. Contains fragrance.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p16",
+    "title": "Dewlight Hydrating Sunscreen SPF 40",
+    "brand": "Dewlight",
+    "price": 29.0,
+    "image": "/static/products/p16.svg",
+    "subcategory": "sunscreen",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry",
+      "spf": 40,
+      "size_ml": 50,
+      "key_ingredient": "hyaluronic acid",
+      "hydrating": true
+    },
+    "rating_listed": 4.3,
+    "review_count": 113,
+    "summary": "A fluid SPF 40 sunscreen with hyaluronic acid for dry skin. Fragrance-free.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p17",
+    "title": "Solenne Sport Sunscreen SPF 60",
+    "brand": "Solenne",
+    "price": 21.0,
+    "image": "/static/products/p17.svg",
+    "subcategory": "sunscreen",
+    "attributes": {
+      "fragrance_free": false,
+      "skin_type": "oily",
+      "spf": 60,
+      "size_ml": 90,
+      "key_ingredient": "octocrylene",
+      "hydrating": false
+    },
+    "rating_listed": 4.3,
+    "review_count": 152,
+    "summary": "A lightweight SPF 60 sunscreen with octocrylene for oily skin. Contains fragrance.",
+    "merchant_id": "m_bargainbay",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p18",
+    "title": "Vitacrest Vitamin C Brightening Serum",
+    "brand": "Vitacrest",
+    "price": 42.0,
+    "image": "/static/products/p18.svg",
+    "subcategory": "serum",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "normal,combination",
+      "spf": 0,
+      "size_ml": 30,
+      "key_ingredient": "vitamin c",
+      "hydrating": false
+    },
+    "rating_listed": 4.6,
+    "review_count": 70,
+    "summary": "A lightweight serum with vitamin c for normal or combination skin. Fragrance-free.",
+    "merchant_id": "m_glowmart",
+    "seeded_for_demo": true
+  },
+  {
+    "id": "p19",
+    "title": "Nocturne Botanics Hyaluronic Water Serum",
+    "brand": "Nocturne Botanics",
+    "price": 27.0,
+    "image": "/static/products/p19.svg",
+    "subcategory": "serum",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "dry,sensitive",
+      "spf": 0,
+      "size_ml": 30,
+      "key_ingredient": "hyaluronic acid",
+      "hydrating": true
+    },
+    "rating_listed": 4.4,
+    "review_count": 91,
+    "summary": "A watery serum with hyaluronic acid for dry or sensitive skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  },
+  {
+    "id": "p20",
+    "title": "Auralune Niacinamide 10% Serum",
+    "brand": "Auralune",
+    "price": 33.0,
+    "image": "/static/products/p20.svg",
+    "subcategory": "serum",
+    "attributes": {
+      "fragrance_free": true,
+      "skin_type": "oily,combination",
+      "spf": 0,
+      "size_ml": 30,
+      "key_ingredient": "niacinamide",
+      "hydrating": false
+    },
+    "rating_listed": 4.2,
+    "review_count": 110,
+    "summary": "A lightweight serum with niacinamide for oily or combination skin. Fragrance-free.",
+    "merchant_id": "m_dermadirect",
+    "seeded_for_demo": false
+  }
+]

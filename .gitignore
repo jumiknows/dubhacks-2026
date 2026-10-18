@@ -6,3 +6,9 @@ dist/
 *.log
 client/test-results/
 client/playwright-report/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
