@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDate, money, quantityLabel } from "./format.js";
+import ElectronicsPlan from "./ElectronicsPlan.jsx";
+import WeeklyList from "./WeeklyList.jsx";
 
 /**
  * OWNER: UI
@@ -27,64 +29,307 @@ export default function PlannerUI({
   onToggle,
 }) {
   const loading = status === "loading";
+  const [open, setOpen] = useState(false);
+  const [drag, setDrag] = useState(null);
+  const shownRef = useRef(0);
+  const shellRef = useRef(null);
+  const closers = useRef([]);
+  const skipPop = useRef(0);
+  const [layers, setLayers] = useState(0);
+  const active = tabs.find((tab) => tab.id === category) || tabs[0];
+  const shown = drag ?? (open ? 1 : 0);
+
+  useEffect(() => {
+    if (plan) setOpen(true);
+  }, [plan]);
+
+  const bindBack = useCallback((close) => {
+    closers.current.push(close);
+    setLayers(closers.current.length);
+    history.pushState({ pb: "layer" }, "");
+    return () => {
+      const index = closers.current.lastIndexOf(close);
+      if (index < 0) return;
+      closers.current.splice(index, 1);
+      setLayers(closers.current.length);
+      if (history.state?.pb === "layer") {
+        skipPop.current += 1;
+        history.back();
+      }
+    };
+  }, []);
+
+  function requestBack() {
+    if (closers.current.length) {
+      history.back();
+      return;
+    }
+    if (history.state?.pb === "widget") history.back();
+    else setOpen(false);
+  }
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === "Escape" || event.key === "BrowserBack") requestBack();
+    }
+    function onPop() {
+      if (skipPop.current) {
+        skipPop.current -= 1;
+        return;
+      }
+      const close = closers.current.pop();
+      setLayers(closers.current.length);
+      if (close) close();
+      else setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("popstate", onPop);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    if (history.state?.pb === "widget" || history.state?.pb === "layer") return undefined;
+    history.pushState({ pb: "widget" }, "");
+    return undefined;
+  }, [open]);
+
+  useEffect(() => {
+    const root = shellRef.current;
+    if (!root) return undefined;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return undefined;
+    function onDown(event) {
+      if (event.button != null && event.button !== 0) return;
+      const pulse = document.createElement("span");
+      pulse.className = "click-pulse";
+      pulse.style.left = `${event.clientX}px`;
+      pulse.style.top = `${event.clientY}px`;
+      root.appendChild(pulse);
+      pulse.addEventListener("animationend", () => pulse.remove(), { once: true });
+    }
+    root.addEventListener("pointerdown", onDown);
+    return () => root.removeEventListener("pointerdown", onDown);
+  }, []);
+
+  function choose(id) {
+    if (id === category && open && drag == null) {
+      requestBack();
+      return;
+    }
+    onSelectCategory(id);
+    setOpen(true);
+  }
+
+  function onPull(value) {
+    if (value == null) {
+      setOpen(shownRef.current > 0.4);
+      setDrag(null);
+      return;
+    }
+    shownRef.current = value;
+    setDrag(value);
+  }
 
   return (
-    <main className="app">
-      <header className="top">
-        <div>
-          <p className="eyebrow">Planboard</p>
-          <h1>What do you need to get ready?</h1>
-          <p className="lede">
-            A prompt becomes a checklist. Anything still unchecked is what to buy.
-          </p>
-        </div>
-      </header>
-
-      <div className="tabs" role="tablist" aria-label="Plan type">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={tab.id === category}
-            onClick={() => onSelectCategory(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <main ref={shellRef} className="shell" data-hue={open ? category : "home"}>
+      <div className="glow" aria-hidden="true">
+        <span className="glow-core" />
+        <span className="glow-ring" />
+        <span className="glow-ring" />
+        <span className="glow-ring" />
+        <span className="glow-ring" />
+        <span className="glow-ring" />
       </div>
-
-      <form className="prompt" onSubmit={onPlan}>
-        <label className="sr-only" htmlFor="plan-prompt">
-          Plan prompt
-        </label>
-        <input
-          id="plan-prompt"
-          value={prompt}
-          onChange={(event) => onPromptChange(event.target.value)}
-          placeholder="I need to prepare for camping."
-        />
-        <button type="submit" disabled={loading || !prompt.trim()}>
-          {loading ? "Planning…" : "Build list"}
-        </button>
-      </form>
-
-      {error ? (
-        <p className="banner" role="alert">
-          {error}
+      <section className={shown > 0.05 ? "home is-dim" : "home"}>
+        <p className="eyebrow">Planboard</p>
+        <h1>What do you need to get ready?</h1>
+        <p className="lede">
+          A prompt becomes a checklist. Anything still unchecked is what to buy.
         </p>
-      ) : null}
+        <form className="prompt" onSubmit={onPlan}>
+          <label className="sr-only" htmlFor="plan-prompt">
+            Plan prompt
+          </label>
+          <input
+            id="plan-prompt"
+            value={prompt}
+            onChange={(event) => onPromptChange(event.target.value)}
+            placeholder="I need to prepare for camping."
+          />
+          <button type="submit" disabled={loading || !prompt.trim()}>
+            {loading ? "Planning…" : "Build list"}
+          </button>
+        </form>
+        <p className="home-hint">Pull the bar, or choose a widget.</p>
+      </section>
 
-      {plan ? (
-        <PlanBody plan={plan} onToggle={onToggle} />
-      ) : (
-        <p className="empty">
-          {loading
-            ? "Looking up items and store offers…"
-            : "Pick a tab or describe the occasion, then build the list."}
-        </p>
-      )}
+      <Dock
+        tabs={tabs}
+        category={category}
+        open={open}
+        onChoose={choose}
+        onPull={onPull}
+        onToggle={() => setOpen((value) => !value)}
+      />
+
+      <section
+        className={drag == null ? "sheet" : "sheet is-dragging"}
+        style={{
+          transform: `translateX(${(1 - shown) * 100}%)`,
+          clipPath: `inset(0 0 ${(1 - shown) * 100}% 0)`,
+        }}
+        aria-hidden={shown < 0.05}
+        inert={shown < 0.05}
+        aria-label={active ? `${active.label} widget` : "Widget"}
+      >
+        <header className="sheet-bar">
+          <span>{active?.label}</span>
+          <button type="button" onClick={requestBack}>
+            {layers > 0 ? "Back" : "Close"}
+          </button>
+        </header>
+        <div className="sheet-body" key={category}>
+          {error ? (
+            <p className="banner" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {category === "groceries" ? (
+            <WeeklyList bindBack={bindBack} onBack={requestBack} />
+          ) : null}
+          {category === "electronics" ? (
+            <ElectronicsPlan bindBack={bindBack} onBack={requestBack} />
+          ) : null}
+          {plan ? (
+            <PlanBody plan={plan} onToggle={onToggle} />
+          ) : category === "groceries" || category === "electronics" ? null : (
+            <p className="empty">
+              {loading
+                ? "Looking up items and store offers…"
+                : "Describe the occasion on the home screen, then build the list."}
+            </p>
+          )}
+        </div>
+      </section>
     </main>
+  );
+}
+
+function Dock({ tabs, category, open, onChoose, onPull, onToggle }) {
+  const start = useRef(null);
+
+  function pointerDown(event) {
+    start.current = {
+      x: event.clientX,
+      y: event.clientY,
+      open,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function pointerMove(event) {
+    if (!start.current) return;
+    const dx = start.current.x - event.clientX;
+    const dy = event.clientY - start.current.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) start.current.moved = true;
+    if (!start.current.moved) return;
+    const travel = 140;
+    const progress = start.current.open
+      ? Math.min(1, Math.max(0, 1 - (event.clientX - start.current.x) / travel))
+      : Math.min(1, Math.max(0, dx / travel));
+    onPull(progress);
+  }
+
+  function pointerUp() {
+    if (!start.current) return;
+    const moved = start.current.moved;
+    start.current = null;
+    if (!moved) onToggle();
+    else onPull(null);
+  }
+
+  return (
+    <nav className="dock" aria-label="Widgets">
+      <button
+        type="button"
+        className="pull"
+        aria-label={open ? "Pull to close the widget" : "Pull to open the widget"}
+        onPointerDown={pointerDown}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerUp}
+        onPointerCancel={pointerUp}
+      >
+        <span className="pull-grip" />
+      </button>
+      <div className="dock-icons">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          className="dock-btn"
+          aria-pressed={open && tab.id === category}
+          title={tab.label}
+          onClick={() => onChoose(tab.id)}
+        >
+          <WidgetIcon id={tab.id} />
+          <span>{tab.label}</span>
+        </button>
+      ))}
+      </div>
+    </nav>
+  );
+}
+
+function WidgetIcon({ id }) {
+  const pen = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  };
+  if (id === "groceries") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path {...pen} d="M6 8h12l-1.2 11H7.2L6 8z" />
+        <path {...pen} d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+      </svg>
+    );
+  }
+  if (id === "wedding") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle {...pen} cx="8" cy="9" r="2.3" />
+        <circle {...pen} cx="16" cy="9" r="2.3" />
+        <path {...pen} d="M6.2 15c1.1-2 3.2-2 4.3 0M13.5 15c1.1-2 3.2-2 4.3 0" />
+      </svg>
+    );
+  }
+  if (id === "camping") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path {...pen} d="M4 18 12 5l8 13z" />
+        <path {...pen} d="M12 18V11" />
+      </svg>
+    );
+  }
+  if (id === "electronics") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path {...pen} d="M8 4h8v4H8zM6 8h12v11H6z" />
+        <path {...pen} d="M9 13h6M9 16h3" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path {...pen} d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" />
+    </svg>
   );
 }
 
@@ -101,10 +346,14 @@ function PlanBody({ plan, onToggle }) {
         <section className="panel" aria-label="Checklist">
           <h3>Checklist</h3>
           <ul className="checklist">
-            {plan.items.map((item) => {
+            {plan.items.map((item, index) => {
               const qty = quantityLabel(item);
               return (
-                <li key={item.id} className={item.purchased ? "is-purchased" : ""}>
+                <li
+                  key={item.id}
+                  className={item.purchased ? "is-purchased stretch-in" : "stretch-in"}
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
                   <label>
                     <input
                       type="checkbox"
