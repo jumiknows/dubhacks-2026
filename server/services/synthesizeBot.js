@@ -123,7 +123,7 @@ function chooseOffer(item, products) {
   const quantity = item.quantity > 0 ? item.quantity : 1;
   const totalPrice = unitPrice == null ? null : roundCents(unitPrice * quantity);
   const pack = quantity > 1 ? `${quantity} × ` : "";
-  const stockNote = best.inStock ? "" : " (out of stock)";
+  const stockNote = best.inStock === false ? " (out of stock)" : "";
 
   return {
     summary: unitPrice == null
@@ -154,11 +154,16 @@ function emptyOffer(item) {
 
 function rank(products) {
   return [...products].sort((a, b) => {
-    if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+    if (a.inStock !== b.inStock) return stockRank(a) - stockRank(b);
     const ap = typeof a.price === "number" ? a.price : Number.POSITIVE_INFINITY;
     const bp = typeof b.price === "number" ? b.price : Number.POSITIVE_INFINITY;
     return ap - bp;
   });
+}
+
+// In stock first, then unknown (lookup sources), then out of stock.
+function stockRank(product) {
+  return product.inStock === true ? 0 : product.inStock === false ? 2 : 1;
 }
 
 function shippingDate(days) {

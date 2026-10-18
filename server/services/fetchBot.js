@@ -1,10 +1,16 @@
 /**
  * OWNER: Fetch bot
- * STATUS: Calls the Python marketplace service, then falls back to the mock catalog.
+ * STATUS: Live. Searches two sources in parallel and merges what they return:
+ *   - Python marketplace service: POST {PYTHON_API_URL}/market/search
+ *       { query, marketplaces, limit: 50, details: false }
+ *   - every configured store API (services/stores/), including the sample
+ *     stores DummyJSON and Fake Store that mock checkout can place orders with
+ * Falls back to the mock catalog below when neither returns a match.
  *
- * POST {PYTHON_API_URL}/market/search
- *   { query, marketplaces, limit: 50, details: false }
+ * Store listings also carry description, source, isMock, warnings and gtin
+ * (see services/stores/core.js). Set STORES_LIVE=false to skip the store APIs.
  */
+import { searchStores } from "./stores/index.js";
 
 const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
 const MARKETS = (process.env.MARKETPLACES || "amazon,ebay,walmart")
@@ -13,9 +19,21 @@ const MARKETS = (process.env.MARKETPLACES || "amazon,ebay,walmart")
   .filter(Boolean);
 
 export async function fetchProducts(query, options = {}) {
-  const live = await searchPython(query, options);
-  if (live?.length) return live;
+  const [market, stores] = await Promise.all([searchPython(query, options), searchStoreApis(query)]);
+  const live = [...(market || []), ...stores];
+  if (live.length) return live;
   return searchCatalog(query);
+}
+
+async function searchStoreApis(query) {
+  if (process.env.STORES_LIVE === "false") return [];
+  try {
+    const { products } = await searchStores(query);
+    return products.map(toRaw);
+  } catch (err) {
+    console.error("[fetchBot] store search failed:", err);
+    return [];
+  }
 }
 
 async function searchPython(query, options) {
@@ -82,6 +100,10 @@ export function toRaw(product) {
     trust_multiplier: product.trust_multiplier ?? null,
     score: product.score ?? null,
     flags: product.flags || [],
+    description: product.description ?? null,
+    source: product.source ?? null,
+    isMock: product.isMock === true,
+    warnings: product.warnings || [],
   };
 }
 

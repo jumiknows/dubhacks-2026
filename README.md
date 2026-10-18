@@ -25,16 +25,29 @@ copy server\.env.example server\.env
 ## How a plan is built
 
 1. `server/services/planner.js` turns the prompt into items. **Stub** — templates stand in for a model.
-2. `server/services/fetchBot.js` posts each item name to Python `POST /market/search` (Amazon, eBay, Walmart). Selenium is off by default (fixtures). Set `SELENIUM_ENABLED=true` in `api/.env` to open search pages, then each product page.
+2. `server/services/fetchBot.js` searches two sources in parallel and merges the listings: Python `POST /market/search` (Amazon, eBay, Walmart; Selenium off by default, so fixtures — set `SELENIUM_ENABLED=true` in `api/.env` for live pages) and every configured store API in `server/services/stores/`. Store keys go in `server/.env` (see `.env.example`); without keys, Open Food Facts + Open Prices, UPCitemdb, Shopify stores and the sample APIs (DummyJSON, Fake Store) still work. Falls back to the mock catalog.
 3. `server/services/synthesizeBot.js` posts listings to `POST /market/synthesize` and ranks value, trust, shipping, availability, fit, condition, and completeness. Ideas for more axes: [docs/product-compare.md](docs/product-compare.md).
 4. `server/services/pipeline.js` awaits those two promises and attaches them to the plan.
 5. `client/src/ui/` renders the plan. HTTP stays in `client/src/App.jsx`.
+
+## Demo: fake purchase
+
+With no `STRIPE_SECRET_KEY` in `server/.env`, checkout is a simulation. Nothing is charged.
+
+1. In `server/.env`, set `STORES_SAMPLE_DATA=always` so DummyJSON and Fake Store listings appear next to real stores.
+2. Build the Groceries list. Eggs usually comes from DummyJSON; for Milk or Coffee, compare listings and press "Use this listing" on a DummyJSON one.
+3. In **Cart**, tick items and press **Pay**, then **Place mock order** (demo card •••• 4242).
+4. The receipt shows the cart id DummyJSON / Fake Store issued for their items. Other items are recorded locally.
+
+`MOCK_ORDER_SANDBOX=off` skips those sandbox calls for offline demos. With a `sk_test_` key, the same Pay button opens real Stripe Checkout in test mode (card 4242 4242 4242 4242).
 
 ## API
 
 - `POST /api/plans` `{ prompt, category }` → plan, including `items[].products`, `items[].synthesis`, and `quote`
 - `GET /api/plans/:id`
 - `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
+- `GET /api/stores` → each store API, whether it is enabled, and its last result
+- `GET /api/products/search?q=headlamp` → merged results from every enabled store
 
 `category` is `groceries`, `wedding`, `camping`, or `custom`. If the prompt mentions one of those occasions, that list wins over the selected tab.
 

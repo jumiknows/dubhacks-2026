@@ -6,6 +6,7 @@ import { attachOffers, pickListing, quotePlan } from "./services/pipeline.js";
 import { CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
+import { storesRouter } from "./routes/stores.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,8 @@ app.use(express.json());
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, stripe: stripeMode() });
 });
+
+app.use("/api", storesRouter);
 
 app.post("/api/plans", async (req, res) => {
   try {
