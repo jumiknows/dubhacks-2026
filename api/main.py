@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import checkout, recommendations, search
+from api import checkout, live, recommendations, search
 from api import store as store_mod
 from api import voice
 from api.market import browser as market_browser
@@ -68,6 +68,7 @@ app.include_router(voice.router)
 app.include_router(recommendations.router)
 app.include_router(reviews_router)
 app.include_router(websites_router)
+app.include_router(live.router)
 
 
 @app.exception_handler(checkout.CheckoutError)
@@ -306,6 +307,7 @@ def health() -> dict[str, Any]:
             "llm": f"configured ({s.llm_model})" if configured else "not configured (fallback agent)",
             "elevenlabs": "configured; browser fallback on failure" if s.voice_enabled else "not configured",
             "stripe": "mocked (no real payment processing)",
+            "gemini_live": "configured" if s.gemini_live_enabled else "not configured (typed fallback)",
             "selenium": "live" if s.selenium_enabled else "mocked (fixture listings)",
         },
         "agent_source": agent,

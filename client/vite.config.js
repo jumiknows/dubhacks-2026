@@ -15,6 +15,9 @@ export default defineConfig({
   server: {
     port: 5173,
     // Forward /api requests to the Express server
-    proxy: { "/api": "http://localhost:3001" },
+    proxy: {
+      "/api": "http://localhost:3001",
+      "/ws-live": { target: "ws://localhost:8000", ws: true },
+    },
   },
 });

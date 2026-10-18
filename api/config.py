@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     website_cache_ttl_s: int = Field(default=300, ge=1, le=300)
     website_lookup_requests_per_minute: int = Field(default=30, ge=1, le=100)
 
+    # Gemini Multimodal Live (browser audio <-> this API <-> Gemini)
+    gemini_api_key: str = Field(default="", repr=False)
+    gemini_live_model: str = "gemini-2.0-flash-exp"
+    planboard_url: str = "http://localhost:3001"
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.llm_api_key.strip())
@@ -80,6 +85,18 @@ class Settings(BaseSettings):
     @property
     def voice_enabled(self) -> bool:
         return bool(self.elevenlabs_api_key)
+
+    @property
+    def gemini_live_key(self) -> str:
+        if self.gemini_api_key:
+            return self.gemini_api_key
+        if "generativelanguage.googleapis.com" in (self.llm_base_url or "") and self.llm_api_key:
+            return self.llm_api_key
+        return ""
+
+    @property
+    def gemini_live_enabled(self) -> bool:
+        return bool(self.gemini_live_key)
 
 
 @lru_cache
