@@ -8,7 +8,7 @@ import { initialPrimary, selectPrimary } from './hands';
 import { PointerMapper } from './mapping';
 import type { FrameInput, HandFrame } from './types';
 
-export type FixtureHand = { landmarks: number[][]; handedness?: string };
+export type FixtureHand = { landmarks: number[][]; handedness?: string; handednessScore?: number };
 export type FixtureFrame = { t: number; hands: FixtureHand[];
   timing?: { inferenceMs: number; processingMs: number };
   hit?: { targetId: string | null; draggable: boolean; swipeTargetId: string | null; dropTargetId: string | null; scrollTargetId?: string | null } };
@@ -36,6 +36,7 @@ export function toFrameInput(fr: FixtureFrame, W: number, H: number): FrameInput
   const hands: HandFrame[] = fr.hands.map(h => ({
     landmarks: h.landmarks.map(([x, y, z]) => ({ x, y, z: z ?? 0 })),
     handedness: h.handedness,
+    handednessScore: h.handednessScore,
   }));
   return { t: fr.t, hands, videoW: W, videoH: H };
 }

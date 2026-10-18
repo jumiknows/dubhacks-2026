@@ -3,16 +3,26 @@
 import { gestureBus, makeEvent } from './bus';
 import { startCamera, stopCamera } from './camera';
 import { config, type Config } from './config';
-import { initialState, interactionActive, step, type EngineOutput, type EngineState } from './engine';
+import { initialState, interactionActive, step, type EngineOutput } from './engine';
 import { extract } from './features';
-import { initialPrimary, selectPrimary, type PrimaryState } from './hands';
-import { activateTarget, dropTargetAt, markPressed, scrollTargetAt, targetAt } from './hitTest';
-import { PoseDetector } from './pose';
+import { BimanualCoordinator, type PairInput } from './bimanual';
+import { HAND_IDS, HandTracks } from './tracks';
+import { activateTarget, dropTargetAt, markPressed, objectAt, scrollTargetAt, targetAt } from './hitTest';
+import { allCurled, PoseDetector } from './pose';
 import { PointerMapper } from './mapping';
 import { CursorPresentation } from './presentation';
 import { createRecognizer, type HandTracker } from './recognizer';
 import type { FixtureFrame } from './replay';
-import type { Features, FrameInput, GestureStatus, Intent } from './types';
+import type { Features, FrameInput, FrameObservation, GestureSource, GestureStatus, HandId, Intent, Vec2 } from './types';
+
+const newLane = (publishDebug = false) => ({
+  engine: initialState(), mapper: new PointerMapper(), poses: new PoseDetector(publishDebug),
+  grabTarget: null as string | null, presentation: new CursorPresentation(),
+  cursorEl: null as HTMLElement | null, chipEl: null as HTMLElement | null, chipUntil: 0,
+  renderOut: null as EngineOutput | null, cursor: null as Vec2 | null,
+  seen: -Infinity, present: false, reserved: false, source: 'hand' as GestureSource,
+});
+type Lane = ReturnType<typeof newLane>;
 
 export type DebugInfo = {
   frame: FrameInput;
@@ -35,11 +45,9 @@ export class GestureController {
   private video: HTMLVideoElement | null = null;
   private recognizer: HandTracker | null = null;
   private recognizerSettings = '';
-  private engine: EngineState = initialState();
-  private primary: PrimaryState = initialPrimary();
-  private mapper = new PointerMapper();
-  private poses = new PoseDetector();
-  private grabTarget: string | null = null;
+  private lanes = { left: newLane(), right: newLane(true) };
+  private tracks = new HandTracks();
+  private bimanual = new BimanualCoordinator();
   private generation = 0;
   private starting = false;
   private startAbort: AbortController | null = null;
@@ -47,16 +55,11 @@ export class GestureController {
   private running = false;
   private busy = false;
   private lastVideoTime = -1;
-  private cursorEl: HTMLElement | null = null;
-  private chipEl: HTMLElement | null = null;
-  private chipUntil = 0;
   private debugDrawer: ((d: DebugInfo) => void) | null = null;
   private recording: FixtureFrame[] | null = null;
   private recordingSettings: Config | null = null;
   private lastCursor: { x: number; y: number } | null = null;
-  private presentation = new CursorPresentation();
   private renderTicket: number | null = null;
-  private renderOut: EngineOutput | null = null;
   private lastResultAt = 0;
   private renderTimes: number[] = [];
 
@@ -87,6 +90,7 @@ export class GestureController {
     error: null,
   };
   private statusListeners = new Set<() => void>();
+  private frameListeners = new Set<(sample: FrameObservation) => void>();
   private lastPublish = 0;
 
   constructor() {
@@ -104,9 +108,9 @@ export class GestureController {
   attachVideo(el: HTMLVideoElement | null) {
     this.video = el;
   }
-  setCursorElement(el: HTMLElement | null, chip: HTMLElement | null) {
-    this.cursorEl = el;
-    this.chipEl = chip;
+  setCursorElement(el: HTMLElement | null, chip: HTMLElement | null, hand: HandId = 'right') {
+    this.lanes[hand].cursorEl = el;
+    this.lanes[hand].chipEl = chip;
   }
   setDebugDrawer(fn: ((d: DebugInfo) => void) | null) {
     this.debugDrawer = fn;
@@ -116,6 +120,10 @@ export class GestureController {
     return () => this.statusListeners.delete(fn);
   };
   getStatus = () => this.snapshot;
+  subscribeFrames = (fn: (sample: FrameObservation) => void) => {
+    this.frameListeners.add(fn);
+    return () => { this.frameListeners.delete(fn); };
+  };
   get lastCursorPos() {
     return this.lastCursor;
   }
@@ -179,25 +187,38 @@ export class GestureController {
     this.cancelScheduled = null;
     if (this.renderTicket !== null) cancelAnimationFrame(this.renderTicket);
     this.renderTicket = null;
-    this.renderOut = null;
-    this.presentation.reset();
     this.cancelInteraction();
     this.running = false;
     this.resumeOnVisible = resumeLater;
     if (this.video) stopCamera(this.video);
-    this.engine = initialState();
-    this.primary = initialPrimary();
-    this.mapper.reset();
-    this.renderCursor(null, null);
-    this.setStatus({ camera: 'off', handPresent: false, detectedHands: 0, trackingState: 'no_hand', fps: 0, renderFps: 0 });
+    this.tracks.reset();
+    for (const id of HAND_IDS) {
+      const lane = this.lanes[id];
+      lane.engine = initialState(); lane.mapper.reset(); lane.presentation.reset();
+      lane.renderOut = null; lane.cursor = null; lane.seen = -Infinity; lane.reserved = false;
+      this.renderCursor(lane, null, null);
+    }
+    this.setStatus({ camera: 'off', handPresent: false, detectedHands: 0, hands: undefined, trackingState: 'no_hand', fps: 0, renderFps: 0 });
   }
 
   cancelInteraction(emit = true) {
-    if (interactionActive(this.engine)) {
-      if (this.engine.pinchTarget) gestureBus.emit(makeEvent('pointer_up', 'hand', { target_id: this.engine.pinchTarget }));
-      if (emit) gestureBus.emit(makeEvent('cancel', 'hand', { target_id: this.engine.pinchTarget }));
+    for (const id of HAND_IDS) this.cancelLane(id, emit);
+    for (const event of this.bimanual.reset()) {
+      const { type, ...data } = event;
+      gestureBus.emit(makeEvent(type, this.lanes.left.source, data));
     }
-    this.engine = { ...initialState(), blockedUntilOpen: true };
+  }
+
+  private cancelLane(id: HandId, emit = true) {
+    const lane = this.lanes[id];
+    if (interactionActive(lane.engine)) {
+      const data = { target_id: lane.engine.pinchTarget, hand_id: id };
+      if (data.target_id) gestureBus.emit(makeEvent('pointer_up', lane.source, data));
+      if (emit) gestureBus.emit(makeEvent('cancel', lane.source, data));
+    }
+    markPressed(lane.grabTarget, false, `fist:${id}`);
+    lane.grabTarget = null; lane.poses.reset();
+    lane.engine = { ...initialState(), blockedUntilOpen: true };
   }
 
   dispose() {
@@ -281,107 +302,128 @@ export class GestureController {
   }
 
   /** The live and browser-test/replay entry point for already detected landmarks. */
-  processFrame(frame: FrameInput, inferMs = 0, processingMs = inferMs) {
+  processFrame(frame: FrameInput, inferMs = 0, processingMs = inferMs, source: GestureSource = 'hand') {
     const { t, hands } = frame;
     const generation = this.generation;
     this.lastResultAt = performance.now();
-
-    const sel = selectPrimary(frame, this.primary, config.hands);
-    this.primary = sel.state;
-    if (sel.switched) {
-      if (interactionActive(this.engine)) this.cancelInteraction();
-      this.mapper.reset();
-      this.presentation.reset();
-    }
-    const f = sel.hand ? extract(sel.hand, frame.videoW, frame.videoH) : null;
-
-    let cursor: { x: number; y: number } | null = null;
-    let hovered: string | null = null;
-    let draggable = false;
-    let swipeTargetId: string | null = null;
-    if (f) {
-      const releasing = ['pinchPending', 'dragging'].includes(this.engine.mode) && f.pinchRatio >= config.pinch.off;
-      cursor = this.mapper.update(f, t, innerWidth, innerHeight, config, releasing);
-      if (this.running && this.renderTicket !== null) {
-        this.presentation.update(cursor, performance.now(), config.presentation.responseMs);
-        cursor = this.presentation.sample(performance.now(), config.presentation.responseMs) ?? cursor;
+    const slots = this.tracks.update(frame, config.hands);
+    const pairInput: PairInput = { left: null, right: null };
+    const samples = HAND_IDS.map(id => {
+      const lane = this.lanes[id], slot = slots[id];
+      lane.present = !!slot.hand;
+      lane.source = source;
+      const f = slot.hand ? extract(slot.hand, frame.videoW, frame.videoH) : null;
+      let cursor: Vec2 | null = null;
+      if (f) {
+        if (t - lane.seen > config.hands.handLostMs) {
+          this.cancelLane(id); lane.mapper.reset(); lane.presentation.reset();
+        }
+        lane.seen = t;
+        const releasing = ['pinchPending', 'dragging'].includes(lane.engine.mode) && f.pinchRatio >= config.pinch.off;
+        cursor = lane.mapper.update(f, t, innerWidth, innerHeight, config, releasing);
+        if (this.running && this.renderTicket !== null) {
+          lane.presentation.update(cursor, performance.now(), config.presentation.responseMs);
+          cursor = lane.presentation.sample(performance.now(), config.presentation.responseMs) ?? cursor;
+        }
+        pairInput[id] = {
+          point: { x: cursor.x / innerWidth, y: cursor.y / innerHeight }, ratio: f.pinchRatio,
+          eligible: (f.threeFingerPinchRatio > config.swipe.on || f.middleExtension > config.swipe.maxMiddleExtension)
+            && !allCurled(slot.hand!.landmarks),
+          identified: slot.identified, target: objectAt(cursor.x, cursor.y),
+        };
       }
-      const target = targetAt(cursor.x, cursor.y);
-      hovered = target?.id ?? null;
-      draggable = target?.draggable ?? false;
-      swipeTargetId = target?.cardId ?? null;
-    }
-
-    const input = { t, hand: f, hoveredId: hovered, draggable, swipeTargetId,
-      scrollTargetId: cursor ? scrollTargetAt(cursor.x, cursor.y) : null,
-      pointer: cursor ? { x: cursor.x / innerWidth, y: cursor.y / innerHeight } : undefined,
-      dropTargetId: cursor ? dropTargetAt(cursor.x, cursor.y, this.engine.pinchTarget) : null,
-    };
-    if (this.recording) this.recording.push({
-      t: Math.round(t),
-      hands: frame.hands.map(h => ({ landmarks: h.landmarks.map(p => [r4(p.x), r4(p.y), r4(p.z)]), handedness: h.handedness })),
-      hit: { targetId: hovered, draggable, swipeTargetId, dropTargetId: input.dropTargetId, scrollTargetId: input.scrollTargetId },
-      timing: { inferenceMs: r4(inferMs), processingMs: r4(processingMs) },
+      const target = cursor ? targetAt(cursor.x, cursor.y) : null;
+      return { id, lane, slot, f, cursor, target };
     });
-    if (sel.hand && f) {
-      const named = this.poses.update(sel.hand.landmarks, t, config.mapping.mirror, {
-        width: frame.videoW,
-        height: frame.videoH,
-      });
-      if (named === 'swipe-left') gestureBus.emit(makeEvent('reveal', 'hand', { x: (cursor?.x ?? 0) / innerWidth, y: (cursor?.y ?? 0) / innerHeight }));
-      if (named === 'swipe-right') gestureBus.emit(makeEvent('dismiss', 'hand', { target_id: swipeTargetId, x: (cursor?.x ?? 0) / innerWidth, y: (cursor?.y ?? 0) / innerHeight }));
-      if (named === 'swipe-up' || named === 'swipe-down') {
-        gestureBus.emit(makeEvent('scroll', 'hand', {
-          target_id: input.scrollTargetId,
-          delta_y: named === 'swipe-up' ? 0.12 : -0.12,
-          x: (cursor?.x ?? 0) / innerWidth,
-          y: (cursor?.y ?? 0) / innerHeight,
-        }));
-      }
-      if (named === 'grab' && hovered) {
-        this.grabTarget = hovered;
-        markPressed(hovered, true);
-      }
-      if (named === 'release') {
-        if (this.grabTarget) activateTarget(this.grabTarget);
-        markPressed(this.grabTarget ?? hovered, false);
-        this.grabTarget = null;
-      }
-    } else if (!f) this.poses.reset();
-
-    const out = step(this.engine, input, config);
-    this.engine = out.state;
-    if (cursor) this.lastCursor = cursor;
-
-    for (const intent of out.intents) {
-      if (intent.type === 'drag_move' && this.running && this.renderTicket !== null) continue;
-      // Swipes come from a pinched two-finger drag. A three-finger pinch is not a gesture.
-      if (intent.type === 'reveal' || intent.type === 'dismiss' || intent.type === 'scroll') continue;
-      const pos = cursor ?? this.lastCursor ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      const e = makeEvent(intent.type, 'hand', {
-        x: pos.x / window.innerWidth,
-        y: pos.y / window.innerHeight,
-        confidence: f ? 1 : 0,
-        target_id: 'target_id' in intent ? intent.target_id : undefined,
-        drop_target_id: 'drop_target_id' in intent ? intent.drop_target_id : undefined,
-        start_x: 'start_x' in intent ? intent.start_x : undefined,
-        start_y: 'start_y' in intent ? intent.start_y : undefined,
-        delta_y: 'delta_y' in intent ? intent.delta_y : undefined,
-      });
-      gestureBus.emit(e);
-      // A native Stop/Reset button can be activated synchronously by a select event.
+    const pair = this.bimanual.update(t, pairInput, config);
+    for (const event of pair.events) {
+      const { type, ...data } = event;
+      gestureBus.emit(makeEvent(type, source, data));
       if (generation !== this.generation) return;
-      const chip = CHIP[intent.type];
-      if (chip) this.showChip(chip, t);
     }
-
-    this.renderOut = out;
-    if (!this.running || this.renderTicket === null) this.renderCursor(out.cursorVisible ? cursor ?? this.lastCursor : null, out, performance.now());
-    this.trackMetrics(t, inferMs, processingMs, !!f, {
-      detectedHands: hands.length,
-      trackingState: sel.reason ?? (f && f.palmCenter.y >= config.mapping.idleBelowY ? 'resting' : 'tracking'),
+    for (const { id, lane, slot, f, cursor, target } of samples) {
+      const reserved = pair.reserved.has(id);
+      if (reserved && !lane.reserved) this.cancelLane(id);
+      lane.reserved = reserved;
+      const input = { t, hand: f, hoveredId: target?.id ?? null, draggable: target?.draggable ?? false,
+        swipeTargetId: target?.cardId ?? null,
+        scrollTargetId: cursor ? scrollTargetAt(cursor.x, cursor.y) : null,
+        pointer: cursor ? { x: cursor.x / innerWidth, y: cursor.y / innerHeight } : undefined,
+        dropTargetId: cursor ? dropTargetAt(cursor.x, cursor.y, lane.engine.pinchTarget) : null,
+      };
+      if (this.recording && id === (slots.right.hand ? 'right' : 'left')) this.recording.push({
+        t: Math.round(t),
+        hands: hands.map(h => ({ landmarks: h.landmarks.map(p => [r4(p.x), r4(p.y), r4(p.z)]), handedness: h.handedness, handednessScore: h.handednessScore })),
+        hit: { targetId: input.hoveredId, draggable: input.draggable, swipeTargetId: input.swipeTargetId,
+          dropTargetId: input.dropTargetId, scrollTargetId: input.scrollTargetId },
+        timing: { inferenceMs: r4(inferMs), processingMs: r4(processingMs) },
+      });
+      const emitNamed = (type: 'reveal' | 'dismiss' | 'scroll', delta_y?: number) => gestureBus.emit(makeEvent(type, source, {
+        hand_id: id, target_id: type === 'scroll' ? lane.engine.swipeScrollTarget ?? input.scrollTargetId : lane.engine.swipeTarget ?? input.swipeTargetId,
+        delta_y, x: input.pointer?.x, y: input.pointer?.y,
+      }));
+      const waitingForOpen = !!f && lane.engine.blockedUntilOpen && f.pinchRatio < config.pinch.off;
+      if (slot.hand && f && !reserved && !waitingForOpen) {
+        const named = lane.poses.update(slot.hand.landmarks, t, config.mapping.mirror,
+          { width: frame.videoW, height: frame.videoH }, !input.draggable && !lane.engine.pressDraggable);
+        if (named === 'swipe-left') emitNamed('reveal');
+        if (named === 'swipe-right') emitNamed('dismiss');
+        if (named === 'swipe-up' || named === 'swipe-down') emitNamed('scroll', named === 'swipe-up' ? 0.12 : -0.12);
+        if (named === 'grab' && input.hoveredId) {
+          lane.grabTarget = input.hoveredId; markPressed(lane.grabTarget, true, `fist:${id}`);
+          gestureBus.emit(makeEvent('grab', source, { hand_id: id, target_id: lane.grabTarget, x: input.pointer?.x, y: input.pointer?.y }));
+        }
+        if (named === 'release') {
+          const grabbed = lane.grabTarget;
+          markPressed(grabbed, false, `fist:${id}`); lane.grabTarget = null;
+          if (grabbed) activateTarget(grabbed);
+          if (generation !== this.generation) return;
+          gestureBus.emit(makeEvent('release', source, { hand_id: id, target_id: grabbed, x: input.pointer?.x, y: input.pointer?.y }));
+        }
+      } else if (!f || reserved || waitingForOpen) {
+        // A lost hand never confirms its captured fist on reappearance.
+        markPressed(lane.grabTarget, false, `fist:${id}`); lane.grabTarget = null; lane.poses.reset();
+      }
+      if (generation !== this.generation) return;
+      const out = reserved ? {
+        state: { ...lane.engine, mode: 'tracking' as const, pinched: this.bimanual.isPinched(id), hoverId: input.hoveredId },
+        intents: [], cursorVisible: !!cursor, swipe: null,
+      } : step(lane.engine, input, config);
+      // The normal engine stays blocked during an object hold, then waits for opening.
+      if (!reserved) lane.engine = out.state;
+      if (cursor) { lane.cursor = cursor; this.lastCursor = cursor; }
+      for (const intent of out.intents) {
+        if (intent.type === 'drag_move' && this.running && this.renderTicket !== null) continue;
+        if (intent.type === 'reveal' || intent.type === 'dismiss' || intent.type === 'scroll') continue;
+        const pos = cursor ?? lane.cursor ?? { x: innerWidth / 2, y: innerHeight / 2 };
+        gestureBus.emit(makeEvent(intent.type, source, {
+          hand_id: id, x: pos.x / innerWidth, y: pos.y / innerHeight, confidence: f ? 1 : 0,
+          target_id: 'target_id' in intent ? intent.target_id : undefined,
+          drop_target_id: 'drop_target_id' in intent ? intent.drop_target_id : undefined,
+          start_x: 'start_x' in intent ? intent.start_x : undefined,
+          start_y: 'start_y' in intent ? intent.start_y : undefined,
+        }));
+        if (generation !== this.generation) return;
+        if (CHIP[intent.type]) this.showChip(lane, CHIP[intent.type]!, t);
+      }
+      lane.renderOut = out;
+      if (!this.running || this.renderTicket === null) this.renderCursor(lane, out.cursorVisible && cursor ? cursor : null, out);
+      if (slot.hand) this.debugDrawer?.({ frame, primary: slot.hand, features: f, out, cursor });
+    }
+    this.trackMetrics(t, inferMs, processingMs, samples.some(s => !!s.f), {
+      detectedHands: hands.length, trackingState: samples.some(s => !!s.f) ? 'tracking' : hands.length ? 'too_small' : 'no_hand',
+      hands: Object.fromEntries(HAND_IDS.map(id => [id, { present: !!slots[id].hand, identified: slots[id].identified,
+        pinched: this.bimanual.isPinched(id) || this.lanes[id].engine.pinched }])) as NonNullable<GestureStatus['hands']>,
     });
-    this.debugDrawer?.({ frame, primary: sel.hand, features: f, out, cursor });
+    if (this.frameListeners.size) {
+      const sample: FrameObservation = { t, receivedAt: performance.now(), source, inferenceMs: inferMs, processingMs,
+        hands: Object.fromEntries(samples.map(({ id, slot, f, cursor, lane }) => [id, {
+          present: !!slot.hand, identified: slot.identified, pinched: this.bimanual.isPinched(id) || lane.engine.pinched,
+          pointer: cursor ? { x: cursor.x / innerWidth, y: cursor.y / innerHeight } : null,
+          pinchRatio: f?.pinchRatio ?? null, threeFingerPinchRatio: f?.threeFingerPinchRatio ?? null, mode: lane.reserved ? 'object grip' : lane.engine.mode,
+        }])) as FrameObservation['hands'] };
+      this.frameListeners.forEach(fn => { try { fn(sample); } catch (error) { console.error('[gestures] diagnostic listener failed', error); } });
+    }
   }
 
   // ---------- rendering (direct DOM writes, never React state) ----------
@@ -392,45 +434,43 @@ export class GestureController {
       this.renderTimes.push(now);
       while (this.renderTimes.length && now - this.renderTimes[0] > 1000) this.renderTimes.shift();
       const stale = now - this.lastResultAt > config.perf.maxResultAgeMs;
-      if (stale && interactionActive(this.engine)) this.cancelInteraction();
-      const pos = this.presentation.sample(now, config.presentation.responseMs);
-      if (!stale && this.renderOut?.cursorVisible && pos) {
-        this.lastCursor = pos;
-        this.renderCursor(pos, this.renderOut, now);
-        if (this.engine.mode === 'dragging' && this.engine.releaseSince === null) {
-          gestureBus.emit(makeEvent('drag_move', 'hand', { target_id: this.engine.pinchTarget,
-            x: pos.x / innerWidth, y: pos.y / innerHeight, start_x: this.engine.pressPointer!.x, start_y: this.engine.pressPointer!.y }));
-        }
-      } else this.renderCursor(null, null, now);
+      if (stale) this.cancelInteraction();
+      for (const id of HAND_IDS) {
+        const lane = this.lanes[id];
+        const pos = lane.presentation.sample(now, config.presentation.responseMs);
+        if (!stale && lane.present && lane.renderOut?.cursorVisible && pos && now - lane.seen <= config.perf.maxResultAgeMs) {
+          lane.cursor = pos; this.lastCursor = pos;
+          this.renderCursor(lane, pos, lane.renderOut, now);
+          if (!lane.reserved && lane.engine.mode === 'dragging' && lane.engine.releaseSince === null) {
+            gestureBus.emit(makeEvent('drag_move', lane.source, { hand_id: id, target_id: lane.engine.pinchTarget,
+              x: pos.x / innerWidth, y: pos.y / innerHeight, start_x: lane.engine.pressPointer!.x, start_y: lane.engine.pressPointer!.y }));
+          }
+        } else this.renderCursor(lane, null, null, now);
+      }
       this.renderTicket = requestAnimationFrame(paint);
     };
     this.renderTicket = requestAnimationFrame(paint);
   }
-  private renderCursor(pos: { x: number; y: number } | null, out: EngineOutput | null, t = performance.now()) {
-    const el = this.cursorEl;
+  private renderCursor(lane: Lane, pos: Vec2 | null, out: EngineOutput | null, t = performance.now()) {
+    const el = lane.cursorEl;
     if (!el) return;
-    if (!pos || !out) {
-      el.style.opacity = '0';
-      return;
-    }
+    if (!pos || !out) { el.style.opacity = '0'; return; }
     el.style.opacity = '1';
     el.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0)`;
     el.dataset.mode = out.state.mode;
     el.dataset.pinched = out.state.pinched ? 'true' : 'false';
     el.dataset.hover = out.state.hoverId ? 'true' : 'false';
     el.style.setProperty('--hold', String(out.swipe?.progress ?? 0));
-    if (out.swipe) this.showChip(out.swipe.label, t, 120);
-    if (this.chipEl && t > this.chipUntil) this.chipEl.textContent = '';
+    if (out.swipe) this.showChip(lane, out.swipe.label, t, 120);
+    if (lane.chipEl && t > lane.chipUntil) lane.chipEl.textContent = '';
   }
-
-  private showChip(text: string, t: number, ms = 800) {
-    if (!this.chipEl) return;
-    this.chipEl.textContent = text;
-    this.chipUntil = t + ms;
+  private showChip(lane: Lane, text: string, t: number, ms = 800) {
+    if (!lane.chipEl) return;
+    lane.chipEl.textContent = text; lane.chipUntil = t + ms;
   }
 
   // ---------- metrics and status ----------
-  private trackMetrics(t: number, inferMs: number, processingMs: number, hit: boolean, tracking: Pick<GestureStatus, 'detectedHands' | 'trackingState'>) {
+  private trackMetrics(t: number, inferMs: number, processingMs: number, hit: boolean, tracking: Pick<GestureStatus, 'detectedHands' | 'trackingState' | 'hands'>) {
     this.frameTimes.push(t);
     while (this.frameTimes.length && t - this.frameTimes[0] > 1000) this.frameTimes.shift();
     this.inferEma = this.inferEma === 0 ? inferMs : this.inferEma * 0.9 + inferMs * 0.1;

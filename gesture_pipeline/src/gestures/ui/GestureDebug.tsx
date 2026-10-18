@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { getPoseView, subscribePose, type NamedGesture } from '../pose';
+import { gestures } from '../loop';
 
 const LABEL: Record<NamedGesture, string> = {
   'swipe-up': 'Swipe up',
@@ -13,6 +14,7 @@ const LABEL: Record<NamedGesture, string> = {
 /** Small live readout of the latest swipe or fist. Ignores hand hits so it never steals a click. */
 export function GestureDebug() {
   const pose = useSyncExternalStore(subscribePose, getPoseView, getPoseView);
+  const status = useSyncExternalStore(gestures.subscribe, gestures.getStatus, gestures.getStatus);
   return (
     <aside className="g-pose" data-gesture-ignore aria-label="Gesture debug">
       <style>{`
@@ -38,6 +40,8 @@ export function GestureDebug() {
         .g-pose ol { list-style: none; margin: 6px 0 0; padding: 0; color: #9aa8b5; }
       `}</style>
       <strong>GESTURES</strong>
+      <p>{(['left', 'right'] as const).map(id => `${id}: ${status.hands?.[id].present ? status.hands[id].pinched ? 'pinched' : 'open' : 'absent'}`).join(' / ')}</p>
+      <p>Right hand pose</p>
       <p>Fist {pose.fist} · curl {pose.curl.toFixed(2)}</p>
       <p>
         {pose.angle == null ? 'Angle —' : `Angle ${Math.round(pose.angle * 180 / Math.PI)}°`}

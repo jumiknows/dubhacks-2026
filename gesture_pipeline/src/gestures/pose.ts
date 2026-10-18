@@ -100,6 +100,7 @@ function px(p: Pt, width: number, height: number): Vec2 {
 }
 
 export class PoseDetector {
+  constructor(private publishDebug = true) {}
   private closed: boolean | null = null;
   private pending: 'closed' | 'open' | null = null;
   private pendingSince = 0;
@@ -120,7 +121,7 @@ export class PoseDetector {
     this.lastAt = 0;
   }
 
-  update(lm: Pt[], t: number, mirror: boolean, frame: FrameSize = { width: 640, height: 480 }): NamedGesture | null {
+  update(lm: Pt[], t: number, mirror: boolean, frame: FrameSize = { width: 640, height: 480 }, allowSwipes = true): NamedGesture | null {
     const curl = fingerCurl(lm);
     const aimed = aimedAtCamera(lm);
     const curled = !aimed && allCurled(lm);
@@ -151,7 +152,7 @@ export class PoseDetector {
       this.pending = null;
     }
 
-    if (aimed) {
+    if (aimed || !allowSwipes) {
       this.trail = [];
       this.wristTrail = [];
     } else if (!gesture && !this.closed && pointing && isPinch(lm)) {
@@ -164,7 +165,7 @@ export class PoseDetector {
       this.wristTrail = [];
     }
 
-    if (!gesture && !this.closed && !aimed && isPinch(lm)) {
+    if (allowSwipes && !gesture && !this.closed && !aimed && isPinch(lm)) {
       const palm = palmOf(lm);
       this.trail.push({ t, x: palm.x, y: palm.y });
       this.trail = this.trail.filter((sample) => sample.t >= t - WINDOW_MS);
@@ -173,13 +174,13 @@ export class PoseDetector {
         gesture = palmSwipe;
         source = 'palm';
       }
-    } else if (!isPinch(lm)) {
+    } else if (!allowSwipes || !isPinch(lm)) {
       this.trail = [];
     }
 
     const fist: Fist = this.closed === null ? 'unknown' : this.closed ? 'closed' : 'open';
     const hint = aimed ? 'Rotate your wrist' : null;
-    if (gesture || fist !== view.fist || hint !== view.hint || Math.abs(curl - view.curl) > 0.05 || angle !== view.angle) {
+    if (this.publishDebug && (gesture || fist !== view.fist || hint !== view.hint || Math.abs(curl - view.curl) > 0.05 || angle !== view.angle)) {
       publish({
         fist,
         curl,

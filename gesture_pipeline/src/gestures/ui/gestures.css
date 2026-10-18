@@ -53,6 +53,8 @@
   background: var(--g-accent);
 }
 .g-cursor[data-hover='true'] .g-ring { transform: scale(1.15); }
+.g-cursor[data-hand='right'] { --g-accent: #fbbf24; }
+.g-hand-label { position: absolute; top: -30px; left: -5px; color: var(--g-accent); font: 700 12px system-ui; }
 .g-cursor[data-pinched='true'] .g-ring { transform: scale(0.7); }
 .g-chip {
   position: absolute;

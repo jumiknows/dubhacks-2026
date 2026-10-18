@@ -1,75 +1,71 @@
-# Swipe by wrist rotation
+# Gesture framework and testing
 
-Hands do two things. A swipe moves one item. A closed fist selects. Pinching is not a control.
+This document describes the current implementation. [Gesture UI](gesture%20Ui%20interface.md) covers the planner's screen mapping; [the test and integration guide](docs/two-hand-gestures.md) covers the lab, event payloads and measurement limits.
 
-The swipe direction is the direction the index finger points while the wrist turns. The palm can stay almost still. Scrolling, opening a box, and moving the sidebar are all that same swipe, one step at a time.
+## Current controls
 
-## Usage
+| Input | Behavior |
+| --- | --- |
+| Index fingertip | Controls that hand's cursor. |
+| Thumb + index pinch, then release | Emits a captured selection; the host applies its click/select behavior. |
+| Hold thumb + index on a draggable and move | Drag the captured item; release drops it. Drag motion cannot also trigger navigation. |
+| Pinched swipe right to left | Reveal an item or advance the planner's sidebar/widget flow. |
+| Pinched swipe left to right | Dismiss the captured card or step back in the planner. |
+| Pinched swipe up/down | Browse forward/backward in the captured catalogue; the planner can map this to one item per swipe. |
+| Full fist, then open | Highlight the captured native control, then activate it. Also emits `grab` / `release`. |
+| Both hands pinch one original and pull outward | `expand`: show its grouped components. The lab renders four. |
+| Pinch components of one group from left/right and bring hands horizontally together | `collapse`: restore the original, retaining its data and group identity. |
+| Pinch two different originals and bring hands horizontally together | `compare`: show values and priority-based tradeoffs. |
 
-There is no pinch. Thumb and index touching does not click, drag, or scroll.
+The live navigation path currently uses thumb/index pinching. Three-finger navigation rules remain in the older pure engine and fixtures; they are not the controller's live navigation path. Two-hand zoom and fist-to-speech remain future work.
 
-Selection is the whole fist. Every finger, thumb included, must be curled. Grab highlights the control under the index finger. Release confirms that same control, even if the hand has drifted. A fist with one finger still out does nothing. Fingers pointed at the camera do nothing except the reminder to rotate the wrist.
+## Tracking and recognition
 
-Scrolling is a swipe, and each swipe moves exactly one item.
+One MediaPipe inference returns up to two hands. `tracks.ts` assigns independent left/right states by anatomical labels rather than result order or screen position. Each hand has its own engine, pose detector, pointer filter and cursor presentation. Single-hand events include `hand_id`; paired events include both hand IDs and captured object IDs.
 
-- Swipe up: the next grocery box, the next device row, or the next sidebar icon.
-- Swipe down: the previous one.
-- Swipe left: pull the sidebar out, or pull the selected widget into the main frame if the sidebar is already out.
-- Swipe right: step back one level.
+The index tip drives the pointer. Mapping mirrors once, the One Euro filters reduce jitter, and display-rate presentation interpolates camera results without starting extra inferences. The default camera request is 640 × 480 at 30 FPS.
 
-A second swipe inside 0.5 seconds is dropped. The list does not wrap. A swipe does not skip two boxes because the hand kept moving. The screen mapping is written out in `gesture Ui interface.md`.
+`pose.ts` reads wrist arcs in aspect-corrected pixel space, with a pinched palm-motion fallback. Its trail is about 220 ms; the wrist arc threshold is about 25 degrees and the direction dominance ratio is 1.4. Same-direction navigation waits 500 ms; the opposite direction is suppressed for 1100 ms to avoid undoing a swipe on the return movement. The planner also applies its existing 500 ms screen gate.
 
-## Detection
+`bimanual.ts` coordinates two captured thumb/index grips. Annotated object grips reserve those hands from ordinary click, drag, fist and navigation actions. Both hands must move, each hold commits once, and release is required before another transaction. Brief missing or uncertain hands pause the pair; loss over the default 250 ms cancels it and requires reopening. A hand lost during an ordinary drag cancels its own interaction while the other hand can continue.
 
-MediaPipe landmarks: wrist `0`, index knuckle `5`, index tip `8`. The pointer follows landmark `8`. The palm-center trail in `pose.ts` is the older signal. A wrist turn swings the index tip on an arc and can miss that trail, so the swipe uses the fingertip.
+## Test environment
 
-1. Accept a frame only when the index finger is the pointer. The tip must sit clearly past the knuckle (`dist(8, 0) / dist(5, 0)` above about 1.5). A curled index, a closed fist, or a thumb touching the index tip does not start a swipe.
-2. Build the pointing vector from wrist to index tip in pixel space, using the camera width and height. Normalized x and y are not square, and an angle computed on them drifts toward the wider axis.
-3. Keep a short trail, about 220 ms, of that angle and of the tip position. Measure how far the tip traveled around the wrist, not how far the palm moved.
-4. Fire once when the arc is long enough (about 25 degrees, and at least about half a palm of tip travel) and one screen axis dominates the other by about 1.4 to 1. Apply `mapping.mirror` to horizontal motion so the label matches the mirrored preview.
-5. Name the gesture from the tip's sweep: up, down, left, or right. Up is a decreasing camera y. That one event is one item.
-6. After a fire, the same direction waits 0.5 seconds, so the next swipe still moves one item. The opposite direction waits 1.1 seconds. That is the hand traveling back to where it started, and it must not undo the swipe.
+From the repository root, run `npm.cmd run dev -w client`. Open `/` and click **Test gestures · spawn test objects**, or visit **http://localhost:5173/gesture-lab**. The planner at `/` waits for plan data; the lab loads its own primary and comparison objects without a backend or camera.
 
-Grab and release stay on the fist. A grab requires every digit under the curl threshold, not an average. A wrist swipe only runs while the index is extended and the fist is not closed.
+The lab provides explicit spawn/reset controls and 14 task scenes: expand, collapse, compare, pointing, pinch click, drag/drop, reveal, dismiss, scroll up, scroll down, fist activation, simultaneous drags, tracking-loss recovery and no-action movement.
 
-## Priority
+- **Run all feature replays** verifies synthetic landmarks through the actual controller and resulting UI.
+- **Begin live trial** resets the selected scene and scores camera attempts against the expected hand, target, action and UI effect.
+- Reports separate camera and replay evidence, flag misses/duplicates/unexpected actions, and expose hand coverage, result gaps, pointer error/jitter and software timing.
+- Rate perceived smoothness and export configuration, observations, events and outcomes as JSON. Mouse/keyboard actions cannot pass a camera trial. Incomplete and untested runs are not counted as successes.
 
-The classifier and the one-item mapping come before any new widget.
+Synthetic passes establish the software path. Live accuracy, physical latency and perceived seamlessness still require camera trials on intended devices and conditions.
 
-- The debug panel shows the live angle, the arc, the named swipe, and whether it came from the wrist.
-- Synthetic cases keep the palm fixed and move only the index tip: up, down, left, and right.
-- A fist with the index still out does not grab. A hand aimed at the camera shows "Rotate your wrist" and does not grab or swipe.
-- Up and down each move one grocery box or one device row, then wait 0.5 seconds.
+## Files
 
-## Edge cases
+| Location | Purpose |
+| --- | --- |
+| `gesture_pipeline/src/gestures/loop.ts` | Camera lifecycle, independent hand states, DOM targeting, events and frame observations. |
+| `tracks.ts`, `features.ts` | Left/right identity and landmark measurements. |
+| `engine.ts`, `pose.ts`, `bimanual.ts` | Press/drag rules, live navigation/fist recognition and paired object transactions. |
+| `mapping.ts`, `oneEuro.ts`, `presentation.ts` | Index pointer mapping, filtering and rendering. |
+| `config.ts` | Validated tracking, mapping, pinch, drag and bimanual tuning. Live pose swipe constants are in `pose.ts`. |
+| `hitTest.ts`, `bus.ts`, `types.ts`, `useGestures.tsx` | Targeting, public events/types and React integration. |
+| `client/src/gesture-lab/` | Ready-made targets, synthetic replays, live trial scoring and reports. |
+| `client/src/ui/swipeGate.js` | Planner-level navigation gate. |
+| `gesture_pipeline/src/gestures/__tests__/`, `__fixtures__/` | Gesture regressions and older engine recordings. |
+| `client/tests/` | Assessment unit tests and Chrome integration tests. |
 
-- **Palm still, finger moving.** The trail is the index tip about the wrist. A turn that leaves the palm inside the old 0.12 threshold must still count as one swipe.
-- **Whole hand sliding.** If the wrist and the tip move together and the angle barely changes, that is not a wrist swipe. Require a minimum angle change so a translation does not advance the list.
-- **One swipe, one item.** The same direction can fire again after 0.5 seconds, and it moves one more item. It does not skip.
-- **Hand travels back.** After a swipe left, the hand has to move right to reset. That opposite stroke is ignored for 1.1 seconds. The same rule covers up after down, and down after up, so a scroll is not immediately undone.
-- **No three-finger gesture.** Bringing the thumb, index, and middle together does not swipe, scroll, or select. The index fingertip is the only swipe, and a full fist is the only selection.
-- **Diagonal.** If neither axis leads by the dominance ratio, emit nothing. A later, clearer turn can still fire after the trail rolls forward.
-- **Jitter.** Landmark noise on the tip looks like a small arc. The distance and angle floors, plus the 0.5 second buffer, drop that.
-- **Finger curling mid-turn.** If the index curl falls below the pointing gate, drop the trail. Closing the fist during a turn is a grab, not a scroll.
-- **Thumb on the index tip.** That used to be a pinch click. It is neither a click nor a swipe. Selection waits for a full fist.
-- **Partial fist.** One straight finger means the hand is not closed. Do not highlight or confirm.
-- **Lost frames.** A gap longer than the trail window clears the arc. A hand that leaves and returns must not complete a swipe from the old tip position.
-- **Too small or too close.** Reject a hand whose palm size is under `hands.minArea`. Scale the tip-travel threshold by palm size so a hand close to the lens does not turn a twitch into a swipe.
-- **Left and right hands.** Use the wrist-to-tip vector in the image. Do not assume which side the thumb is on. Mirroring flips left and right only.
-- **Two hands.** Keep using the primary hand from `hands.ts`. A second hand does not contribute a second swipe.
-- **Wrist at the edge.** If the tip leaves the frame, the landmark jumps. Treat a single-frame tip jump larger than the palm as a dropout and clear the trail.
-- **Held pose.** Pointing still, then a slow drift, must not fire. The arc has to happen inside the 220 ms window.
-- **Ends of a list.** The first and last box, row, or icon do not wrap. A swipe past the end is still a recorded swipe, so the buffer still applies.
-- **Aimed at the camera.** All fingertips closer to the lens than their knuckles. Cancel the swipe, do not grab, and show "Rotate your wrist".
+Bare gesture filenames in the table are under `gesture_pipeline/src/gestures/`. Older `hands.ts` / `replay.ts` tooling remains for primary-hand fixture compatibility.
 
-## Where it goes
+## Verification
 
-- `gesture_pipeline/src/gestures/pose.ts` — wrist-arc swipe, all-finger grab, 0.5 second cooldown.
-- `gesture_pipeline/src/gestures/loop.ts` — swipe up and down emit one scroll step. Grab highlights. Release confirms. A pinch does not emit select.
-- `client/src/ui/swipeGate.js` — the screen also drops a second swipe inside 0.5 seconds.
-- `gesture_pipeline/src/gestures/ui/GestureDebug.tsx` — angle, arc, last swipe, and the wrist reminder.
-- `gesture_pipeline/src/gestures/__tests__/pose.test.ts` — fixed palm with a moving index tip, a partial fist, and a hand pointed at the camera.
+```powershell
+npm.cmd --prefix gesture_pipeline test
+npm.cmd --prefix gesture_pipeline run typecheck
+npm.cmd run test:gestures -w client
+npm.cmd run build -w client
+```
 
-## Done when
-
-A pointed index finger, with the wrist turning and the palm nearly fixed, moves exactly one item in the direction the fingertip traveled, then ignores the next half second. Closing every finger highlights a control. Opening the hand confirms it. A pinch, a partial fist, a diagonal, and a tracking dropout do none of those.
+The last implementation verification passed 201 gesture unit/regression tests, 14 assessment unit tests and 15 browser tests, plus type checking and the production build. All 14 feature replays passed their UI-effect checks. Browser camera checks used a synthetic video device; they do not establish physical hand accuracy. The older seeded assessment only exercises the legacy engine.

@@ -1,7 +1,10 @@
 // App-owned types. MediaPipe types stay in recognizer.ts.
 export type Pt = { x: number; y: number; z: number };
 export type Vec2 = { x: number; y: number };
-export type HandFrame = { landmarks: Pt[]; handedness?: string };
+export type HandId = 'left' | 'right';
+export type BimanualKind = 'expand' | 'collapse' | 'compare';
+export type ObjectTarget = { id: string; groupId: string; kind: 'original' | 'component' | 'group' };
+export type HandFrame = { landmarks: Pt[]; handedness?: string; handednessScore?: number };
 export type FrameInput = { t: number; hands: HandFrame[]; videoW: number; videoH: number };
 
 export type Features = {
@@ -15,10 +18,17 @@ export type Features = {
   bboxArea: number; // normalized area, useful for debugging hand filters
 };
 
-export type GestureType = 'hover' | 'pointer_down' | 'pointer_up' | 'select' | 'drag_start' | 'drag_move' | 'drop' | 'reveal' | 'dismiss' | 'scroll' | 'cancel';
-export type GestureSource = 'hand' | 'mouse' | 'keyboard' | 'voice';
+export type GestureType = 'hover' | 'pointer_down' | 'pointer_up' | 'select' | 'drag_start' | 'drag_move' | 'drop' | 'reveal' | 'dismiss' | 'scroll' | 'cancel' | 'grab' | 'release' | BimanualKind | 'bimanual_start' | 'bimanual_progress' | 'bimanual_end' | 'bimanual_cancel';
+export type GestureSource = 'hand' | 'mouse' | 'keyboard' | 'voice' | 'replay';
 export type GestureEvent = {
   type: GestureType;
+  hand_id?: HandId;
+  hand_ids?: HandId[];
+  target_ids?: string[];
+  group_id?: string;
+  interaction_id?: string;
+  gesture?: BimanualKind;
+  progress?: number;
   target_id?: string | null;
   drop_target_id?: string | null;
   start_x?: number;
@@ -39,12 +49,23 @@ export type Intent =
   | { type: 'reveal' };
 
 export type CameraStatus = 'off' | 'starting' | 'on' | 'denied' | 'missing' | 'busy' | 'error';
+/** Per-result observations for diagnostics. Pointer coordinates are normalized viewport units. */
+export type FrameObservation = {
+  t: number;
+  receivedAt: number;
+  source: GestureSource;
+  inferenceMs: number;
+  processingMs: number;
+  hands: Record<HandId, { present: boolean; identified: boolean; pinched: boolean; pointer: Vec2 | null;
+    pinchRatio: number | null; threeFingerPinchRatio: number | null; mode: string }>;
+};
 export type GestureStatus = {
   camera: CameraStatus;
   delegate: 'GPU' | 'CPU' | null;
   backend: 'worker' | 'main' | null;
   handPresent: boolean;
   detectedHands: number;
+  hands?: Record<HandId, { present: boolean; identified: boolean; pinched: boolean }>;
   trackingState: 'no_hand' | 'too_small' | 'switching' | 'resting' | 'tracking';
   videoWidth: number;
   videoHeight: number;

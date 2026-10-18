@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+.gesture-lab-launch { position: fixed; right: 20px; top: 18px; z-index: 90; padding: 10px 14px; border: 1px solid #527b75; border-radius: 10px; background: #142621; color: #c3f7e7; font: 600 13px system-ui; text-decoration: none; }
+
 @theme {
   --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
   --animate-detail-in: detail-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
