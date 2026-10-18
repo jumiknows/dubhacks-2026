@@ -48,6 +48,7 @@ scope.onmessage = async ({ data }) => {
       const hands: HandFrame[] = result.landmarks.map((points, index) => ({
         landmarks: points.map(({ x, y, z }) => ({ x, y, z })),
         handedness: result.handedness[index]?.[0]?.categoryName,
+          handednessScore: result.handedness[index]?.[0]?.score,
       }));
       scope.postMessage({ type: 'result', hands, inferenceMs });
     } catch (error) {

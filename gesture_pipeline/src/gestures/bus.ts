@@ -42,6 +42,13 @@ export function makeEvent(
   return {
     type,
     source,
+    hand_id: rest.hand_id,
+    hand_ids: rest.hand_ids,
+    target_ids: rest.target_ids,
+    group_id: rest.group_id,
+    interaction_id: rest.interaction_id,
+    gesture: rest.gesture,
+    progress: rest.progress,
     x: rest.x ?? 0.5,
     y: rest.y ?? 0.5,
     confidence: rest.confidence ?? 1,

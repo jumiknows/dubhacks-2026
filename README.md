@@ -49,3 +49,7 @@ The home shell — side dock, pull bar, and the sheet that slides in — is desc
 ## Hand gesture feature
 
 The reusable gesture module lives in [`gesture_pipeline/`](gesture_pipeline/README.md). It provides index-pointer control, pinch click/drag, horizontal reveal/dismiss gestures and vertical catalogue scrolling for the existing Vite frontend. See its README for installation, asset preparation, UI integration and tuning. The feature has no standalone demo server.
+
+The existing frontend also includes a two-hand lab at **http://localhost:5173/gesture-lab**. Run `npm.cmd run dev -w client` from the root to try it; no backend is needed for the lab. Use thumb/index pinches with both hands to pull one original apart, bring its grouped components horizontally together, or compare two originals by bringing them together. Camera-free landmark replays demonstrate all three. [Implementation, tuning and tests](docs/two-hand-gestures.md).
+
+On the normal `/` page, **Test gestures · spawn test objects** opens the populated lab. Its feature selector loads scenes for all current gestures; **Run all feature replays** checks the software path, while **Begin live trial** measures your camera attempts separately. Export task outcomes, errors, tracking/timing evidence and perceived smoothness as JSON.

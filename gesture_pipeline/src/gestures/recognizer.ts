@@ -109,5 +109,6 @@ export function toHands(result: HandLandmarkerResult): HandFrame[] {
   return result.landmarks.map((points, i) => ({
     landmarks: points.map(({ x, y, z }) => ({ x, y, z })),
     handedness: result.handedness[i]?.[0]?.categoryName,
+      handednessScore: result.handedness[i]?.[0]?.score,
   }));
 }

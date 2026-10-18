@@ -15,7 +15,7 @@ import './ui/gestures.css';
 const debugFromUrl = () => typeof location !== 'undefined' && new URLSearchParams(location.search).has('gdebug');
 
 /** Mount once in the host app. Owns camera, cursor and optional debug tools. */
-export function GestureProvider({ children, debug = debugFromUrl() }: { children: ReactNode; debug?: boolean }) {
+export function GestureProvider({ children, debug = debugFromUrl(), poseDebug = true }: { children: ReactNode; debug?: boolean; poseDebug?: boolean }) {
   const lastHover = useRef<string | null>(null);
 
   useEffect(() => {
@@ -24,12 +24,13 @@ export function GestureProvider({ children, debug = debugFromUrl() }: { children
     });
     const offPointer = installPointer();
     const offKeys = installKeyboard(() => lastHover.current);
-    const offDown = gestureBus.on('pointer_down', e => markPressed(e.target_id, true));
-    const offUp = gestureBus.on('pointer_up', e => markPressed(e.target_id, false));
+    const owner = (e: GestureEvent) => `${e.source}:${e.hand_id ?? 'default'}`;
+    const offDown = gestureBus.on('pointer_down', e => markPressed(e.target_id, true, owner(e)));
+    const offUp = gestureBus.on('pointer_up', e => markPressed(e.target_id, false, owner(e)));
     const offScroll = gestureBus.on('scroll', e => scrollTarget(e.target_id, e.delta_y ?? 0));
     const offCancel = gestureBus.on('cancel', e => {
-      markPressed(e.target_id, false);
-      if (e.source !== 'hand') gestures.cancelInteraction(false);
+      markPressed(e.target_id, false, owner(e));
+      if (e.source !== 'hand' && e.source !== 'replay') gestures.cancelInteraction(false);
     });
     return () => {
       offHover();
@@ -44,7 +45,7 @@ export function GestureProvider({ children, debug = debugFromUrl() }: { children
     <>
       {children}
       <CameraPreview />
-      <GestureDebug />
+      {poseDebug && <GestureDebug />}
       <Cursor />
       {debug && <DebugOverlay />}
       {debug && <TuningPanel />}

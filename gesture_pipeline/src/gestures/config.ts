@@ -9,7 +9,8 @@ export const defaults = {
     minTrackingConfidence: 0.5,
     numHands: 2,
   },
-  hands: { minArea: 0.003, sameHandDist: 0.3, switchAfterMs: 300, enterMs: 100, handLostMs: 250 },
+  hands: { minArea: 0.003, sameHandDist: 0.3, switchAfterMs: 300, enterMs: 100, handLostMs: 250, swapHandedness: false, minHandednessConfidence: 0.65 },
+  bimanual: { armMs: 100, minStartGap: 0.12, minTravel: 0.07, closeGap: 0.16, dominance: 1.4 },
   mapping: { mirror: true, boxLeft: 0.15, boxRight: 0.85, boxTop: 0.12, boxBottom: 0.7, idleBelowY: 1 },
   smoothing: { minCutoff: 1.0, beta: 0.015, dCutoff: 1.0, releaseBlendMs: 90 },
   presentation: { responseMs: 18 },
@@ -55,6 +56,8 @@ const bounds: Record<string, [number, number, boolean?]> = {
   'camera.width': [160, 1920, true], 'camera.height': [120, 1080, true], 'camera.fps': [10, 60, true],
   'mp.minHandDetectionConfidence': [0.01, 1], 'mp.minHandPresenceConfidence': [0.01, 1], 'mp.minTrackingConfidence': [0.01, 1], 'mp.numHands': [1, 2, true],
   'hands.minArea': [0.0001, 0.5], 'hands.sameHandDist': [0.01, 1], 'hands.switchAfterMs': [0, 3000], 'hands.enterMs': [0, 500], 'hands.handLostMs': [50, 2000],
+  'hands.minHandednessConfidence': [0.5, 0.99],
+  'bimanual.armMs': [35, 1000], 'bimanual.minStartGap': [0.04, 0.5], 'bimanual.minTravel': [0.02, 0.3], 'bimanual.closeGap': [0.03, 0.3], 'bimanual.dominance': [1.1, 3],
   'mapping.boxLeft': [0, 0.9], 'mapping.boxRight': [0.1, 1], 'mapping.boxTop': [0, 0.9], 'mapping.boxBottom': [0.1, 1], 'mapping.idleBelowY': [0.1, 1],
   'smoothing.minCutoff': [0.01, 10], 'smoothing.beta': [0, 1], 'smoothing.dCutoff': [0.01, 10], 'smoothing.releaseBlendMs': [1, 1000],
   'presentation.responseMs': [0, 100], 'pinch.on': [0.01, 1], 'pinch.off': [0.02, 2], 'pinch.confirmMs': [0, 150], 'pinch.releaseMs': [0, 500],
@@ -100,7 +103,7 @@ export function getPath(path: string): unknown {
 
 export function setPath(path: string, value: number | boolean) {
   if (typeof value === 'number' && !Number.isFinite(value)) return;
-  if (!bounds[path] && path !== 'mapping.mirror') return;
+  if (!bounds[path] && path !== 'mapping.mirror' && path !== 'hands.swapHandedness') return;
   const keys = path.split('.');
   const last = keys.pop()!;
   const parent = keys.reduce<any>((o, k) => o[k], config);

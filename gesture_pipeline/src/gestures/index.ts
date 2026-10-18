@@ -4,5 +4,5 @@ export { scrollElement } from './hitTest';
 export { gestureBus, makeEvent } from './bus';
 export { gestures } from './loop';
 export { Hints } from './ui/Hints';
-export { config, defaults } from './config';
-export type { GestureEvent, GestureStatus, GestureType, GestureSource } from './types';
+export { config, defaults, setPath } from './config';
+export type { GestureEvent, GestureStatus, GestureType, GestureSource, HandId, BimanualKind, ObjectTarget, FrameObservation } from './types';

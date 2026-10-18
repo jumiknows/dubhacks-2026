@@ -1,3 +1,4 @@
+import type { ObjectTarget } from './types';
 // Resolve cards and normal interactive components, without letting nested buttons select their card.
 const CONTROLS = 'button, a[href], input, textarea, select, [role="button"], [data-gesture-id]';
 const targets = new Map<string, HTMLElement>();
@@ -27,6 +28,21 @@ export function targetAt(x: number, y: number): HitTarget | null {
     cardId: element.closest('[data-product-id]')?.getAttribute('data-product-id') ?? null };
 }
 export const hitTest = (x: number, y: number): string | null => targetAt(x, y)?.id ?? null;
+
+/** Explicit opt-in: the host owns object data and applies expand/collapse/compare events. */
+export function objectAt(x: number, y: number): ObjectTarget | null {
+  const point = document.elementFromPoint(x, y);
+  if (point?.closest('[inert], [data-gesture-ignore], [aria-disabled="true"]')) return null;
+  const element = point?.closest<HTMLElement>('[data-gesture-object]');
+  if (!point || !element || !available(element)) return null;
+  const control = point.closest(CONTROLS);
+  if (control && control !== element && element.contains(control)) return null;
+  const kind = element.dataset.gestureKind;
+  if (kind !== 'original' && kind !== 'component' && kind !== 'group') return null;
+  const id = element.dataset.gestureObject;
+  const groupId = element.dataset.gestureGroup;
+  return id && groupId ? { id, groupId, kind } : null;
+}
 
 const scrollTargets = new Map<string, HTMLElement>();
 const scrollIds = new WeakMap<HTMLElement, string>();
@@ -83,7 +99,12 @@ export function activateTarget(id: string): boolean {
   element.click();
   return true;
 }
-export function markPressed(id: string | null | undefined, pressed: boolean) {
+const pressOwners = new WeakMap<HTMLElement, Set<string>>();
+export function markPressed(id: string | null | undefined, pressed: boolean, owner = 'default') {
   const element = id ? targets.get(id) : undefined;
-  if (element) element.toggleAttribute('data-gesture-pressed', pressed);
+  if (!element) return;
+  const owners = pressOwners.get(element) ?? new Set<string>();
+  if (pressed) owners.add(owner); else owners.delete(owner);
+  pressOwners.set(element, owners);
+  element.toggleAttribute('data-gesture-pressed', owners.size > 0);
 }

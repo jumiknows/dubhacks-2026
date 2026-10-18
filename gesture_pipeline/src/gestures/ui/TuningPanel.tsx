@@ -6,6 +6,17 @@ type Knob = { path: string; label: string; min: number; max: number; step: numbe
 
 const GROUPS: { title: string; knobs: Knob[] }[] = [
   {
+    title: 'Two-hand object gestures',
+    knobs: [
+      { path: 'bimanual.armMs', label: 'both pinches held ms', min: 35, max: 400, step: 5 },
+      { path: 'bimanual.minStartGap', label: 'starting separation (viewport)', min: 0.04, max: 0.4, step: 0.01 },
+      { path: 'bimanual.minTravel', label: 'travel required from EACH hand', min: 0.02, max: 0.2, step: 0.01 },
+      { path: 'bimanual.closeGap', label: 'merge distance (viewport)', min: 0.03, max: 0.3, step: 0.01 },
+      { path: 'bimanual.dominance', label: 'axis dominance', min: 1.1, max: 3, step: 0.1 },
+      { path: 'hands.minHandednessConfidence', label: 'left/right identity confidence', min: 0.5, max: 0.99, step: 0.01 },
+    ],
+  },
+  {
     title: 'Camera (stop and start to apply)',
     knobs: [
       { path: 'camera.width', label: 'requested width', min: 320, max: 1280, step: 160 },

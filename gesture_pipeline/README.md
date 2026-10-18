@@ -1,6 +1,6 @@
 # Gesture pipeline
 
-Reusable React gesture controls for the application's existing Vite frontend. This folder has no standalone demo, dev server or browser-test app. Integration into the frontend branch is a separate step.
+Reusable React gesture controls integrated into the application's existing Vite frontend. The two-hand demonstration is at `/gesture-lab` in `client/`; this module has no separate Vite app or server.
 
 ## Install and connect
 
@@ -23,7 +23,7 @@ Prepare the model and runtime in that app's public folder. This example assumes 
 npm.cmd --prefix gesture_pipeline run assets -- --public-dir ../client/public
 ```
 
-The host must serve `/models/hand_landmarker.task`, `/mediapipe/vision_bundle.js` and `/mediapipe/wasm/*`. The model is committed here; the loader/WASM files are generated from the locked npm dependency and ignored by Git. Rerun the assets command after dependency updates. A deployment under a URL subpath needs matching asset URL changes in `recognizer.ts` and `tracker.worker.ts`.
+The host must serve `/models/hand_landmarker.task`, `/mediapipe/vision_bundle.js` and `/mediapipe/wasm/*`. The model is committed here; the loader/WASM files are generated from the locked npm dependency. Generated assets in this module's `public/mediapipe/` are ignored; the current `client/public/mediapipe/` copies are tracked by the host repository. Rerun the assets command after dependency updates. A deployment under a URL subpath needs matching asset URL changes in `recognizer.ts` and `tracker.worker.ts`.
 
 For a linked source package, add these options to the host's existing Vite configuration:
 
@@ -53,11 +53,11 @@ function HandControls() {
 </GestureProvider>
 ```
 
-The provider owns the camera, pointer, native component activation, scrolling and mouse/keyboard alternatives. Its stylesheet is imported automatically. Use `?gdebug=1` on the host app for tuning, timings and recording, or pass `debug` explicitly. Webcam access needs localhost or HTTPS.
+The provider owns the camera, independent left/right cursors, native fist activation, scrolling and mouse/keyboard alternatives. Its stylesheet is imported automatically. Use `?gdebug=1` on the host app for tuning, timings and recording, or pass `debug` explicitly. Webcam access needs localhost or HTTPS.
 
 ## Connect UI actions
 
-Native buttons, links and inputs accept pinch-clicks automatically. Cards and custom behavior need host handlers:
+Native buttons, links and inputs accept the existing fist grab/release activation. Pinch selection emits `select`; cards and custom behavior need host handlers:
 
 ```tsx
 import { useGestureEvents } from 'conjure-gestures';
@@ -73,7 +73,23 @@ Drag handlers must implement `drag_start`, `drag_move`, `drop` and `cancel` in t
 
 Put `data-gesture-scroll` on a catalogue with a bounded height and `overflow-y: auto`; the provider scrolls it automatically. It captures the starting surface so crossing an edge does not scroll a different pane. Scroll events carry `delta_y` in viewport heights; positive means toward later content.
 
-Gesture directions: right-to-left reveals an item; left-to-right dismisses the starting card. With thumb/index/middle together, moving up scrolls toward lower items and moving down goes back. The direction locks until release. Thumb/index pinch presses; stationary release clicks, while holding and moving can drag.
+The current live pose detector maps right-to-left to reveal, left-to-right to dismiss and up/down to catalogue scroll events. Existing fist/swipe navigation is preserved outside the new object grips. Thumb/index pinch emits press, select and drag events. The older pure engine and fixtures also exercise three-finger swipe rules; the live controller uses `pose.ts` for navigation.
+
+## Two-hand object gestures
+
+Both hands have independent filters, cursors, engines and pose detectors. One MediaPipe inference returns up to two hands; anatomical labels, not array order or screen position, assign their identities. Single-hand events include `hand_id`. Ambiguous labels cannot complete a two-hand action. Use the lab's label-swap checkbox if its L/R cursors do not match your anatomical hands.
+
+- **Expand:** thumb/index pinch the same original with both hands, then pull left and right apart.
+- **Collapse:** pinch components of the same group from left/right, then bring both hands horizontally toward the middle. Either hand can start on either side. The captured targets distinguish collapse from comparison of two originals.
+- **Compare:** pinch two different original objects and bring both hands horizontally together. Either hand can start on either side.
+
+Start with open hands; keep the middle finger out of the pinch. Release between gestures. Both hands must move, and each pair commits once. Brief losses pause recognition; a loss over `hands.handLostMs` cancels and requires reopening.
+
+Objects opt in with `data-gesture-object`, `data-gesture-group` and `data-gesture-kind="original|component|group"`. Their object pinches reserve the participating hands from ordinary click/drag/swipe/fist handling. Other controls and the other hand remain independent. The host receives `expand`, `collapse`, `compare` plus `bimanual_start/progress/end/cancel`; it owns the underlying data and resulting UI.
+
+See [the integration and test guide](../docs/two-hand-gestures.md) for markup, event payloads, group identity and running the lab. The example renders four components without changing or deleting the original product and compares supplied mock values according to a selected priority. It does not fetch real product specifications.
+
+The normal app has a **Test gestures · spawn test objects** entry. The lab now loads primary targets automatically and offers 14 feature scenes, live trials, synthetic replay checks, pointer/tracking/timing evidence, subjective smoothness ratings and JSON export. Live accuracy remains unmeasured until camera trials are performed. `gestures.subscribeFrames` supplies diagnostic observations without React updates on every detection; native fist actions also emit `grab`/`release` events. Captured drags suppress navigation swipes, and navigation retains the starting card or scroll surface.
 
 ## Files
 
@@ -81,7 +97,9 @@ Gesture directions: right-to-left reveals an item; left-to-right dismisses the s
 | --- | --- |
 | `src/gestures/index.ts` | Public React hooks, provider, bus and types |
 | `camera.ts`, `recognizer.ts`, `tracker.worker.ts` | Camera and MediaPipe model, off the UI thread when supported |
-| `features.ts`, `hands.ts` | Landmark measurements and primary-hand selection |
+| `features.ts`, `tracks.ts` | Landmark measurements and independent left/right identity tracking |
+| `bimanual.ts` | Pure captured-pinch coordination for expand, collapse and compare |
+| `hands.ts`, `replay.ts` | Primary-hand compatibility for older fixture assessments |
 | `engine.ts`, `config.ts` | Gesture state machine and validated thresholds |
 | `mapping.ts`, `oneEuro.ts`, `presentation.ts` | Index pointer mapping, smoothing and display-rate presentation |
 | `hitTest.ts` | UI targeting, native activation and scroll surfaces |
@@ -107,7 +125,7 @@ npm.cmd run gestures:metrics
 npm.cmd run gestures:assess -- --sweep
 ```
 
-Vitest runs unit/replay regressions without a standalone Vite UI. The seeded assessment checks 950 held-out rule scenarios at 15–60 detection updates per second. Synthetic success does not establish physical accuracy. Browser/demo tests were removed with the standalone playground; integration tests belong to the real frontend.
+Vitest runs unit/replay regressions, identity tracking and two-hand transaction tests. The seeded assessment checks 950 older engine scenarios at 15–60 detection updates per second; it does not assess the live pose detector or two-hand interactions. Synthetic success does not establish physical accuracy. Frontend integration tests live in `client/tests/gesture-lab.spec.js`; run `npm.cmd run test:gestures -w client` from the repository root.
 
 In the host's debug mode, press R, point steadily for 300 ms, perform one gesture, release, and press R again. Label expected actions: `select`, `drag_start,drop`, `reveal`, `dismiss`, `scroll_forward` (hand up), `scroll_backward` (hand down), or empty for no action. Move the downloaded JSON to `src/gestures/__fixtures__/`. Recordings store landmarks, handedness, starting configuration, processing timings and hit-test results, not video. Keep settings unchanged during a recording.
 
@@ -115,4 +133,6 @@ In the host's debug mode, press R, point steadily for 300 ms, perform one gestur
 
 `npm.cmd run gestures:metrics -- --require-real` requires at least 20 camera trials each for click, drag, reveal, dismiss and both scroll directions, plus 120 seconds of no-action movement. This starting evidence gate still needs diverse users/conditions, target devices and physical latency measurements. Bundled fixtures are synthetic and do not satisfy it.
 
-The model can detect two hands, but interaction currently uses one primary hand. Independent two-hand controls, two-hand zoom and speech capture are future work. Voice integration can eventually emit events through the same bus.
+The live controller supports independent two-hand controls and the three object transactions. Two-hand zoom and speech capture remain future work. Older recording/metrics tools replay the primary-hand engine only; use the lab's two-hand landmark replays and browser suite for these transactions. Voice integration can eventually emit events through the same bus.
+
+Last implementation verification: **201 gesture tests + 14 assessment tests + 15 browser tests passed**, along with type checking and the production build. The browser suite verified all 14 feature replays against their UI effects. These results establish automated software behavior; real camera accuracy and physical latency still require live measurements. See [the current framework overview](../gesture_plan.md) and [lab file map](../docs/two-hand-gestures.md#lab-file-map).

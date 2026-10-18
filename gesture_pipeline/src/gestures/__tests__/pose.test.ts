@@ -6,6 +6,11 @@ const frame = (pose: Parameters<typeof hand>[0], cx = 0.5, cy = 0.5) =>
   hand(pose, cx, cy).map(([x, y, z]) => ({ x, y, z }));
 
 describe('fist and swipes', () => {
+  it('does not navigate when a captured draggable owns the motion', () => {
+    const poses = new PoseDetector();
+    const names = [0, .1, .2].map((dx, i) => poses.update(frame('pinch', .5 + dx), i * 70, false, { width: 640, height: 480 }, false));
+    expect(names).toEqual([null, null, null]);
+  });
   it('sees an open hand as extended and a fist as curled', () => {
     expect(fingerCurl(frame('open'))).toBeGreaterThan(1.5);
     expect(allCurled(frame('fist'))).toBe(true);
