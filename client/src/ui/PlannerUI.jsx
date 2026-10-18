@@ -1,5 +1,8 @@
-import { Hints, useGestureStatus } from "conjure-gestures";
-import { useEffect, useRef } from "react";
+import { Hints, useGestureEvents, useGestureStatus } from "conjure-gestures";
+import { useEffect, useRef, useState } from "react";
+import CartSheet, { CartDock } from "./CartSheet.jsx";
+import ChatRail from "./ChatRail.jsx";
+import CompareSheet from "./CompareSheet.jsx";
 import ShopBoard from "./ShopBoard.jsx";
 
 export default function PlannerUI({
@@ -8,16 +11,31 @@ export default function PlannerUI({
   marks,
   status,
   error,
+  notice,
   focusId,
+  trustFloor,
+  compare,
+  cart,
+  assistant,
+  suggestions,
   onPromptChange,
   onPlan,
   onToggle,
   onMark,
   onInspect,
+  onAddListing,
+  onDropListing,
+  onCompare,
+  onTrustFloor,
+  onChooseFromCompare,
+  onCloseCompare,
+  onDismissNotice,
 }) {
   const loading = status === "loading";
   const shellRef = useRef(null);
   const latest = plans?.at(-1) || null;
+  const [chatOpen, setChatOpen] = useState(() => window.matchMedia?.("(min-width: 900px)").matches ?? true);
+  const drag = useListingDrag(onDropListing);
 
   useEffect(() => {
     const root = shellRef.current;
@@ -38,7 +56,7 @@ export default function PlannerUI({
   }, []);
 
   return (
-    <main ref={shellRef} className="shell" data-hue={latest?.category || "home"}>
+    <main ref={shellRef} className={`shell${chatOpen ? " has-rail" : ""}`} data-hue={latest?.category || "home"}>
       <div className="glow" aria-hidden="true">
         <span className="glow-core" />
         <span className="glow-ring" />
@@ -48,10 +66,10 @@ export default function PlannerUI({
         <span className="glow-ring" />
       </div>
       <section className="home">
-        <p className="eyebrow">Planboard</p>
+        <p className="eyebrow">ESPER</p>
         <h1>What do you need to get ready?</h1>
         <p className="lede">
-          Describe what you are shopping for. The list is built from that prompt, not from a widget picker.
+          Say it, type it, or pick it up with your hands. ESPER builds the list, compares the listings and keeps the cart.
         </p>
         <form className="prompt" onSubmit={onPlan}>
           <label className="sr-only" htmlFor="plan-prompt">
@@ -61,7 +79,7 @@ export default function PlannerUI({
             id="plan-prompt"
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder="Camping gear, weekly groceries, new laptop…"
+            placeholder="Camping this weekend, weekly groceries, a new laptop…"
           />
           <button className="transition duration-200 ease-snap active:scale-[0.98]" type="submit" disabled={loading || !prompt.trim()}>
             {loading ? "Planning…" : "Build list"}
@@ -72,13 +90,83 @@ export default function PlannerUI({
             {error}
           </p>
         ) : null}
-        <ShopBoard plans={plans} marks={marks} focusId={focusId} onMark={onMark} onToggle={onToggle} onInspect={onInspect} />
+        {notice ? (
+          <p className="banner is-ok" role="status">
+            {notice}
+            <button type="button" className="banner-dismiss" onClick={onDismissNotice} aria-label="Dismiss">×</button>
+          </p>
+        ) : null}
+        <ShopBoard
+          plans={plans}
+          marks={marks}
+          focusId={focusId}
+          onMark={onMark}
+          onToggle={onToggle}
+          onInspect={onInspect}
+          onAddListing={onAddListing}
+          onCompare={onCompare}
+        />
         <HandToggle />
       </section>
-      <p className="home-hint">Click a plan to reveal its components. Open an item to browse full-screen product options horizontally. Add a product with either a 1-second mouse press-and-hold or a 1-second closed-fist hold.</p>
+      <p className="home-hint">
+        Pull a group apart with two fists. Open an item, then hold a listing for a second to buy it, pinch two listings
+        together to compare, or drag one onto the cart.
+      </p>
+
+      <CartDock
+        lines={cart.lines}
+        total={cart.total}
+        currency={cart.currency}
+        dragging={Boolean(drag.ghost)}
+        onOpen={cart.open}
+        onDropListing={onDropListing}
+      />
+      {drag.ghost ? (
+        <div className="drag-ghost" style={{ left: `${drag.ghost.x * 100}vw`, top: `${drag.ghost.y * 100}vh` }} aria-hidden="true">
+          {drag.ghost.label}
+        </div>
+      ) : null}
+
+      <ChatRail open={chatOpen} assistant={assistant} suggestions={suggestions} onToggle={() => setChatOpen((v) => !v)} />
+
+      {compare ? (
+        <CompareSheet
+          compare={compare}
+          trustFloor={trustFloor}
+          onTrustFloor={onTrustFloor}
+          onChoose={onChooseFromCompare}
+          onClose={onCloseCompare}
+        />
+      ) : null}
+      {cart.sheet ? <CartSheet {...cart.sheet} /> : null}
       <Hints />
     </main>
   );
+}
+
+/** Pinch-drag a listing card: a ghost follows the hand, and dropping it on the cart adds it. */
+function useListingDrag(onDropListing) {
+  const [ghost, setGhost] = useState(null);
+  const parse = (id) => {
+    const match = /^product:([^:]+):(.+)$/.exec(id || "");
+    return match ? { itemId: match[1], productId: match[2] } : null;
+  };
+  useGestureEvents("drag_start", (event) => {
+    const listing = parse(event.target_id);
+    if (!listing) return;
+    const card = document.querySelector(`[data-gesture-id="${CSS.escape(event.target_id)}"] .shop-piece-name`);
+    setGhost({ ...listing, x: event.x, y: event.y, label: card?.textContent || "Listing" });
+  });
+  useGestureEvents("drag_move", (event) => {
+    setGhost((current) => (current ? { ...current, x: event.x, y: event.y } : current));
+  });
+  useGestureEvents("drop", (event) => {
+    const listing = parse(event.target_id);
+    setGhost(null);
+    if (listing && event.drop_target_id === "cart") onDropListing(listing.itemId, listing.productId);
+  });
+  useGestureEvents("cancel", () => setGhost(null));
+  return { ghost };
 }
 
 function HandToggle() {

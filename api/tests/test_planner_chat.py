@@ -120,6 +120,14 @@ def test_use_the_winner_picks_and_adds_to_cart(client, planner) -> None:
     assert put[2] == {"listingId": "target-tent"}
 
 
+def test_use_the_winner_after_a_tie_asks_for_a_store(client, planner) -> None:
+    tie = {"item_id": "tent", "left_id": "rei-tent", "right_id": "target-tent", "winner_id": None}
+    body = chat(client, "use the winner", plan_id="plan-1", compare=tie)
+    assert body["events"] == []
+    assert "too close to call" in body["reply"] and "REI" in body["reply"]
+    assert not any(c[0] == "PUT" for c in planner.calls)
+
+
 def test_store_name_picks_that_listing(client, planner) -> None:
     body = chat(client, "go with the REI one", plan_id="plan-1", focus_item_id="tent")
     assert actions(body) == ["PLAN"]
@@ -175,6 +183,13 @@ def test_llm_failure_before_tools_falls_back_to_rules(client, planner, fake_llm)
 def test_request_limits(client) -> None:
     assert client.post("/planner/chat", json={"text": ""}).status_code == 422
     assert client.post("/planner/chat", json={"text": "x", "trust_floor": 2}).status_code == 422
+
+
+def test_tie_reply_names_the_tradeoff() -> None:
+    from api.planner_chat import _tie
+
+    text = _tie({"store": "Amazon", "price": 57.59, "trust": 0.91}, {"store": "Walmart", "price": 35.28, "trust": 0.81})
+    assert "Walmart is $22.31 cheaper" in text and "Amazon is better reviewed" in text
 
 
 def test_lookup_helpers() -> None:

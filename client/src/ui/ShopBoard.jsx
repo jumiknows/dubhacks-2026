@@ -1,6 +1,7 @@
 import { scrollElement, useGestureEvents } from "conjure-gestures";
 import { useEffect, useRef, useState } from "react";
 import { formatDate, money, quantityLabel } from "./format.js";
+import { bestListingId, productDetails, valueScore } from "./listing.js";
 import { groupTone, itemTone, toneLabel } from "./shopState.js";
 import { takeSwipe } from "./swipeGate.js";
 
@@ -8,6 +9,7 @@ const HOLD_MS = 1000;
 const GROUP_SELECT_MS = 1000;
 const SPLIT_GAP = 0.14;
 const JOIN_GAP = 0.16;
+export const LISTING_DRAG_TYPE = "application/x-esper-listing";
 
 export default function ShopBoard({
   plans,
@@ -16,6 +18,8 @@ export default function ShopBoard({
   onMark,
   onToggle,
   onInspect,
+  onAddListing,
+  onCompare,
 }) {
   const listRef = useRef(null);
   const stripRef = useRef(null);
@@ -29,6 +33,7 @@ export default function ShopBoard({
   const [holding, setHolding] = useState(null);
   const [holdProgress, setHoldProgress] = useState(0);
   const [fistSelection, setFistSelection] = useState(null);
+  const [comparePicks, setComparePicks] = useState([]);
   const groupHoldTimer = useRef(null);
   const groupHoldStarted = useRef(0);
 
@@ -39,6 +44,7 @@ export default function ShopBoard({
 
   useEffect(() => {
     setInspect(focusId || null);
+    setComparePicks([]);
   }, [focusId]);
 
   useEffect(() => {
@@ -89,6 +95,7 @@ export default function ShopBoard({
   function closeInspect() {
     clearHold();
     setInspect(null);
+    setComparePicks([]);
     onInspect?.(null);
   }
 
@@ -116,6 +123,7 @@ export default function ShopBoard({
   }
 
   function startHold(product, item) {
+    if (item.purchased) return;
     clearHold();
     holdStarted.current = performance.now();
     setHolding(product.id);
@@ -125,17 +133,30 @@ export default function ShopBoard({
       setHoldProgress(Math.min(1, elapsed / HOLD_MS));
       if (elapsed >= HOLD_MS) {
         clearHold();
-        onMark(item.id, "cart");
+        // The held listing becomes the item's offer, so checkout charges what was chosen.
+        onAddListing(item, product);
       }
     }, 50);
+  }
+
+  function toggleCompare(item, productId) {
+    const next = comparePicks.includes(productId)
+      ? comparePicks.filter((id) => id !== productId)
+      : [...comparePicks, productId].slice(-2);
+    if (next.length === 2) {
+      setComparePicks([]);
+      onCompare(item, next[0], next[1]);
+      return;
+    }
+    setComparePicks(next);
   }
 
   function parseTarget(id) {
     if (!id) return null;
     if (id.startsWith("group:")) return { kind: "group", id: id.slice(6) };
     if (id.startsWith("item:")) return { kind: "item", id: id.slice(5) };
-    if (id.startsWith("product:")) {
-      const rest = id.slice(8);
+    if (id.startsWith("product:") || id.startsWith("listing:")) {
+      const rest = id.slice(id.indexOf(":") + 1);
       const cut = rest.indexOf(":");
       return { kind: "product", itemId: rest.slice(0, cut), productId: rest.slice(cut + 1) };
     }
@@ -153,15 +174,8 @@ export default function ShopBoard({
 
   function openItem(itemId) {
     setInspect(itemId);
+    setComparePicks([]);
     onInspect?.(itemId);
-  }
-
-  function handleProductPointerDown(product, item) {
-    startHold(product, item);
-  }
-
-  function handleProductPointerUp() {
-    if (holding) clearHold();
   }
 
   function rememberFist(event) {
@@ -200,6 +214,14 @@ export default function ShopBoard({
     if (event.group_id && event.group_id === splitId) recombine(0);
   });
 
+  // Two hands pinch two listings and bring them together: compare them.
+  useGestureEvents("compare", (event) => {
+    const [a, b] = (event.target_ids || []).map(parseTarget);
+    if (a?.kind !== "product" || b?.kind !== "product" || a.itemId !== b.itemId || a.productId === b.productId) return;
+    const item = plans.flatMap((plan) => plan.items).find((row) => row.id === a.itemId);
+    if (item) onCompare(item, a.productId, b.productId);
+  });
+
   useGestureEvents("grab", (event) => {
     rememberFist(event);
     const target = parseTarget(event.target_id);
@@ -233,6 +255,10 @@ export default function ShopBoard({
   });
 
   useGestureEvents("pointer_up", () => {
+    if (holding) clearHold();
+  });
+
+  useGestureEvents("drag_start", () => {
     if (holding) clearHold();
   });
 
@@ -346,7 +372,7 @@ export default function ShopBoard({
                     </div>
                   </div>
                   <div className="shop-group-actions">
-                    {canBreak ? <span className="shop-group-action-hint">Click to view components</span> : (
+                    {canBreak ? <span className="shop-group-action-hint">Click or pull apart to see components</span> : (
                       <button type="button" className="shop-group-action" data-gesture-ignore aria-label={`Open ${plan.title}`} onClick={() => openItem(plan.items[0].id)}>Open item</button>
                     )}
                   </div>
@@ -363,11 +389,21 @@ export default function ShopBoard({
           tone={itemTone(inspectItem, marks)}
           holding={holding}
           holdProgress={holdProgress}
+          comparePicks={comparePicks}
           onClose={closeInspect}
           onOwn={() => onMark(inspectItem.id, "owned")}
           onBought={() => onToggle(inspectItem)}
-          onHoldStart={handleProductPointerDown}
-          onHoldEnd={handleProductPointerUp}
+          onHoldStart={startHold}
+          onHoldEnd={() => holding && clearHold()}
+          onToggleCompare={(productId) => toggleCompare(inspectItem, productId)}
+          onCompareBest={() => {
+            const [a, b] = inspectItem.products || [];
+            if (a && b) onCompare(inspectItem, a.id, b.id);
+          }}
+          onAddChosen={() => {
+            const chosen = (inspectItem.products || []).find((p) => p.id === bestListingId(inspectItem));
+            if (chosen) onAddListing(inspectItem, chosen);
+          }}
         />
       ) : null}
     </section>
@@ -391,23 +427,33 @@ function PieceCard({ planId, item, tone, onOpen }) {
       <p className="shop-kicker">{toneLabel(tone)}</p>
       <p className="shop-piece-name">{item.name}</p>
       <p className="shop-meta">{qty || item.reason}</p>
+      {typeof item.synthesis?.totalPrice === "number" ? <p className="shop-piece-price">{money(item.synthesis.totalPrice, item.synthesis.currency || "USD")}</p> : null}
     </button>
   );
 }
 
-function InspectStage({ item, tone, holding, holdProgress, onClose, onOwn, onBought, onHoldStart, onHoldEnd }) {
+function InspectStage({
+  item, tone, holding, holdProgress, comparePicks,
+  onClose, onOwn, onBought, onHoldStart, onHoldEnd, onToggleCompare, onCompareBest, onAddChosen,
+}) {
   const products = item.products || [];
   const offer = item.synthesis;
+  const chosenId = bestListingId(item);
   return (
     <div className="shop-inspect" role="dialog" aria-modal="true" aria-label={`${item.name} product options`}>
       <article className={`shop-focus is-${tone}`}>
         <div>
-          <p className="shop-kicker">{toneLabel(tone)} · product options</p>
+          <p className="shop-kicker">{toneLabel(tone)} · {products.length} listing{products.length === 1 ? "" : "s"}</p>
           <h3>{item.name}</h3>
           <p>{item.reason}{quantityLabel(item) ? ` · ${quantityLabel(item)}` : ""}</p>
-          <p className="shop-meta">{offer?.summary || "Compare details, then press and hold a listing for 1 second with the mouse or a closed fist."}</p>
+          <p className="shop-meta">
+            {offer?.summary ? `Chosen: ${offer.summary}${typeof offer.totalPrice === "number" ? ` · ${money(offer.totalPrice, offer.currency || "USD")}` : ""}. ` : ""}
+            Hold a listing for 1 second (mouse or fist) to buy it, pinch two listings together to compare, or drag one onto the cart.
+          </p>
         </div>
         <div className="shop-focus-actions">
+          {products.length > 1 ? <button type="button" data-gesture-ignore onClick={onCompareBest}>Compare best two</button> : null}
+          {chosenId && !item.purchased ? <button type="button" data-gesture-ignore onClick={onAddChosen}>Add chosen to cart</button> : null}
           <button type="button" data-gesture-ignore onClick={onOwn}>Mark owned</button>
           <button type="button" data-gesture-ignore onClick={onBought}>{item.purchased ? "Purchased" : "Mark purchased"}</button>
           <button type="button" data-gesture-ignore onClick={onClose}>Close</button>
@@ -423,20 +469,27 @@ function InspectStage({ item, tone, holding, holdProgress, onClose, onOwn, onBou
           event.currentTarget.scrollBy({ left: event.deltaY, behavior: "smooth" });
         }}
       >
-        {products.length ? products.map((product) => {
-          const on = holding === product.id;
-          return (
+        {products.length ? products.map((product) => (
+          <div key={product.id} className="listing-slot">
             <ProductCard
-              key={product.id}
               itemId={item.id}
               product={product}
-              active={on}
+              chosen={product.id === chosenId}
+              active={holding === product.id}
               holdProgress={holdProgress}
               onStart={() => onHoldStart(product, item)}
               onEnd={onHoldEnd}
             />
-          );
-        }) : (
+            <button
+              type="button"
+              className={comparePicks.includes(product.id) ? "compare-chip is-on" : "compare-chip"}
+              aria-pressed={comparePicks.includes(product.id)}
+              onClick={() => onToggleCompare(product.id)}
+            >
+              {comparePicks.includes(product.id) ? "Pick one more to compare" : "Compare"}
+            </button>
+          </div>
+        )) : (
           <p className="quiet">No store listings yet. Close this screen to return to the shopping list.</p>
         )}
         {offer?.shippingDate ? <p className="shop-meta">Ships {formatDate(offer.shippingDate)}</p> : null}
@@ -445,9 +498,9 @@ function InspectStage({ item, tone, holding, holdProgress, onClose, onOwn, onBou
   );
 }
 
-function ProductCard({ itemId, product, active, holdProgress, onStart, onEnd }) {
-  const value = valueScore(product);
+function ProductCard({ itemId, product, chosen, active, holdProgress, onStart, onEnd }) {
   const details = productDetails(product);
+  const gestureId = `product:${itemId}:${product.id}`;
   function begin(event) {
     if (event.button != null && event.button !== 0) return;
     onStart();
@@ -456,10 +509,21 @@ function ProductCard({ itemId, product, active, holdProgress, onStart, onEnd }) 
   return (
     <button
       type="button"
-      className={active ? "shop-buy-card is-holding" : "shop-buy-card"}
-      data-gesture-id={`product:${itemId}:${product.id}`}
-      data-product-id={`product:${itemId}:${product.id}`}
+      className={`shop-buy-card${active ? " is-holding" : ""}${chosen ? " is-chosen" : ""}`}
+      data-gesture-id={gestureId}
+      data-product-id={gestureId}
+      data-gesture-object={`listing:${itemId}:${product.id}`}
+      data-gesture-group={itemId}
+      data-gesture-kind="original"
+      data-gesture-draggable
+      draggable
       aria-pressed={active}
+      onDragStart={(event) => {
+        onEnd();
+        event.dataTransfer.effectAllowed = "copy";
+        event.dataTransfer.setData(LISTING_DRAG_TYPE, JSON.stringify({ itemId, productId: product.id }));
+        event.dataTransfer.setData("text/plain", product.title || product.store || "listing");
+      }}
       onPointerDown={begin}
       onPointerUp={onEnd}
       onPointerCancel={onEnd}
@@ -473,44 +537,26 @@ function ProductCard({ itemId, product, active, holdProgress, onStart, onEnd }) 
     >
       <Thumb image={product.image} store={product.store} />
       <span className="product-card-body">
-        <span className="product-store">{product.store}{product.brand ? ` · ${product.brand}` : ""}</span>
+        <span className="product-store">
+          {product.store}{product.brand ? ` · ${product.brand}` : ""}
+          {chosen ? <em className="chosen-badge">Chosen</em> : null}
+          {product.isMock ? <em className="mock-badge" title={(product.warnings || [])[0]}>Demo data</em> : null}
+        </span>
         <span className="shop-piece-name">{product.title || product.store}</span>
         <span className="product-price-row">
-          <strong>{money(product.price, product.currency)}</strong>
-          <span className="value-score">Value score {value}</span>
+          <strong>{money(product.price, product.currency || "USD")}</strong>
+          <span className="value-score">Value score {valueScore(product)}/100</span>
         </span>
         <span className="product-facts">
           {details.map(([label, detail]) => <span key={label}><b>{label}</b>{detail}</span>)}
         </span>
-        {active ? <span className="hold-bar" style={{ "--hold": holdProgress }} /> : <span className="shop-hint">Mouse press-and-hold or close fist-and-hold · 1 second</span>}
+        {active ? <span className="hold-bar" style={{ "--hold": holdProgress }} /> : <span className="shop-hint">Hold 1 second to buy · drag to cart</span>}
       </span>
     </button>
   );
 }
 
-function valueScore(product) {
-  const score = product.score ?? ((product.bang_per_buck ?? 0.5) * (product.relevancy ?? 1) * (product.trust_multiplier ?? product.trust ?? 0.7));
-  return `${Math.round(Math.max(0, Math.min(1, score)) * 100)}/100`;
-}
-
-function productDetails(product) {
-  const details = [];
-  const dimensions = typeof product.dimensions === "string" ? product.dimensions : product.dimensions?.label;
-  if (dimensions) details.push(["Dimensions", dimensions]);
-  const reviews = product.reviewCount ?? product.review_count;
-  if (product.rating != null) details.push(["Rating", `${Number(product.rating).toFixed(1)} / 5${reviews ? ` · ${Number(reviews).toLocaleString()} reviews` : ""}`]);
-  const shipping = product.shippingDays ?? product.shipping_days;
-  if (typeof shipping === "number") details.push(["Shipping", `${shipping} day${shipping === 1 ? "" : "s"}`]);
-  if (product.condition) details.push(["Condition", product.condition]);
-  if (product.seller) details.push(["Seller", product.seller]);
-  if (product.inStock === false || product.in_stock === false) details.push(["Availability", "Out of stock"]);
-  for (const [key, detail] of Object.entries(product.specs || {}).slice(0, 6)) {
-    if (detail && !details.some(([label]) => label.toLowerCase() === key.toLowerCase())) details.push([key, String(detail)]);
-  }
-  return details.slice(0, 8);
-}
-
-function Thumb({ image, store }) {
+export function Thumb({ image, store }) {
   const [failed, setFailed] = useState(false);
   if (!image || failed) {
     return (

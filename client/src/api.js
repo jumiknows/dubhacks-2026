@@ -52,15 +52,42 @@ export function chooseListing(planId, itemId, listingId) {
   });
 }
 
-// Returns { id, url, amount, currency, mock }. Send the browser to url.
-export function startCheckout(planId, itemIds) {
+// cart = [{ planId, itemIds }]. Returns { id, url, amount, currency, mock }.
+// Stripe: send the browser to url. Mock: confirm in place to place the demo order.
+export function startCheckout(cart) {
   return request("/api/checkout", {
     method: "POST",
-    body: JSON.stringify({ planId, itemIds }),
+    body: JSON.stringify({ cart }),
   });
 }
 
-// Call when Stripe redirects back. Returns { status, mock, plan }.
+// After Stripe redirects back, or the mock sheet confirms. Returns { status, mock, plans, receipt? }.
 export function confirmCheckout(sessionId) {
   return request(`/api/checkout/${encodeURIComponent(sessionId)}`);
+}
+
+// Typed assistant. Returns { reply, events: UI_UPDATE[], source: "llm" | "rules" }.
+export function plannerChat(body) {
+  return request("/api/conjure/planner/chat", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// Express health: { ok, stripe: "mock" | "test" }. Never throws.
+export async function serverHealth() {
+  try {
+    return await request("/api/health");
+  } catch {
+    return null;
+  }
+}
+
+// Which integrations the Python API has configured (voice, LLM). Never throws.
+export async function assistantHealth() {
+  try {
+    return await request("/api/conjure/health");
+  } catch {
+    return null;
+  }
 }

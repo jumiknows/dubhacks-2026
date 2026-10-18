@@ -192,6 +192,11 @@ async def _rules_turn(ctx: LiveContext, req: PlannerChatRequest) -> dict[str, An
         item = find_item(ctx.plan, ref) if ref else None
         chosen = _chosen_listing(item, low, ctx.last_compare) if item else None
         if not chosen:
+            last = ctx.last_compare or {}
+            if item and last.get("item_id") == item.get("id") and not last.get("winner_id"):
+                left = find_product(item, last.get("left_id")) or {}
+                return _reply(f"Those two were too close to call, so there's no winner to pick. Say the store you want, "
+                              f"like “use the {left.get('store') or 'first'} one”.", events)
             return _reply("Which listing? Say the store, or compare two first and say “use the winner”.", events)
         picked = await run("pick_listing", {"item_id": item["id"], "product_id": chosen})
         if picked.get("status") == "success" and _CART.search(low):
@@ -255,6 +260,21 @@ def _money(value: Any) -> str:
     return f"${value:,.2f}" if isinstance(value, (int, float)) else "no price yet"
 
 
+def _tie(left: dict[str, Any], right: dict[str, Any]) -> str:
+    """No winner on value: say what actually differs so the user can choose."""
+    text = (f"{left.get('store')} at {_money(left.get('price'))} and {right.get('store')} at "
+            f"{_money(right.get('price'))} are too close to call on value")
+    bits = []
+    lp, rp = left.get("price"), right.get("price")
+    if isinstance(lp, (int, float)) and isinstance(rp, (int, float)) and lp != rp:
+        cheap, dear = (left, right) if lp < rp else (right, left)
+        bits.append(f"{cheap.get('store')} is {_money(dear['price'] - cheap['price'])} cheaper")
+    lt, rt = left.get("trust"), right.get("trust")
+    if isinstance(lt, (int, float)) and isinstance(rt, (int, float)) and abs(lt - rt) >= 0.05:
+        bits.append(f"{(left if lt > rt else right).get('store')} is better reviewed")
+    return text + (f": {', '.join(bits)}." if bits else ".") + " Say which store you want."
+
+
 def _summary(results: list[tuple[str, dict[str, Any]]]) -> str:
     """One or two sentences built only from tool results."""
     if not results:
@@ -283,7 +303,7 @@ def _summary(results: list[tuple[str, dict[str, Any]]]) -> str:
                 lines.append(f"{winner.get('title')} from {winner.get('store')} wins at {_money(winner.get('price'))}. "
                              "Say “use the winner” to pick it.")
             else:
-                lines.append("Those two are too close to call on value. Pick whichever you prefer.")
+                lines.append(_tie(c.get("left") or {}, c.get("right") or {}))
         elif name == "pick_listing":
             picked = result.get("picked") or {}
             lines.append(f"Picked {picked.get('title')} from {picked.get('store')} at {_money(picked.get('price'))}.")

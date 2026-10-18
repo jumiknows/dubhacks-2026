@@ -1,81 +1,85 @@
 # ESPER
 
-A shopping planner and Conjure shopping-assistant backend. A prompt becomes a checklist; purchased items drop out of its buy list. The current product offers and review datasets are explicitly demo data, not live retailer quotes.
+Say what you're getting ready for: "camping this weekend", "weekly groceries", "a new laptop". ESPER builds the shopping list, finds store listings for every item, and helps you pick the best one by comparing two listings side by side. Then it keeps the cart and checks out.
 
-React/Vite talks to Express for plans. Express also exposes the Python/FastAPI assistant through `/api/conjure/*`. The assistant supports a configured Gemini/OpenAI-compatible provider, deterministic fallback, search, trust reports, feedback, and signed mock checkout. See [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md) for integration boundaries and remaining frontend work.
+You can drive all of it four ways, and they share one screen:
 
-Review evidence and website safety have standalone workbenches at
-`/api/conjure/reviews/workbench` and `/api/conjure/websites/workbench` on the Express
-server. See [website setup](docs/website-safety.md): live fetching now holds without
-registered merchant origins and completed reputation checks. Offline demos stay explicit.
+| | How |
+|---|---|
+| **Hands** | Pull a group apart with two fists. Fist-hold a piece to open it. Pinch two listings, one per hand, and bring them together to compare. Hold a listing for 1 second, or pinch-drag it onto the cart, to buy it. |
+| **Voice** | Press **Talk** and speak ("compare the tents", "use the winner", "check out"). Gemini Live answers out loud and moves the screen while it talks. |
+| **Typing** | The same requests in the assistant panel on the right. |
+| **Mouse** | Everything above has a click, hold or drag equivalent. |
 
-## Setup
+The assistant can build, open, compare, pick and add to the cart, but it cannot pay: checkout always stops at a review sheet for you to confirm.
 
-```bash
-npm ci              # Node 24; installs the locked dependencies
-npm run api:setup   # once: creates api/.venv and installs the Python API (needs Python 3.11+)
-npm run dev         # starts the Conjure API, the Express server, and the client
-```
-
-All external credentials are optional and stay in the ignored `api/.env`. For Gemini, use the settings documented in [api/README.md](api/README.md). An absent key selects the deterministic fallback. `server/.env` is optional; it can configure the gateway origin and timeout without containing an LLM key.
-
-Run the offline backend tests and frontend build:
+## Run it
 
 ```bash
-npm test
-npm run build
+npm ci              # Node 24
+npm run api:setup   # once: creates api/.venv with the Python API (Python 3.11+)
+npm run dev         # Python API :8000, Express :3001, client :5173
 ```
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3001 (the frontend proxies `/api/*` to it)
-- Conjure API: http://localhost:8000 · docs http://localhost:8000/docs · health http://localhost:8000/health (see `api/README.md`)
+Open http://localhost:5173. With no keys at all, everything works on demo data: the typed assistant uses built-in rules, checkout is a mock order, and listings come from labelled fixtures.
 
-## How a plan is built
+To ship one origin instead: `npm run build && npm start`. Express then serves the built client on :3001, proxies the Python API, and tunnels the voice socket.
 
-1. `server/services/planner.js` turns the prompt into items with deterministic templates; it is separate from the AI assistants.
-2. `server/services/fetchBot.js` searches two sources in parallel and merges the listings: Python `POST /market/search` (Amazon, eBay, Walmart; fixtures unless `SELENIUM_ENABLED=true` in `api/.env`) and every configured store API in `server/services/stores/` (keys in `server/.env`; without keys, Open Food Facts + Open Prices, UPCitemdb, Shopify stores and the sample APIs DummyJSON and Fake Store still work). Falls back to labelled demo listings.
-3. `server/services/synthesizeBot.js` validates every listing (integer cents, safe links, no invented dates) and lets the Python weighted scorer pick, falling back to the cheapest explicitly in-stock listing.
-4. `server/services/pipeline.js` attaches the offers and reports incomplete totals honestly.
-5. `client/src/ui/` renders the plan. HTTP stays in `client/src/App.jsx`.
+### Optional keys
 
-## Demo: fake purchase
+| Turns on | Put in | Without it |
+|---|---|---|
+| Voice (Gemini Live) | `GEMINI_API_KEY` in `api/.env`. `GEMINI_LIVE_MODEL` defaults to `gemini-3.8-live`. | The Talk button says voice needs a key; typing still works. |
+| Typed AI (any OpenAI-compatible model, e.g. Gemini) | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` in `api/.env` | Rule-based assistant handles plan / open / compare / pick / cart / bought / trust / checkout. |
+| Real Stripe test payments | `STRIPE_SECRET_KEY=sk_test_…` (+ `STRIPE_WEBHOOK_SECRET`) in `server/.env` | Mock order with a receipt; live keys are refused. |
+| More stores | Store keys in `server/.env` (see `server/.env.example`) | Keyless stores (Open Food Facts, UPCitemdb, Shopify, DummyJSON, Fake Store) plus fixtures. |
+| Live marketplace pages | `SELENIUM_ENABLED=true` in `api/.env` (needs Chrome) | Amazon / eBay / Walmart fixtures. |
 
-With no `STRIPE_SECRET_KEY` in `server/.env`, checkout is a simulation. Nothing is charged.
+`/api/health` and `/api/conjure/health` report what is configured. Keys stay in ignored `.env` files and never reach the browser.
 
-1. In `server/.env`, set `STORES_SAMPLE_DATA=always` so DummyJSON and Fake Store listings appear next to real stores.
-2. Build the Groceries list. Eggs usually comes from DummyJSON; for Milk or Coffee, compare listings and press "Use this listing" on a DummyJSON one.
-3. In **Cart**, tick items and press **Pay**, then **Place mock order** (demo card •••• 4242).
-4. The receipt shows the cart id DummyJSON / Fake Store issued for their items. Other items are recorded locally.
+## Two-minute demo
 
-`MOCK_ORDER_SANDBOX=off` skips those sandbox calls for offline demos. With a `sk_test_` key, the same Pay button opens real Stripe Checkout in test mode (card 4242 4242 4242 4242).
+1. Type or say **"I need to prepare for camping"**. A red *Camping kit* group appears, and the assistant summarises it.
+2. Pull the group apart (two fists, or click). Open **2-person tent**.
+3. Pinch two listings together (or press **Compare best two**). The sheet shows the scores, why, and a plain trade-off ("Walmart is $22.31 cheaper; Amazon is better reviewed and ships 2 days sooner"). Drag the **trust floor**: it rescores without refetching.
+4. **Choose + add to cart**. The tent turns yellow. Pinch-drag a stove listing onto the cart.
+5. Say **"check out"**, then **Place mock order**. The receipt appears, and the items turn green.
 
-## API
+## How it fits together
 
-- `POST /api/plans` `{ prompt, category }` → plan, including `items[].products`, `items[].synthesis`, and `quote`
-- `GET /api/plans/:id`
-- `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
-- `/api/conjure/*` → allowed Python assistant endpoints, including streamed `/chat`, `/session`, `/products/search`, `/products/recommend`, `/trust/:id`, and signed mock checkout
-- `GET /api/stores` → each store API, whether it is enabled, and its last result
-- `GET /api/products/search?q=headlamp` → merged results from every enabled store
+```
+client (React + Vite)  ──/api──▶  Express :3001  ──/api/conjure/*──▶  Python API :8000
+  shop board, gestures              plans, listing picks,               marketplace search & scoring,
+  assistant panel, voice            checkout (Stripe / mock),           planner assistant (/planner/chat),
+  compare + cart sheets             store APIs, built client,           Gemini Live relay (/ws-live),
+                         ──/ws-live─▶ voice tunnel  ─────────────────▶  review & website safety
+```
 
-`category` accepts `groceries`, `wedding`, `camping`, `custom`, and the teammate frontend's `electronics` tab. Electronics currently uses custom checklist parsing; there is no dedicated electronics inventory. If the prompt mentions a supported template occasion, that list wins over the selected tab.
+- **Plans:** `server/services/planner.js` (templates) → `fetchBot.js` (Python marketplace search + store APIs in parallel) → `synthesizeBot.js` (exact-cents validation; the Python weighted scorer picks) → `pipeline.js`.
+- **Compare:** `score = bang per buck × relevancy × trust multiplier` (`api/market/compare_service.py`, explained in [pitch.md](pitch.md)). A tie within 0.05 is reported as a tie, with the concrete trade-offs spelled out.
+- **Assistant:** one tool set in `api/live_tools.py`, used by voice (`api/live.py`) and typing (`api/planner_chat.py`). Tool results become `UI_UPDATE` events the client applies (`client/src/App.jsx`).
+- **Checkout:** `server/services/checkout.js` prices from the server's copy of the plan, never from the browser. One order can span several lists. Mock orders also post to the DummyJSON / Fake Store sandbox carts (`mockOrder.js`).
+- **Gestures:** `gesture_pipeline/` (MediaPipe hands). Rules and edge cases: [gesture_plan.md](gesture_plan.md), [docs/gesture-logic.md](docs/gesture-logic.md). The two-hand lab is at `/gesture-lab`. Add `?gdebug` to the URL for the live pose readout.
 
-`npm run dev` starts all three services. `npm start` starts Express only; it does not serve a built frontend or start Python. Gateway configuration: `CONJURE_API_URL=http://127.0.0.1:8000` and `CONJURE_API_TIMEOUT_MS=125000` (maximum 180000). The URL must be a credential-free HTTP(S) origin. Keep the Python turn budget below the gateway timeout.
+The skincare shopping agent ("Conjure": `/api/conjure/chat`, signed mandates, review insights, website safety workbenches) is still in the Python API and documented in [api/README.md](api/README.md) and [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md).
 
-Camping tab ideas — what that widget should surface for a trip — are in [docs/camping-widget.md](docs/camping-widget.md).
+## Tests
 
-The home shell — side dock, pull bar, and the sheet that slides in — is described in [docs/ui-shell.md](docs/ui-shell.md).
+```bash
+npm test                                   # Express + Python API (offline)
+npm --prefix gesture_pipeline test         # gesture engine
+npm --prefix gesture_pipeline run typecheck
+npm run build                              # client
+```
+
+## Known limits
+
+- Plans live in server memory. The browser keeps your board across reloads and Stripe redirects, but restarting Express clears it.
+- Without keys and Selenium, prices and stock are demo data, and the UI labels them that way.
+- Voice depends on Google's Live API. The relay and the browser client are tested against a scripted stand-in, not against Gemini itself.
+- Hand tracking is tuned on synthetic replays. Live trials at different distances and lighting are still open (see [gesture_plan.md](gesture_plan.md)).
 
 ## Team workflow
 
-- Review the local changes on your existing feature branch before committing and pushing manually.
-- Coordinate integration with the backend and frontend owners; preserve both the AI lifecycle and recommendation route when resolving overlapping changes.
-- Never commit `.env` (it's gitignored)
-
-## Hand gesture feature
-
-The reusable gesture module lives in [`gesture_pipeline/`](gesture_pipeline/README.md). It provides index-pointer control, pinch click/drag, horizontal reveal/dismiss gestures and vertical catalogue scrolling for the existing Vite frontend. See its README for installation, asset preparation, UI integration and tuning. The feature has no standalone demo server.
-
-The existing frontend also includes a two-hand lab at **http://localhost:5173/gesture-lab**. Run `npm.cmd run dev -w client` from the root to try it; no backend is needed for the lab. Use thumb/index pinches with both hands to pull one original apart, bring its grouped components horizontally together, or compare two originals by bringing them together. Camera-free landmark replays demonstrate all three. [Implementation, tuning and tests](docs/two-hand-gestures.md).
-
-On the normal `/` page, **Test gestures · spawn test objects** opens the populated lab. Its feature selector loads scenes for all current gestures; **Run all feature replays** checks the software path, while **Begin live trial** measures your camera attempts separately. Export task outcomes, errors, tracking/timing evidence and perceived smoothness as JSON.
+- Branch off `main`, open a PR, and merge often.
+- Never commit `.env` files (they are gitignored).

@@ -29,7 +29,7 @@ SEEDS = [
          amazon=35.00, ebay=22.00, walmart=28.00),
     dict(query="milk", title="Whole Milk", brand="Organic Valley", specs={"size": "1 gal"},
          amazon=4.49, ebay=3.99, walmart=3.19),
-    dict(query="laptop", title="Headphones", brand="Sony", specs={"type": "over-ear"},
+    dict(query="headphones", title="Headphones", brand="Sony", specs={"type": "over-ear"},
          amazon=89.00, ebay=45.00, walmart=69.00),
 ]
 
@@ -62,7 +62,8 @@ def _variants(seed: dict, marketplace: str, count: int) -> list[MarketProduct]:
             title=f"{brand} {seed['title']}" + (" Used" if used else ""),
             brand=brand,
             price=price,
-            image=f"/static/products/p{(index % 20) + 1:02d}.svg",
+            # No picture rather than the wrong one: the catalog SVGs are skincare products.
+            image=None,
             url=f"https://www.{marketplace}.com/item/{index}",
             dimensions={"label": seed["specs"].get("packed size") or seed["specs"].get("size") or "see specs"},
             shipping_days=2 if marketplace == "amazon" else 4 + index % 5,
@@ -91,13 +92,19 @@ for seed in SEEDS:
 def for_query(query: str, marketplaces: list[str], limit: int) -> list[MarketProduct]:
     needle = query.lower()
     tokens = [part for part in needle.replace("-", " ").split() if len(part) > 2] or needle.split()
-    hits: list[MarketProduct] = []
+    # Listings matching every word come first ("sleeping pad" is not a sleeping bag);
+    # any-word matches are the fallback so loose queries still find something.
+    every: list[MarketProduct] = []
+    some: list[MarketProduct] = []
     for product in FIXTURES:
         if product.marketplace not in marketplaces:
             continue
         hay = f"{product.title} {product.query} {product.brand or ''}".lower()
-        if any(token in hay for token in tokens):
-            hits.append(product.model_copy(update={"query": query}))
+        if all(token in hay for token in tokens):
+            every.append(product.model_copy(update={"query": query}))
+        elif any(token in hay for token in tokens):
+            some.append(product.model_copy(update={"query": query}))
+    hits = every or some
     if not hits:
         return [MarketProduct(
             id=f"unlisted-{query.lower().replace(' ', '-')[:40]}",
