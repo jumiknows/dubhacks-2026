@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDate, money, quantityLabel } from "./format.js";
+import CartPanel from "./CartPanel.jsx";
 import ElectronicsPlan from "./ElectronicsPlan.jsx";
 import WeeklyList from "./WeeklyList.jsx";
 
@@ -10,6 +11,7 @@ export default function PlannerUI({
   plan,
   status,
   error,
+  notice,
   trustFloor,
   compare,
   selected,
@@ -20,6 +22,7 @@ export default function PlannerUI({
   onTrustFloor,
   onToggleListing,
   onConfirmPick,
+  onCheckout,
 }) {
   const loading = status === "loading";
   const [open, setOpen] = useState(false);
@@ -202,6 +205,11 @@ export default function PlannerUI({
               {error}
             </p>
           ) : null}
+          {notice ? (
+            <p className="banner is-ok" role="status">
+              {notice}
+            </p>
+          ) : null}
           {category === "groceries" ? (
             <WeeklyList bindBack={bindBack} onBack={requestBack} />
           ) : null}
@@ -209,7 +217,17 @@ export default function PlannerUI({
             <ElectronicsPlan bindBack={bindBack} onBack={requestBack} />
           ) : null}
           {plan ? (
-            <PlanBody plan={plan} onToggle={onToggle} />
+            <PlanBody
+              plan={plan}
+              trustFloor={trustFloor}
+              compare={compare}
+              selected={selected}
+              onToggle={onToggle}
+              onTrustFloor={onTrustFloor}
+              onToggleListing={onToggleListing}
+              onConfirmPick={onConfirmPick}
+              onCheckout={onCheckout}
+            />
           ) : category === "groceries" || category === "electronics" ? null : (
             <p className="empty">
               {loading
@@ -337,7 +355,17 @@ function WidgetIcon({ id }) {
   );
 }
 
-function PlanBody({ plan, onToggle }) {
+function PlanBody({
+  plan,
+  trustFloor,
+  compare,
+  selected,
+  onToggle,
+  onTrustFloor,
+  onToggleListing,
+  onConfirmPick,
+  onCheckout,
+}) {
   const toBuy = plan.items.filter((item) => !item.purchased);
 
   return (
@@ -409,6 +437,7 @@ function PlanBody({ plan, onToggle }) {
         </section>
       </div>
       {compare ? <CompareSheet compare={compare} onConfirmPick={onConfirmPick} /> : null}
+      {onCheckout ? <CartPanel items={plan.items} onCheckout={onCheckout} /> : null}
     </>
   );
 }

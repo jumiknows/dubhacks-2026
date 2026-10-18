@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import { getPlan, savePlan } from "./store.js";
 import { generatePlan } from "./services/planner.js";
-import { attachOffers, quotePlan } from "./services/pipeline.js";
+import { attachOffers, pickListing, quotePlan } from "./services/pipeline.js";
+import { CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
 
@@ -10,10 +11,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+
+// Stripe signs the raw body, so this route must run before express.json().
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  try {
+    res.json(handleWebhook(req.body, req.headers["stripe-signature"]));
+  } catch (err) {
+    sendError(res, err, "Could not handle webhook");
+  }
+});
+
 app.use(express.json());
 
 app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, stripe: stripeMode() });
 });
 
 app.post("/api/plans", async (req, res) => {
@@ -69,6 +80,38 @@ app.patch("/api/plans/:id/items/:itemId", async (req, res) => {
   }
 });
 
+app.put("/api/plans/:id/items/:itemId/listing", (req, res) => {
+  const plan = getPlan(req.params.id);
+  if (!plan) return res.status(404).json({ error: "plan not found" });
+
+  const index = plan.items.findIndex((item) => item.id === req.params.itemId);
+  if (index === -1) return res.status(404).json({ error: "item not found" });
+  if (plan.items[index].purchased) return res.status(409).json({ error: "item already purchased" });
+
+  const picked = pickListing(plan.items[index], req.body?.listingId);
+  if (!picked) return res.status(404).json({ error: "listing not found for this item" });
+
+  plan.items[index] = picked;
+  plan.quote = quotePlan(plan.items);
+  res.json(plan);
+});
+
+app.post("/api/checkout", async (req, res) => {
+  try {
+    res.status(201).json(await createCheckout(req.body?.planId, req.body?.itemIds));
+  } catch (err) {
+    sendError(res, err, "Could not start checkout");
+  }
+});
+
+app.get("/api/checkout/:sessionId", async (req, res) => {
+  try {
+    res.json(await confirmCheckout(req.params.sessionId));
+  } catch (err) {
+    sendError(res, err, "Could not confirm checkout");
+  }
+});
+
 app.post("/api/compare", async (req, res) => {
   try {
     const left = req.body?.left;
@@ -94,6 +137,12 @@ app.post("/api/top", async (req, res) => {
     res.status(500).json({ error: err.message || "Could not rank items" });
   }
 });
+
+function sendError(res, err, fallback) {
+  if (err instanceof CheckoutError) return res.status(err.status).json({ error: err.message });
+  console.error(err);
+  res.status(500).json({ error: fallback });
+}
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
