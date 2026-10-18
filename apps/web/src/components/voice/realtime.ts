@@ -1,9 +1,12 @@
 import type { PlaceContext } from "@emberready/domain";
 
 interface Session {
-  token: string; ticket: string; model: string; instructions: string; tools: unknown[];
-  contextVersion: string; sessionSeconds: number;
+  token: string; ticket?: string; model: string; instructions: string; tools: unknown[];
+  contextVersion?: string; sessionSeconds: number;
 }
+/** Runs a Grok tool call in the page and returns the JSON result Grok will read. */
+export type ToolHandler = (name: string, args: Record<string, unknown>) => Promise<unknown>;
+interface SessionOptions { toolHandler?: ToolHandler; readyMessage?: string; maxSeconds?: number }
 const CHUNK_SAMPLES = 960; // 40 ms at 24 kHz
 const BARGE_IN_RMS = 0.08; // speech over Grok must be clearly louder than speaker echo
 const BARGE_IN_CHUNKS = 4; // and last about 160 ms
@@ -36,20 +39,28 @@ export class VoiceConnection {
   private toolResults: Promise<void>[] = [];
   private toolCalls = new Set<string>();
   private toolCount = 0;
+  private options: SessionOptions = {};
   constructor(private readonly onState: (message: string, ready: boolean) => void, private readonly onTranscript: (text: string) => void) {}
 
   async start(context: PlaceContext, accessCode: string): Promise<void> {
+    await this.startSession("/api/voice/session", { placeId: context.placeId, snapshotId: context.snapshotId, asOf: context.asOf, mode: context.mode }, accessCode, {}, (session) => session.contextVersion === context.contextVersion);
+  }
+
+  /** Open a Grok Voice session from any session endpoint. With a toolHandler, Grok's tool calls run in the page. */
+  async startSession(url: string, body: unknown, accessCode: string, options: SessionOptions = {}, accept: (session: Session) => boolean = () => true): Promise<void> {
+    this.options = options;
     this.audio = new AudioContext({ sampleRate: 24000 });
     await this.audio.resume();
-    const response = await fetch("/api/voice/session", {
+    const response = await fetch(url, {
       method: "POST", headers: { "Content-Type": "application/json", ...(accessCode ? { Authorization: `Bearer ${accessCode}` } : {}) },
-      body: JSON.stringify({ placeId: context.placeId, snapshotId: context.snapshotId, asOf: context.asOf, mode: context.mode }), signal: this.controller.signal,
+      body: JSON.stringify(body), signal: this.controller.signal,
     });
     const session = await response.json() as Session & { error?: { message: string } };
     if (this.stopped) return;
-    if (!response.ok || session.contextVersion !== context.contextVersion) throw new Error(session.error?.message ?? "Voice context did not match. Retry from the selected community.");
+    if (!response.ok || !accept(session)) throw new Error(session.error?.message ?? "Voice context did not match. Retry from the selected community.");
+    const seconds = Math.min(session.sessionSeconds, options.maxSeconds ?? 120);
     this.ws = new WebSocket(`wss://api.x.ai/v1/realtime?model=${encodeURIComponent(session.model)}`, [`xai-client-secret.${session.token}`]);
-    this.timer = setTimeout(() => { this.stop(); this.onState("The two-minute demo session ended. Start a new session to continue.", false); }, Math.min(session.sessionSeconds, 120) * 1000);
+    this.timer = setTimeout(() => { this.stop(); this.onState(`The ${Math.round(seconds / 60)}-minute session ended. Start a new session to continue.`, false); }, seconds * 1000);
     this.ws.onopen = () => this.send({ type: "session.update", session: {
       voice: "eve", instructions: session.instructions, tools: session.tools,
       turn_detection: { type: "server_vad" }, audio: { input: { format: { type: "audio/pcm", rate: 24000 } }, output: { format: { type: "audio/pcm", rate: 24000 } } },
@@ -65,7 +76,7 @@ export class VoiceConnection {
   private send(value: unknown) { if (!this.stopped && this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(value)); }
   private fail(message: string) { this.stop(); this.onState(message, false); }
   private async event(event: Record<string, unknown>, session: Session) {
-    if (event.type === "session.updated") { this.ready = true; this.onState("Voice is ready. Ask about the selected observations.", true); }
+    if (event.type === "session.updated") { this.ready = true; this.onState(this.options.readyMessage ?? "Voice is ready. Ask about the selected observations.", true); }
     if (event.type === "error") this.fail("Grok rejected the Voice request. Retry or use the readable briefing.");
     if (event.type === "response.created") { this.responding = true; this.interrupting = false; }
     if (event.type === "input_audio_buffer.speech_stopped") this.interrupting = false;
@@ -80,10 +91,13 @@ export class VoiceConnection {
       if (this.toolCalls.has(callId)) return;
       this.toolCalls.add(callId);
       this.toolCount += 1;
-      if (this.toolCount > 12) { this.fail("The demo tool-call limit was reached. Start a new session."); return; }
+      if (this.toolCount > (this.options.toolHandler ? 40 : 12)) { this.fail("The demo tool-call limit was reached. Start a new session."); return; }
       const operation = (async () => {
         let output: unknown = { error: "Only get_place_context is allowed." };
-        if (event.name === "get_place_context") {
+        if (this.options.toolHandler) {
+          try { output = await this.options.toolHandler(String(event.name), JSON.parse(String(event.arguments || "{}"))); }
+          catch (error) { output = { error: error instanceof Error ? error.message : "Tool failed. Do not guess the result." }; }
+        } else if (event.name === "get_place_context") {
           try {
             const response = await fetch("/api/voice/context", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticket: session.ticket, arguments: JSON.parse(String(event.arguments)) }), signal: this.controller.signal });
             output = await response.json();
