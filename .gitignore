@@ -29,3 +29,5 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+apps/web/src/lib/server/replay.generated.json

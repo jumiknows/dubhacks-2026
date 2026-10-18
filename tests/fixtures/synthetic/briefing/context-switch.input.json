@@ -1,0 +1,66 @@
+{
+  "synthetic": true,
+  "input": {
+    "place": {
+      "id": "wa-5311615",
+      "name": "Chelan",
+      "censusName": "Chelan city",
+      "geoid": "5311615",
+      "latitude": 47.844282,
+      "longitude": -120.013572,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    "snapshotId": "synthetic-context-switch",
+    "mode": "replay",
+    "asOf": "2026-10-17T20:49:00Z",
+    "observations": [
+      {
+        "id": "synthetic-observation",
+        "sourceId": "firms-viirs-noaa20",
+        "product": "VIIRS_NOAA20_NRT",
+        "productVersion": "2.0NRT",
+        "satellite": "N20",
+        "latitude": 48.62067,
+        "longitude": -118.25291,
+        "observedAt": "2026-10-17T20:49:00Z",
+        "confidenceRaw": "nominal",
+        "confidence": "nominal",
+        "rawRowId": "synthetic:2",
+        "frpMw": 1.2,
+        "originalLatitude": "48.62067",
+        "originalLongitude": "-118.25291"
+      }
+    ],
+    "source": {
+      "provider": "NASA FIRMS",
+      "product": "VIIRS_NOAA20_NRT",
+      "sourceUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_7d.csv",
+      "fetchedAt": "2026-10-18T04:34:28Z",
+      "newestObservationAt": "2026-10-17T20:49:00Z",
+      "fetchStatus": "ok",
+      "coverageStatus": "unknown",
+      "requestRange": {
+        "regionId": "wa-demo",
+        "bbox": [
+          -124.85,
+          45.5,
+          -116.9,
+          49.05
+        ],
+        "windowStart": "2026-10-10T09:54:00Z",
+        "windowEnd": "2026-10-17T20:49:00Z"
+      }
+    }
+  }
+}

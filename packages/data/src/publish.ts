@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { FileSnapshotStore, type PublicationStage } from "./store";
 import path from "node:path";
 import { canonicalJson, sha256 } from "./hash";
 import { parseFirmsCsv, type NormalizedObservation } from "./firms";
 import { assertManifestShape, type SnapshotManifest } from "./manifest";
 
-export const TRANSFORM_VERSION = "firms-normalize-1";
+export const TRANSFORM_VERSION = "firms-normalize-2";
 
 export interface RegionConfig {
   id: string;
@@ -27,6 +28,9 @@ export interface PublishInput {
   mode?: "replay" | "live";
   datasetId: string;
   outputDir: string;
+  runId?: string;
+  emptyWindow?: { start: string; end: string; productVersion: string };
+  onStage?: (stage: PublicationStage) => void;
 }
 
 export interface PublishedSnapshot {
@@ -36,22 +40,31 @@ export interface PublishedSnapshot {
 }
 
 export function publishArchive(input: PublishInput): PublishedSnapshot {
+  const runId = input.runId ?? randomUUID();
   const rawSha = sha256(input.rawBytes);
+  const runDirectory = path.join(input.repoRoot, "artifacts/runs", runId);
+  mkdirSync(runDirectory, { recursive: true });
+  writeFileSync(path.join(runDirectory, "raw.csv"), input.rawBytes);
   const parsed = parseFirmsCsv(input.rawBytes.toString("utf8"), {
     product: input.product,
     sourceId: input.sourceId,
     rawSha256: rawSha,
     bbox: input.region.bbox,
   });
+  writeFileSync(path.join(runDirectory, "quality-input.json"), JSON.stringify({
+    rawRows: parsed.rawRows, excluded: parsed.excluded, quarantined: parsed.quarantined, duplicates: parsed.duplicates,
+  }, null, 2));
   if (parsed.quarantined.length > 0 || parsed.conflicts > 0) {
     throw new Error(`publication blocked: ${parsed.quarantined.length} quarantined rows, ${parsed.conflicts} conflicts`);
   }
   const observations = parsed.retained;
   const times = observations.map((observation) => observation.observedAt).sort();
-  if (times.length === 0) throw new Error("refusing to publish an empty archive without an explicit empty flag");
-  const windowStart = times[0];
-  const windowEnd = times[times.length - 1];
-  const normalized = Buffer.from(observations.map((observation) => canonicalJson(observation)).join("\n") + "\n");
+  if (times.length === 0 && !input.emptyWindow) throw new Error("empty archive requires an explicit window and product version");
+  if (new Set(observations.map((row) => row.productVersion)).size > 1) throw new Error("mixed product revisions require review");
+  const productVersion = observations[0]?.productVersion ?? input.emptyWindow!.productVersion;
+  const windowStart = times[0] ?? input.emptyWindow!.start;
+  const windowEnd = times.at(-1) ?? input.emptyWindow!.end;
+  const normalized = Buffer.from(observations.map((observation) => canonicalJson(observation)).join("\n") + (observations.length ? "\n" : ""));
   const byReason: Record<string, number> = {};
   for (const row of parsed.excluded) byReason[row.reason] = (byReason[row.reason] ?? 0) + 1;
   const byConfidence: Record<string, number> = {};
@@ -88,7 +101,7 @@ export function publishArchive(input: PublishInput): PublishedSnapshot {
   const normalizedPath = `${input.outputDir}/normalized.jsonl`;
   const qualityPath = `${input.outputDir}/quality.json`;
   const datasetVersion = sha256(canonicalJson({
-    productVersions: [input.product, observations[0]?.productVersion ?? ""],
+    productVersions: [input.product, productVersion],
     rawHashes: [rawSha],
     transformVersion: TRANSFORM_VERSION,
     schemaVersion: "1.0",
@@ -105,14 +118,14 @@ export function publishArchive(input: PublishInput): PublishedSnapshot {
     datasetId: input.datasetId,
     datasetVersion,
     supersedesSnapshotId: null,
-    runId: randomUUID(),
+    runId,
     mode: input.mode ?? "replay",
     synthetic: false as const,
     source: {
       id: input.sourceId,
       provider: input.provider,
       product: input.product,
-      productVersion: observations[0].productVersion,
+      productVersion,
       documentationUrl: input.documentationUrl,
       fetchedAt: input.fetchedAt,
       availableAt: null,
@@ -134,18 +147,15 @@ export function publishArchive(input: PublishInput): PublishedSnapshot {
     counts: quality.counts,
     qualityStatus: "passed" as const,
     coverageStatus: "unknown" as const,
-    attribution: "NASA FIRMS NOAA-20 VIIRS Collection 2 near real-time active fire detections. Contiguous United States and Hawaii 7-day file, filtered to the Washington demo region after retrieval.",
+    attribution: `NASA FIRMS ${input.product} thermal detections, filtered to ${input.region.label}.`,
   };
   const snapshotId = sha256(canonicalJson(manifestWithoutId));
   const manifest = { ...manifestWithoutId, snapshotId };
   const schemaPath = path.join(input.repoRoot, "data/schemas/snapshot-manifest.schema.json");
   assertManifestShape(manifest, schemaPath);
 
-  const directory = path.join(input.repoRoot, input.outputDir);
-  mkdirSync(path.join(directory, "raw"), { recursive: true });
-  writeFileSync(path.join(directory, "raw", input.rawName), input.rawBytes);
-  writeFileSync(path.join(directory, "normalized.jsonl"), normalized);
-  writeFileSync(path.join(directory, "quality.json"), qualityBytes);
-  writeFileSync(path.join(directory, "manifest.json"), Buffer.from(JSON.stringify(manifest, null, 2) + "\n"));
-  return { manifest: manifest as SnapshotManifest, observations, directory };
+  const artifacts = new Map([
+    [rawArtifactPath, input.rawBytes], [normalizedPath, normalized], [qualityPath, qualityBytes],
+  ]);
+  return new FileSnapshotStore(input.repoRoot).putVerified(manifest as SnapshotManifest, artifacts, input.onStage);
 }

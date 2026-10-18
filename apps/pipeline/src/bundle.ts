@@ -1,0 +1,10 @@
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+import { FileSnapshotStore, findRepoRoot } from "@emberready/data";
+import { readFileSync } from "node:fs";
+const root = findRepoRoot(process.cwd());
+const snapshot = new FileSnapshotStore(root, true).getCurrent("firms-viirs-noaa20", "wa-demo");
+if (!snapshot || snapshot.manifest.mode !== "replay") throw new Error("Verified replay required for web bundle");
+const quality = JSON.parse(readFileSync(path.join(root, snapshot.manifest.artifacts.quality.path), "utf8"));
+writeFileSync(path.join(root, "apps/web/src/lib/server/replay.generated.json"), JSON.stringify({ manifest: snapshot.manifest, observations: snapshot.observations, quality }));
+console.log(`Bundled verified replay ${snapshot.manifest.snapshotId}`);

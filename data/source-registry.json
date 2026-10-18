@@ -1,7 +1,7 @@
 {
   "registryVersion": "1.0",
   "reviewedAt": "2026-10-18",
-  "status": "replay-snapshot-acquired-live-key-unverified",
+  "status": "real-replay-and-public-feed-live-verified-xai-pending",
   "sources": [
     {
       "id": "firms-viirs-snpp",
@@ -24,7 +24,8 @@
       "priority": "P0",
       "availabilityVerified": true,
       "redistributionReview": "public-nasa-archive-file-attributed",
-      "notes": "Public 7-day CONUS and Hawaii CSV retrieved 2026-10-18. SHA-256 d94310ccd14dd8552bd428116259b74eae6ba264d140b44a46fe8cc9ecefd0e0. Washington rows are the published replay subset. This is not a live MAP_KEY fetch."
+      "notes": "Public 7-day CONUS and Hawaii CSV retrieved 2026-10-18. SHA-256 d94310ccd14dd8552bd428116259b74eae6ba264d140b44a46fe8cc9ecefd0e0. Washington rows are the published replay subset. This is not a live MAP_KEY fetch. Public 24-hour feed also fetched and parsed on 2026-10-18. See docs/evidence/live-nasa.json. This does not require or prove keyed Area API access.",
+      "publicLiveUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_24h.csv"
     },
     {
       "id": "census-gazetteer-places",
@@ -34,7 +35,7 @@
       "priority": "P0",
       "availabilityVerified": true,
       "redistributionReview": "us-government-work",
-      "notes": "2026 Washington place file retrieved 2026-10-18. SHA-256 ea15e505da225db4290d9f318cc6fa08701cd9c953e6cae33209dfb432807e11. The app catalog is 12 named places from that file."
+      "notes": "2026 Washington place file retrieved 2026-10-18. SHA-256 ea15e505da225db4290d9f318cc6fa08701cd9c953e6cae33209dfb432807e11. The app catalog is 8 named places with verified state and local resource links from that file."
     },
     {
       "id": "fpa-fod-research",

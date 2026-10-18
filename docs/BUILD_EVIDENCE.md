@@ -32,3 +32,9 @@ For user testing, record the task, consent to notes, completion time, observatio
 ## Submission check
 
 Confirm the organizer's current deadline, category rules, disclosure requirements, and sponsor API interpretation. Cite the provided challenge text as the planning basis until an official submission URL is recorded.
+
+## Integration continuation, 2026-10-18
+
+The application status above records earlier work. The current integration state is in [release readiness](RELEASE_READINESS.md). ChatGPT Work completed the catalog correction, publication recovery, live public NASA feed, map fallback, Voice wiring and review packet. This work is not additional Cursor evidence.
+
+The public NASA live handler succeeded with 13 retained Washington observations. Its actual timestamps, source URL, count reconciliation and raw checksum are in [live-nasa.json](evidence/live-nasa.json). No authenticated Area API request or Grok call is claimed. Two independent raw rebuilds reproduced the hashes in [rebuild.json](evidence/rebuild.json). Twelve review cases exist with empty human-review arrays.

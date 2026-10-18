@@ -16,4 +16,6 @@ Live ingest uses `FIRMS_MAP_KEY` and does not replace the replay snapshot when t
 npm run data:ingest -- --source firms-viirs-snpp --region wa-demo --days 1
 ```
 
+Ingest now writes each run into a new immutable `artifacts/snapshots/<runId>` directory. It validates bytes and source lineage, writes the manifest last, then atomically replaces the mode-specific pointer. Re-running the archive never overwrites the checked-in dataset. Run `npm run verify:data` for two isolated real-data rebuilds and hashes. `npm test` injects interruptions after artifact, manifest, directory and pointer staging writes.
+
 `wa-demo` is the Washington box in `data/regions/wa-demo.json`. Callers cannot pass an arbitrary URL or bounding box.

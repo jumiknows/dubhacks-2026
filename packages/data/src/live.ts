@@ -4,6 +4,7 @@ export interface LiveRequest {
   sourceCode: string;
   bbox: [number, number, number, number];
   days: number;
+  publicFeed?: boolean;
 }
 
 export interface LiveResult {
@@ -20,6 +21,8 @@ interface CacheEntry {
   body: string;
   sourceUrl: string;
 }
+
+export const PUBLIC_NOAA20_URL = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_24h.csv";
 
 const REDACTED = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}";
 
@@ -40,9 +43,10 @@ export class FirmsLiveClient {
   ) {}
 
   async fetchArea(request: LiveRequest): Promise<LiveResult> {
-    if (!this.options.apiKey) {
+    if (!this.options.apiKey && !request.publicFeed) {
       return { fetchStatus: "unavailable", body: null, fetchedAt: null, sourceUrl: REDACTED, error: "missing-credential" };
     }
+    if (request.publicFeed && (request.sourceCode !== "VIIRS_NOAA20_NRT" || request.days !== 1)) return { fetchStatus: "unavailable", body: null, fetchedAt: null, sourceUrl: PUBLIC_NOAA20_URL, error: "upstream-failure" };
     if (!Number.isInteger(request.days) || request.days < 1 || request.days > 5) {
       return { fetchStatus: "unavailable", body: null, fetchedAt: null, sourceUrl: REDACTED, error: "upstream-failure" };
     }
@@ -84,7 +88,7 @@ export class FirmsLiveClient {
   private async request(request: LiveRequest): Promise<{ body: string; fetchedAt: string; sourceUrl: string }> {
     const [west, south, east, north] = request.bbox;
     const area = `${west},${south},${east},${north}`;
-    const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${this.options.apiKey}/${request.sourceCode}/${area}/${request.days}`;
+    const url = request.publicFeed ? PUBLIC_NOAA20_URL : `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${this.options.apiKey}/${request.sourceCode}/${area}/${request.days}`;
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const timeoutMs = this.options.timeoutMs ?? 20_000;
     const controller = new AbortController();
@@ -92,9 +96,17 @@ export class FirmsLiveClient {
     try {
       const response = await fetchImpl(url, { signal: controller.signal });
       if (!response.ok) throw new Error(`upstream-${response.status}`);
-      const body = await response.text();
-      if (Buffer.byteLength(body) > (this.options.maxBytes ?? 5_000_000)) throw new Error("too-large");
-      return { body, fetchedAt: new Date().toISOString().replace(".000Z", "Z"), sourceUrl: REDACTED };
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("empty-body");
+      const chunks: Uint8Array[] = []; let size = 0;
+      while (true) {
+        const chunk = await reader.read(); if (chunk.done) break;
+        size += chunk.value.byteLength;
+        if (size > (this.options.maxBytes ?? 5_000_000)) { await reader.cancel(); throw new Error("too-large"); }
+        chunks.push(chunk.value);
+      }
+      const body = Buffer.concat(chunks).toString("utf8");
+      return { body, fetchedAt: new Date((this.options.now ?? Date.now)()).toISOString().replace(".000Z", "Z"), sourceUrl: request.publicFeed ? PUBLIC_NOAA20_URL : REDACTED };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") throw new Error("timeout");
       throw error;

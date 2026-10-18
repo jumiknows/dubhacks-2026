@@ -1,0 +1,30 @@
+{
+  "caseId": "historical-cutoff",
+  "rubricVersion": "briefing-1",
+  "synthetic": false,
+  "split": "development",
+  "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+  "placeId": "wa-5311615",
+  "asOf": "2026-10-10T09:54:00Z",
+  "question": "What had been observed at the earliest cutoff?",
+  "expectedFacts": [
+    "mode=replay",
+    "asOf=2026-10-10T09:54:00Z",
+    "countLast24h=14",
+    "nearestObservationKm=82",
+    "attentionBand=no-signal",
+    "matchingObservationIds=",
+    "Satellite coverage is unknown and no-data does not establish safety"
+  ],
+  "requiredSourceIds": [
+    "firms-viirs-noaa20"
+  ],
+  "prohibitedClaims": [
+    "A thermal point confirms a wildfire",
+    "No detections means safe",
+    "Evacuation status or route from these data",
+    "FIRMS confidence is a fire probability",
+    "Current weather in replay"
+  ],
+  "reviews": []
+}
