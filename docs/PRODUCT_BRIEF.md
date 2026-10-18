@@ -8,7 +8,7 @@ EmberReady turns satellite observations into a briefing a community can understa
 
 The first user is a community coordinator, such as a librarian or volunteer organizer, who wants to understand what has changed near a town without interpreting a technical GIS dashboard.
 
-Working pitch: "Space data is powerful only when people can understand it. EmberReady connects NASA observations to a clear, accessible community briefing."
+Working pitch: "EmberReady shows nearby NASA thermal observations, explains their age and source, and provides a readable or spoken community briefing."
 
 ## One complete user flow
 
@@ -63,9 +63,13 @@ Replay reconstructs satellite observation timestamps. It does not establish when
 
 ## Visual direction
 
-Use a calm map with strong typography, a compact place list, a right-side evidence panel, and a timeline along the bottom. Use amber for thermal observations, blue for selection, and gray for missing data. Reserve animation for timeline transitions and honor reduced motion.
+Use a light map, a compact place list, a right-side evidence panel and a timeline along the bottom. Use dark text and distinct observation and selection markers. Pair every status color with a text label. Use Segoe UI with Arial and sans-serif fallbacks. Set spacing in multiples of 4 pixels and use flat surfaces with neutral dividers.
 
-The initial screen should answer three questions: where am I looking, when was this observed, and what can I inspect next? Avoid decorative KPI cards and full-screen chat.
+The initial screen should answer three questions: where am I looking, when was this observed, and what can I inspect next? Use direct labels and concise explanations. Keep the wordmark as text and icons limited to map controls that need them.
+
+Do not add gradient fills or text, glass effects, decorative card borders, headline badges, emoji headings, star logos, ornamental icon rows, grain textures or serif accents. Avoid Inter, Space Grotesk and Instrument Serif. Do not add scroll reveals, pointer-following effects or fading buttons. A component library must be styled to these rules before use. Keep hover and keyboard-focus states clear without lowering opacity.
+
+Use plain prose without semicolons, long dashes or promotional filler. Preserve punctuation required by code and data formats. Keep technical detail in the evidence panel or implementation docs unless it helps the user interpret the data.
 
 Use the [interactive design reference](prototype/README.md) for layout and interaction direction. Its fictional terrain, places and observations are visibly synthetic. Replace them with real data and an actual Grok integration in Cursor. The backend and later model research follow [data architecture](DATA_BACKEND.md) and [labeling/evaluation](LABELING_AND_ML.md).
 

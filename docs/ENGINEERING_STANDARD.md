@@ -25,5 +25,3 @@ State known failures, untested paths, and follow-up work. Link a follow-up issue
 ## Depth
 
 Use enough detail to support the decision. A small documentation change can have one sentence per section. A new protocol, external integration, or algorithm may need a linked note with sources and measurements.
-
-This adapts ALEASAT's public [contributor guide](https://github.com/jumiknows/Aleasat-Mission-Software/blob/main/alea-gsw/CONTRIBUTING.md) and [proposed engineering review standard](https://github.com/jumiknows/Aleasat-Mission-Software/pull/16). It does not claim aerospace certification or standards compliance.

@@ -3,40 +3,208 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EmberReady | Interactive design reference</title>
+<title>EmberReady community observations</title>
 <style>
-:root{--ink:#152d32;--muted:#506769;--paper:#f6f7f2;--line:#dce2dc;--orange:#e96737;--amber:#ffbe72;--blue:#9bd2e7;--dark:#172f34;--mint:#d5e9dc;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper)}
-*{box-sizing:border-box}body{margin:0}button,select,input{font:inherit}button,select{cursor:pointer}button{color:inherit}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #2079a1;outline-offset:4px}button{border:0}a{color:#24576b}button:hover{filter:brightness(.96)}.skip{position:absolute;top:-80px;left:12px;background:white;padding:12px;z-index:20}.skip:focus{top:10px}.prototype{background:#f3dcc4;text-align:center;padding:9px 18px;font-size:12px;color:#643818;letter-spacing:.02em}.prototype strong{margin-right:10px}header{height:80px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;border-bottom:1px solid var(--line);background:#fff}.brand{display:flex;align-items:center;gap:11px;font-size:24px;letter-spacing:-1px;font-weight:750}.brand svg{width:29px;height:34px}.top-note{font-size:13px;color:var(--muted)}.edition{font-size:11px;letter-spacing:.13em;border:1px solid var(--line);padding:8px 11px;border-radius:4px}.intro{padding:27px 30px 23px;display:flex;align-items:end;justify-content:space-between;gap:18px}.eyebrow{font-size:10px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:#54706f}.intro h1{font-size:31px;font-weight:550;letter-spacing:-1.2px;margin:8px 0}.intro p{color:var(--muted);font-size:13px;margin:0}.state-control{display:grid;gap:7px;font-size:11px;color:var(--muted)}select{border:1px solid #c6d1ca;border-radius:6px;padding:9px;background:#fff;font-size:12px;color:var(--ink)}.workspace{margin:0 24px 24px;display:grid;grid-template-columns:210px minmax(300px,1fr) 320px;border:1px solid #ccd6cf;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 10px 34px #1b36340b}.communities{padding:23px 16px;border-right:1px solid var(--line)}.communities h2{font-size:13px;margin:0 0 5px}.subtle{color:var(--muted);font-size:11px;line-height:1.6}.place{display:block;width:100%;text-align:left;border:1px solid transparent;border-radius:7px;background:transparent;padding:14px 11px;margin:10px 0}.place[aria-pressed=true]{border-color:#a1bfb2;background:#edf4ed}.place-name{display:block;font-weight:650;font-size:13px;margin-bottom:8px}.place-meta{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:4px}.tiny-dot{height:6px;width:6px;background:#bc602e;display:inline-block;border-radius:50%;margin-right:5px}.tiny-dot.blue{background:#567a88}.side-note{margin-top:31px;border-top:1px solid var(--line);padding-top:18px;font-size:11px;line-height:1.7;color:var(--muted)}.number-tag{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#eaf0e9;width:22px;height:22px;margin-right:6px;color:var(--ink);font-size:10px;font-weight:700}.map-area{background:var(--dark);color:#edf5ef;min-width:0;position:relative;display:flex;flex-direction:column}.map-head{padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:1}.map-head strong{display:block;font-size:14px;letter-spacing:.01em}.map-head small{display:block;color:#b7cbc6;font-size:10px;margin-top:7px}.map-pill{font-size:9px;letter-spacing:.1em;border:1px solid #627770;border-radius:20px;padding:7px 9px;white-space:nowrap}.map-wrap{position:relative;min-height:350px;flex:1;overflow:hidden}.terrain{width:100%;height:100%;position:absolute;inset:0}.map-selection{position:absolute;left:44%;top:56%;transform:translate(-50%,-50%);border-radius:4px;background:#eff8f1;color:#213d3f;padding:8px 12px;font-size:11px;box-shadow:0 3px 10px #0003;white-space:nowrap;pointer-events:none}.north{position:absolute;right:21px;top:8px;font-size:11px;text-align:center;color:#c5d8d0;line-height:1.8}.map-foot{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:13px 21px;border-top:1px solid #415953;color:#c7d9d1;font-size:10px}.obs-key{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--amber);margin-right:6px}.sel-key{display:inline-block;width:7px;height:7px;border:1.5px solid var(--blue);margin-right:6px}.evidence-panel{padding:0 23px 20px;background:#fff;border-left:1px solid var(--line)}.tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:23px;gap:22px}.tab{font-size:12px;background:transparent;padding:20px 0 14px;color:var(--muted);border-bottom:2px solid transparent}.tab[aria-selected=true]{border-color:#1d4543;color:#1d4543;font-weight:700}.panel-title{font-size:23px;letter-spacing:-.7px;font-weight:550;margin:8px 0 11px}.band{font-size:10px;border-radius:4px;background:#fbe4cb;color:#75451e;display:inline-flex;align-items:center;padding:6px 9px;gap:5px}.band[data-band=monitor]{background:#e8eff1;color:#365d69}.band[data-band=no-signal],.band[data-band=unknown]{background:#edf0ed;color:#4c605a}.lead{font-size:14px;line-height:1.7;margin:19px 0;color:#314d50}.facts{margin:18px 0}.fact{display:flex;justify-content:space-between;font-size:11px;border-bottom:1px solid #edf0eb;padding:10px 0;gap:12px}.fact dt{color:var(--muted)}.fact dd{margin:0;font-weight:600}.notice{font-size:11px;line-height:1.6;background:#f3f5ef;border-left:2px solid #a5bca8;padding:11px 12px;margin:16px 0}.voice{background:#183d3b;color:#f5faf4;width:100%;border-radius:6px;padding:13px 12px;text-align:left;display:flex;justify-content:space-between;font-size:12px;font-weight:650}.voice span{font-size:15px}.micro{font-size:10px;color:var(--muted);line-height:1.6;margin:8px 0 0}.official{display:inline-block;font-size:11px;margin-top:19px}.timeline{grid-column:1/-1;padding:20px 22px 15px;border-top:1px solid var(--line);display:grid;grid-template-columns:188px 1fr 274px;gap:24px;background:#fcfcf8}.timeline h2{font-size:12px;margin:0 0 7px}.timeline p{font-size:10px;color:var(--muted);line-height:1.6;margin:0}.scrubber input{width:100%;accent-color:#335d55;cursor:pointer;margin:2px 0 14px}.ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}.cutoff{font-family:ui-monospace,monospace;font-size:12px;font-weight:500;margin-top:7px}.change{font-size:11px;line-height:1.6;border-left:1px solid var(--line);padding-left:23px}.change strong{display:block;font-size:12px;margin-bottom:5px}.under{display:flex;justify-content:space-between;padding:0 30px 25px;gap:16px;color:var(--muted);font-size:11px}.under strong{color:#385956;font-weight:600}.obs-list{margin-top:15px;border-top:1px solid var(--line);padding-top:12px}.obs-list summary{font-size:11px;cursor:pointer}.obs-list ul{padding:0;list-style:none;font-size:10px;line-height:1.8}.obs-list li{padding:8px 0;border-bottom:1px solid var(--line)}.provenance h3{font-size:13px;font-weight:650;margin-top:20px}.stages{padding-left:18px;font-size:11px;color:#48625e;line-height:2.2}.provenance p{font-size:11px;line-height:1.7}.hash{font:10px ui-monospace,monospace;overflow-wrap:anywhere;background:#f0f4ee;padding:10px}.panel[hidden]{display:none}.dialog{max-width:510px;width:calc(100% - 32px);border:1px solid #b6c7bd;border-radius:12px;padding:28px;color:var(--ink);box-shadow:0 30px 80px #0003}.dialog::backdrop{background:#0d252a99}.dialog h2{font-size:23px;margin:10px 0 18px}.dialog p{font-size:14px;line-height:1.8}.close{padding:11px 18px;background:#203f3d;color:#fff;border-radius:6px;margin-top:8px}.small-label{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#657c70}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}noscript{display:block;padding:24px;background:#fbe4cb}.map-unavailable{position:absolute;inset:35px 22px auto;background:#213d3be8;border:1px solid #71867b;border-radius:6px;padding:17px;font-size:12px;line-height:1.7;z-index:2}.map-unavailable[hidden]{display:none}@media(min-width:1500px){.workspace{max-width:1500px;margin-left:auto;margin-right:auto}.intro,.under{max-width:1555px;margin:auto}}@media(max-width:1130px){.workspace{grid-template-columns:180px minmax(280px,1fr) 285px;margin:0 14px 18px}.evidence-panel{padding-left:17px;padding-right:17px}.communities{padding:20px 12px}.timeline{grid-template-columns:155px 1fr 235px;gap:17px}.top-note{display:none}.intro{padding-left:22px;padding-right:22px}.intro h1{font-size:28px}}@media(max-width:890px){.workspace{grid-template-columns:165px 1fr}.evidence-panel{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);padding-bottom:22px}.panel-inner{display:grid;grid-template-columns:1fr 1fr;gap:24px}.timeline{grid-template-columns:140px 1fr}.change{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);padding:13px 0 0}.map-wrap{min-height:340px}}@media(max-width:560px){header{height:66px;padding:0 17px}.brand{font-size:21px}.edition{font-size:9px}.prototype{font-size:10px;line-height:1.7;padding:8px 15px}.intro{display:block;padding:22px 17px}.intro h1{font-size:27px}.state-control{display:flex;align-items:center;margin-top:17px}.workspace{display:block;margin:0 10px 15px}.communities{padding:16px;border-right:0}.community-buttons{display:flex;gap:6px}.place{padding:10px 7px;flex:1;margin:8px 0 0;min-width:0}.place-name{font-size:10px}.place-meta{font-size:9px;display:block}.place-meta>span:last-child{display:none}.side-note{display:none}.map-head{padding:17px}.map-wrap{height:290px;min-height:290px}.evidence-panel{padding:0 18px 20px}.panel-inner{display:block}.tabs{margin-bottom:17px}.timeline{display:block;padding:19px}.scrubber{margin:18px 0}.change{margin-top:18px}.under{display:block;padding:0 18px 22px;line-height:1.8}.under span{display:block}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}@media print{header,.intro,.communities,.map-area,.timeline,.voice,.tabs,.under,.state-control{display:none}.workspace,.evidence-panel{display:block;border:0;margin:0;box-shadow:none}.panel[hidden]{display:block}.prototype{background:transparent;color:#000}.panel-inner{display:block}}
+:root {
+  --ink: #202824;
+  --muted: #536058;
+  --paper: #ffffff;
+  --surface: #f5f6f1;
+  --line: #d3d9d3;
+  --amber: #b54f22;
+  --blue: #1b536f;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, select, input { font: inherit; }
+button, select { cursor: pointer; }
+button { color: inherit; border: 0; }
+a { color: #1b536f; text-underline-offset: 3px; }
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 3px solid #1b536f;
+  outline-offset: 4px;
+}
+.skip { position: absolute; top: -80px; left: 16px; background: white; padding: 12px; z-index: 20; }
+.skip:focus { top: 12px; }
+.prototype { padding: 12px 32px; border-bottom: 1px solid var(--line); font-size: 12px; line-height: 1.5; color: var(--muted); }
+header { height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px; border-bottom: 1px solid var(--line); }
+.brand { font-size: 24px; letter-spacing: -.5px; font-weight: 600; }
+.edition { font-size: 12px; color: var(--muted); }
+.intro { padding: 24px 32px; display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.intro h1 { font-size: 28px; font-weight: 600; letter-spacing: -.5px; margin: 0 0 8px; }
+.intro p { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; }
+.state-control { display: grid; gap: 8px; font-size: 12px; color: var(--muted); }
+select { border: 1px solid #879388; border-radius: 4px; padding: 8px 12px; background: #fff; font-size: 13px; color: var(--ink); }
+.workspace { margin: 0 32px 24px; display: grid; grid-template-columns: 208px minmax(300px, 1fr) 328px; border: 1px solid var(--line); background: #fff; }
+.communities { padding: 24px 16px; border-right: 1px solid var(--line); }
+.communities h2 { font-size: 14px; margin: 0 0 8px; }
+.subtle { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.community-buttons { margin-top: 16px; }
+.place { display: block; width: 100%; text-align: left; border-radius: 0; background: transparent; padding: 16px 12px; margin: 0; }
+.place:hover { background: #f1f3ed; }
+.place[aria-pressed=true] { background: #e7ece4; }
+.place-name { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.place-meta { font-size: 12px; color: var(--muted); }
+.side-note { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.side-note strong { color: var(--ink); }
+.side-note p { margin: 12px 0 0; }
+.map-area { background: #eef0e5; color: var(--ink); min-width: 0; position: relative; display: flex; flex-direction: column; }
+.map-head { padding: 24px; display: flex; justify-content: space-between; align-items: start; gap: 16px; border-bottom: 1px solid #cbd3c4; z-index: 1; }
+.map-head strong { display: block; font-size: 14px; }
+.map-head small { display: block; color: #495d50; font-size: 12px; line-height: 1.5; margin-top: 8px; }
+.map-mode { font-size: 12px; color: #495d50; white-space: nowrap; }
+.map-wrap { position: relative; min-height: 352px; flex: 1; overflow: hidden; }
+.terrain { width: 100%; height: 100%; position: absolute; inset: 0; }
+.map-selection { position: absolute; left: 44%; top: 56%; transform: translate(-50%, -50%); background: #fff; border: 1px solid #596c5e; color: var(--ink); padding: 8px 12px; font-size: 12px; white-space: nowrap; pointer-events: none; }
+.north { position: absolute; right: 24px; top: 16px; font-size: 12px; text-align: center; color: #314b3b; line-height: 1.5; }
+.map-foot { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 16px 24px; border-top: 1px solid #cbd3c4; color: #364b3d; font-size: 12px; }
+.obs-key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); margin-right: 8px; }
+.sel-key { display: inline-block; width: 8px; height: 8px; border: 2px solid var(--blue); margin-right: 8px; }
+.evidence-panel { padding: 0 24px 24px; background: #fff; border-left: 1px solid var(--line); }
+.tabs { display: flex; border-bottom: 1px solid var(--line); margin-bottom: 24px; gap: 24px; }
+.tab { font-size: 13px; background: transparent; padding: 24px 0 16px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected=true] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.panel-title { font-size: 24px; font-weight: 600; margin: 0 0 12px; }
+.band { font-size: 12px; font-weight: 600; color: #713c1f; line-height: 1.5; }
+.band[data-band=monitor] { color: #1b536f; }
+.band[data-band=no-signal], .band[data-band=unknown] { color: #46534a; }
+.lead { font-size: 15px; line-height: 1.6; margin: 16px 0; color: var(--ink); }
+.facts { margin: 16px 0; }
+.fact { display: flex; justify-content: space-between; font-size: 12px; border-bottom: 1px solid #e4e8e1; padding: 12px 0; gap: 12px; }
+.fact dt { color: var(--muted); }
+.fact dd { margin: 0; font-weight: 600; text-align: right; }
+.notice { font-size: 12px; line-height: 1.6; background: var(--surface); padding: 16px; margin: 16px 0; }
+.voice, .close { background: #273c30; color: #fff; border-radius: 4px; padding: 12px 16px; font-size: 13px; font-weight: 600; }
+.voice { width: 100%; text-align: left; }
+.voice:hover, .close:hover { background: #17291f; }
+.micro { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+.official { display: inline-block; font-size: 12px; margin-top: 16px; line-height: 1.5; }
+.timeline { grid-column: 1/-1; padding: 24px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 184px 1fr 280px; gap: 24px; background: #fff; }
+.timeline h2 { font-size: 13px; margin: 0 0 8px; }
+.timeline p { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0; }
+.cutoff { font-family: Consolas, monospace; font-size: 13px; margin-top: 8px; }
+.scrubber input { width: 100%; accent-color: #273c30; cursor: pointer; margin: 0 0 16px; }
+.ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.change { font-size: 12px; line-height: 1.5; border-left: 1px solid var(--line); padding-left: 24px; }
+.change strong { display: block; font-size: 13px; margin-bottom: 8px; }
+.under { display: flex; justify-content: space-between; padding: 0 32px 24px; gap: 16px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.obs-list { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
+.obs-list summary { font-size: 12px; cursor: pointer; }
+.obs-list ul { padding: 0; list-style: none; font-size: 12px; line-height: 1.6; }
+.obs-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.provenance h3 { font-size: 14px; font-weight: 600; margin-top: 24px; }
+.stages { padding-left: 20px; font-size: 12px; color: var(--muted); line-height: 2; }
+.provenance p { font-size: 13px; line-height: 1.6; }
+.provenance a { font-size: 13px; }
+.hash { font: 12px Consolas, monospace; overflow-wrap: anywhere; background: var(--surface); padding: 12px; line-height: 1.6; }
+.panel[hidden] { display: none; }
+.dialog { max-width: 512px; width: calc(100% - 32px); border: 1px solid #879388; border-radius: 4px; padding: 32px; color: var(--ink); }
+.dialog::backdrop { background: #202824aa; }
+.dialog h2 { font-size: 24px; margin: 12px 0 16px; }
+.dialog p { font-size: 14px; line-height: 1.6; }
+.close { margin-top: 8px; }
+.small-label { font-size: 12px; color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+noscript { display: block; padding: 24px; background: var(--surface); }
+.map-unavailable { position: absolute; inset: 32px 24px auto; background: #fff; border: 1px solid #879388; padding: 16px; font-size: 13px; line-height: 1.6; z-index: 2; }
+.map-unavailable[hidden] { display: none; }
+@media (min-width: 1600px) {
+  .workspace { max-width: 1536px; margin-left: auto; margin-right: auto; }
+  .intro, .under { max-width: 1600px; margin: auto; }
+}
+@media (max-width: 1130px) {
+  .workspace { grid-template-columns: 184px minmax(256px,1fr) 304px; margin: 0 24px 24px; }
+  .evidence-panel { padding-left: 16px; padding-right: 16px; }
+  .communities { padding: 24px 12px; }
+  .timeline { grid-template-columns: 160px 1fr 256px; gap: 16px; }
+  .intro, header, .prototype, .under { padding-left: 24px; padding-right: 24px; }
+  .map-head { padding: 24px 16px; }
+}
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 184px 1fr; }
+  .evidence-panel { grid-column: 1/-1; border-left: 0; border-top: 1px solid var(--line); padding: 0 24px 24px; }
+  .panel-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .timeline { grid-template-columns: 160px 1fr; }
+  .change { grid-column: 1/-1; border-left: 0; border-top: 1px solid var(--line); padding: 16px 0 0; }
+  .map-wrap { min-height: 352px; }
+}
+@media (max-width: 560px) {
+  .prototype, header, .intro, .under { padding-left: 16px; padding-right: 16px; }
+  .prototype { font-size: 11px; }
+  header { height: 56px; }
+  .brand { font-size: 22px; }
+  .edition { font-size: 11px; }
+  .intro { display: block; padding-top: 24px; padding-bottom: 24px; }
+  .intro h1 { font-size: 26px; }
+  .state-control { display: flex; align-items: center; margin-top: 16px; }
+  .workspace { display: block; margin: 0 16px 24px; }
+  .communities { padding: 16px; border-right: 0; }
+  .community-buttons { margin-top: 12px; }
+  .place { padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .place-name { font-size: 13px; margin: 0; }
+  .place-meta { font-size: 11px; }
+  .side-note { display: none; }
+  .map-head { padding: 16px; border-top: 1px solid var(--line); }
+  .map-head small, .map-mode { font-size: 11px; }
+  .map-wrap { height: 288px; min-height: 288px; }
+  .map-foot { padding: 16px; gap: 12px; font-size: 11px; }
+  .evidence-panel { padding: 0 16px 24px; }
+  .panel-inner { display: block; }
+  .tabs { margin-bottom: 24px; gap: 24px; }
+  .timeline { display: block; padding: 16px; }
+  .scrubber { margin: 24px 0; }
+  .change { margin-top: 24px; }
+  .under { display: block; }
+  .under span { display: block; margin-top: 8px; }
+  .dialog { padding: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+@media print {
+  header, .intro, .communities, .map-area, .timeline, .voice, .tabs, .under, .state-control { display: none; }
+  .workspace, .evidence-panel { display: block; border: 0; margin: 0; }
+  .panel[hidden] { display: block; }
+  .panel-inner { display: block; }
+}
 </style>
 </head>
 <body>
 <a class="skip" href="#briefing-title">Skip to community briefing</a>
-<div class="prototype"><strong>INTERACTIVE DESIGN REFERENCE</strong> Fictional places and synthetic observations. Voice is simulated.</div>
-<header><div class="brand"><svg viewBox="0 0 30 36" aria-hidden="true"><path fill="#df6738" d="M17 1C20 10 7 11 11 20C13 16 18 16 18 11C30 22 27 34 15 35C2 34 0 22 6 14C5 21 8 23 9 23C3 11 16 9 17 1Z"/><path fill="#f8c78f" d="M17 22C22 28 19 33 15 33C10 32 10 27 13 24C13 28 16 27 17 22Z"/></svg>EmberReady</div><span class="top-note">Satellite evidence. Human understanding.</span><span class="edition">COMMUNITY OBSERVATORY</span></header>
-<section class="intro"><div><div class="eyebrow">A clearer view of your community</div><h1>Understand what’s changing.</h1><p>Explore observations, follow the timeline, and hear the evidence.</p></div><label class="state-control">Mock data state<select id="data-state"><option value="ok">Available</option><option value="stale">Stale source</option><option value="empty">Empty snapshot</option><option value="unavailable">Source unavailable</option></select></label></section>
+<div class="prototype">Design reference. Fictional places and synthetic observations. Voice is simulated.</div>
+<header><div class="brand">EmberReady</div><span class="edition">Prototype</span></header>
+<section class="intro"><div><h1>Community observations</h1><p>Select a community to inspect nearby observations and replay the source timeline.</p></div><label class="state-control">Mock data state<select id="data-state"><option value="ok">Available</option><option value="stale">Stale source</option><option value="empty">Empty snapshot</option><option value="unavailable">Source unavailable</option></select></label></section>
 <main class="workspace">
 <aside class="communities" aria-label="Community selection"><h2>Communities</h2><div class="subtle">Fictional region · 3 places</div><div class="community-buttons">
-<button class="place" data-place="cedar" aria-pressed="true"><span class="place-name">Cedar Vale</span><span class="place-meta"><span><i class="tiny-dot"></i>Selected area</span><span>01</span></span></button>
-<button class="place" data-place="juniper" aria-pressed="false"><span class="place-name">Juniper Ridge</span><span class="place-meta"><span><i class="tiny-dot blue"></i>Wider area</span><span>02</span></span></button>
-<button class="place" data-place="pine" aria-pressed="false"><span class="place-name">Pine Crossing</span><span class="place-meta"><span><i class="tiny-dot blue"></i>Wider area</span><span>03</span></span></button>
-</div><div class="side-note"><span class="number-tag">i</span><strong>Evidence, with context</strong><p>Satellite hotspots are thermal observations. They do not confirm a wildfire or define its boundaries.</p><p>Use official local information for emergency decisions.</p></div></aside>
-<section class="map-area" aria-label="Illustrative observation map"><div class="map-head"><div><strong id="map-title">Cedar Vale surroundings</strong><small>ILLUSTRATIVE TERRAIN · NO GEOGRAPHIC SCALE</small></div><span class="map-pill">SYNTHETIC REPLAY</span></div><div class="map-wrap">
+<button class="place" data-place="cedar" aria-pressed="true"><span class="place-name">Cedar Vale</span><span class="place-meta">View community</span></button>
+<button class="place" data-place="juniper" aria-pressed="false"><span class="place-name">Juniper Ridge</span><span class="place-meta">View community</span></button>
+<button class="place" data-place="pine" aria-pressed="false"><span class="place-name">Pine Crossing</span><span class="place-meta">View community</span></button>
+</div><div class="side-note"><strong>Reading the observations</strong><p>Satellite hotspots are thermal observations. They do not confirm a wildfire or define its boundaries.</p><p>Use official local information for emergency decisions.</p></div></aside>
+<section class="map-area" aria-label="Illustrative observation map"><div class="map-head"><div><strong id="map-title">Cedar Vale surroundings</strong><small>Illustrative terrain. No geographic scale.</small></div><span class="map-mode">Synthetic replay</span></div><div class="map-wrap">
 <svg class="terrain" viewBox="0 0 650 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustrative topographic terrain with synthetic observations. The equivalent observation list is in the briefing panel.">
-<defs><pattern id="grid" width="65" height="65" patternUnits="userSpaceOnUse"><path d="M65 0H0V65" fill="none" stroke="#55726a" stroke-width=".4" opacity=".35"/></pattern><radialGradient id="glow"><stop stop-color="#e7b578" stop-opacity=".15"/><stop offset="1" stop-color="#e7b578" stop-opacity="0"/></radialGradient><path id="contour" d="M-50 300C80 275 12 190 140 170S250 255 315 170S440 40 545 98S660 40 730 0"/><path id="mountain" d="M350 370C370 290 430 265 490 275S510 205 580 215S645 310 710 270"/></defs>
-<rect width="650" height="450" fill="#1c393c"/><rect width="650" height="450" fill="url(#grid)"/>
-<g fill="none" stroke="#537064" stroke-width=".8" opacity=".64"><use href="#contour"/><use href="#contour" transform="translate(0,-15)"/><use href="#contour" transform="translate(0,-30)"/><use href="#contour" transform="translate(0,-45)"/><use href="#contour" transform="translate(0,-60)"/><use href="#contour" transform="translate(0,-75)"/><use href="#contour" transform="translate(0,-90)"/><use href="#contour" transform="translate(0,15)"/><use href="#contour" transform="translate(0,30)"/><use href="#contour" transform="translate(0,45)"/><use href="#contour" transform="translate(0,60)"/><use href="#contour" transform="translate(0,75)"/><use href="#contour" transform="translate(0,90)"/><use href="#contour" transform="translate(0,105)"/><use href="#contour" transform="translate(0,120)"/><use href="#contour" transform="translate(0,135)"/><use href="#mountain"/><use href="#mountain" transform="translate(0,13)"/><use href="#mountain" transform="translate(0,26)"/><use href="#mountain" transform="translate(0,39)"/><use href="#mountain" transform="translate(0,52)"/><use href="#mountain" transform="translate(0,65)"/><use href="#mountain" transform="translate(0,78)"/></g>
-<path d="M95 -20C135 52 204 45 183 116S270 175 255 232S324 309 312 346S357 393 375 470" stroke="#416972" stroke-width="13" fill="none"/><path d="M95 -20C135 52 204 45 183 116S270 175 255 232S324 309 312 346S357 393 375 470" stroke="#86aeb0" stroke-width="1.4" fill="none" opacity=".65"/>
-<path d="M40 365C145 312 210 344 275 280S390 252 424 196S520 174 600 90" stroke="#b2c5a2" stroke-width="2" stroke-dasharray="4 5" opacity=".4" fill="none"/>
-<g fill="#91aea2" font-family="sans-serif" font-size="10" letter-spacing="3"><text x="390" y="56" transform="rotate(-8 390 56)">NORTH RIDGE</text><text x="52" y="274" transform="rotate(-22 52 274)">CEDAR FOREST</text><text x="443" y="397">HIGHLANDS</text></g>
-<g id="markers"></g><g id="selected-marker" transform="translate(279,235)"><circle r="20" stroke="#a3d5e4" fill="#9bd2e715"/><circle r="5" fill="#c8e9ed" stroke="#172f34" stroke-width="2"/></g>
-<text x="23" y="430" fill="#9ab7ac" font-size="9" letter-spacing="1">DESIGN ILLUSTRATION · NOT A REAL MAP</text>
-</svg><div class="north" aria-hidden="true">N<br>↑</div><div class="map-selection" id="map-selection">Cedar Vale</div><div class="map-unavailable" id="map-unavailable" hidden></div></div><div class="map-foot"><span><i class="obs-key"></i>Synthetic thermal observation</span><span><i class="sel-key"></i>Selected community</span></div></section>
+<defs><pattern id="grid" width="65" height="65" patternUnits="userSpaceOnUse"><path d="M65 0H0V65" fill="none" stroke="#93a18e" stroke-width=".4" opacity=".35"/></pattern><path id="contour" d="M-50 300C80 275 12 190 140 170S250 255 315 170S440 40 545 98S660 40 730 0"/><path id="mountain" d="M350 370C370 290 430 265 490 275S510 205 580 215S645 310 710 270"/></defs>
+<rect width="650" height="450" fill="#eef0e5"/><rect width="650" height="450" fill="url(#grid)"/>
+<g fill="none" stroke="#a6b39d" stroke-width=".8"><use href="#contour"/><use href="#contour" transform="translate(0,-15)"/><use href="#contour" transform="translate(0,-30)"/><use href="#contour" transform="translate(0,-45)"/><use href="#contour" transform="translate(0,-60)"/><use href="#contour" transform="translate(0,-75)"/><use href="#contour" transform="translate(0,-90)"/><use href="#contour" transform="translate(0,15)"/><use href="#contour" transform="translate(0,30)"/><use href="#contour" transform="translate(0,45)"/><use href="#contour" transform="translate(0,60)"/><use href="#contour" transform="translate(0,75)"/><use href="#contour" transform="translate(0,90)"/><use href="#contour" transform="translate(0,105)"/><use href="#contour" transform="translate(0,120)"/><use href="#contour" transform="translate(0,135)"/><use href="#mountain"/><use href="#mountain" transform="translate(0,13)"/><use href="#mountain" transform="translate(0,26)"/><use href="#mountain" transform="translate(0,39)"/><use href="#mountain" transform="translate(0,52)"/><use href="#mountain" transform="translate(0,65)"/><use href="#mountain" transform="translate(0,78)"/></g>
+<path d="M95 -20C135 52 204 45 183 116S270 175 255 232S324 309 312 346S357 393 375 470" stroke="#c4d8dd" stroke-width="13" fill="none"/><path d="M95 -20C135 52 204 45 183 116S270 175 255 232S324 309 312 346S357 393 375 470" stroke="#5f8390" stroke-width="1.4" fill="none" />
+<path d="M40 365C145 312 210 344 275 280S390 252 424 196S520 174 600 90" stroke="#647b5e" stroke-width="2" stroke-dasharray="4 5"  fill="none"/>
+<g fill="#45604c" font-family="sans-serif" font-size="10" letter-spacing="1.5"><text x="390" y="56" transform="rotate(-8 390 56)">NORTH RIDGE</text><text x="52" y="274" transform="rotate(-22 52 274)">CEDAR FOREST</text><text x="443" y="397">HIGHLANDS</text></g>
+<g id="markers"></g><g id="selected-marker" transform="translate(279,235)"><circle r="20" stroke="#1b536f" fill="none"/><circle r="5" fill="#1b536f" stroke="#ffffff" stroke-width="2"/></g>
+<text x="23" y="430" fill="#45604c" font-size="9" letter-spacing="1">ILLUSTRATION ONLY</text>
+</svg><div class="north" aria-hidden="true">N</div><div class="map-selection" id="map-selection">Cedar Vale</div><div class="map-unavailable" id="map-unavailable" hidden></div></div><div class="map-foot"><span><i class="obs-key"></i>Synthetic thermal observation</span><span><i class="sel-key"></i>Selected community</span></div></section>
 <section class="evidence-panel" aria-label="Community briefing and evidence"><div class="tabs" role="tablist" aria-label="Information panel"><button class="tab" role="tab" id="brief-tab" aria-selected="true" aria-controls="brief-panel" tabindex="0">Community briefing</button><button class="tab" role="tab" id="evidence-tab" aria-selected="false" aria-controls="evidence-panel" tabindex="-1">Evidence</button></div>
-<div class="panel" id="brief-panel" role="tabpanel" aria-labelledby="brief-tab"><div class="panel-inner"><div><div class="eyebrow">The selected place</div><h2 class="panel-title" id="briefing-title" tabindex="-1">Cedar Vale</h2><span class="band" id="band" data-band="review">● Review nearby observations</span><p class="lead" id="summary"></p><dl class="facts"><div class="fact"><dt>Latest observation</dt><dd id="latest"></dd></div><div class="fact"><dt>Nearest observation</dt><dd id="nearest"></dd></div><div class="fact"><dt>Source retrieved</dt><dd id="retrieved">15:05 UTC · example</dd></div></dl></div><div><div class="notice" id="notice">This is observation context, not a fire forecast. No observations does not mean no fire.</div><button class="voice" id="voice">Preview spoken script <span aria-hidden="true">▷</span></button><p class="micro">Simulated interaction. No audio or Grok API call.</p><details class="obs-list"><summary>Read the observation list</summary><ul id="observation-list"></ul></details><a class="official" href="https://mil.wa.gov/wildfire" target="_blank" rel="noopener noreferrer">Washington official wildfire information ↗</a><p class="micro">General resource link. The places in this mockup are fictional.</p></div></div></div>
-<div class="panel provenance" id="evidence-panel" role="tabpanel" aria-labelledby="evidence-tab" hidden><div class="eyebrow">Inspect the source</div><h2 class="panel-title">Every point has a trail.</h2><p>This mockup uses six hand-authored synthetic observations. No NASA data was downloaded for this screen.</p><div class="hash" id="snapshot-name"></div><h3>Planned source trail</h3><ol class="stages"><li>Preserve the provider’s raw bytes</li><li>Validate, clean and deduplicate</li><li>Publish a verified snapshot</li><li>Build the selected place context</li><li>Ground the spoken briefing</li></ol><div class="notice">The actual build will expose source rows, hashes, quality results, acquisition time and retrieval time here.</div><p><strong>Model status:</strong> no wildfire model trained. The MVP uses a documented proximity rule.</p><a href="../DATA_BACKEND.md">Read the implementation specification ↗</a></div>
+<div class="panel" id="brief-panel" role="tabpanel" aria-labelledby="brief-tab"><div class="panel-inner"><div><h2 class="panel-title" id="briefing-title" tabindex="-1">Cedar Vale</h2><span class="band" id="band" data-band="review">● Review nearby observations</span><p class="lead" id="summary"></p><dl class="facts"><div class="fact"><dt>Latest observation</dt><dd id="latest"></dd></div><div class="fact"><dt>Nearest observation</dt><dd id="nearest"></dd></div><div class="fact"><dt>Source retrieved</dt><dd id="retrieved">15:05 UTC · example</dd></div></dl></div><div><div class="notice" id="notice">This is observation context, not a fire forecast. No observations does not mean no fire.</div><button class="voice" id="voice">Preview spoken script</button><p class="micro">Simulated interaction. No audio or Grok API call.</p><details class="obs-list"><summary>Read the observation list</summary><ul id="observation-list"></ul></details><a class="official" href="https://mil.wa.gov/wildfire" target="_blank" rel="noopener noreferrer">Washington official wildfire information</a><p class="micro">General resource link. The places in this mockup are fictional.</p></div></div></div>
+<div class="panel provenance" id="evidence-panel" role="tabpanel" aria-labelledby="evidence-tab" hidden><h2 class="panel-title">Source record</h2><p>This mockup uses six hand-authored synthetic observations. No NASA data was downloaded for this screen.</p><div class="hash" id="snapshot-name"></div><h3>Planned processing steps</h3><ol class="stages"><li>Preserve the provider’s raw bytes</li><li>Validate, clean and deduplicate</li><li>Publish a verified snapshot</li><li>Build the selected place context</li><li>Ground the spoken briefing</li></ol><div class="notice">The actual build will expose source rows, hashes, quality results, acquisition time and retrieval time here.</div><p><strong>Model status:</strong> no wildfire model trained. The MVP uses a documented proximity rule.</p><a href="../DATA_BACKEND.md">Read the implementation specification</a></div>
 </section>
 <section class="timeline" aria-label="Observation replay controls"><div><h2>Observation timeline</h2><p>18 August 2025 · synthetic example</p><div class="cutoff" id="cutoff">15:00 UTC</div></div><div class="scrubber"><label class="sr-only" for="time">Replay cutoff in UTC hours</label><input type="range" id="time" min="6" max="15" step="3" value="15" aria-valuetext="15:00 UTC"><div class="ticks" aria-hidden="true"><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00 UTC</span></div></div><div class="change"><strong id="change-title"></strong><span id="change-description"></span></div></section>
-</main><div class="under"><span><strong>Designed for understanding.</strong> A map, a readable briefing, and one shared source of evidence.</span><span>Design reference v1 · No live data</span></div>
+</main><div class="under"><span>Fictional geography and synthetic records. Design reference only.</span><span>No live data</span></div>
 <dialog class="dialog" id="voice-dialog" aria-labelledby="voice-title"><div class="small-label">Spoken script preview · simulated</div><h2 id="voice-title">What changed nearby?</h2><p id="script-text"></p><p class="micro">The production app will generate audio with Grok Voice from this same selected context. This preview neither uses the microphone nor calls an API.</p><form method="dialog"><button class="close">Close preview</button></form></dialog>
 <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
 <noscript>This interactive design reference requires JavaScript. All terrain and data are illustrative. No real NASA or Grok integration is present.</noscript>
@@ -66,11 +234,11 @@ function render(announce=true){
  $("change-title").textContent=unknown?"Source needs review":`${added} new synthetic observation${added===1?"":"s"}`;
  $("change-description").textContent=unknown?"Check source availability before interpreting changes.":"In the last 3 hours within 25 km. This is not a count of newly ignited fires.";
  $("snapshot-name").textContent=`synthetic-design-v1 / ${selected} / ${clock(hour)} / ${dataState}`;
- $("markers").innerHTML=all.map(o=>`<g><circle cx="${o.x}" cy="${o.y}" r="22" fill="url(#glow)"/><circle cx="${o.x}" cy="${o.y}" r="4" fill="#ffc17d" stroke="#453e2c" stroke-width="1"/></g>`).join("");
+ $("markers").innerHTML=all.map(o=>`<g><circle cx="${o.x}" cy="${o.y}" r="4" fill="#b54f22" stroke="#ffffff" stroke-width="1"/></g>`).join("");
  $("observation-list").replaceChildren();
  if(!near.length){const li=document.createElement("li");li.textContent=dataState==="unavailable"?"Source unavailable.":"No matching synthetic records in the selected window.";$("observation-list").append(li);}
  near.forEach(o=>{const li=document.createElement("li");li.textContent=`${o.id} · ${clock(o.hour)} · ${o.dist[selected].toFixed(1)} km · nominal confidence (synthetic)`;$("observation-list").append(li);});
- document.querySelectorAll(".place").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.place===selected)));
+ document.querySelectorAll(".place").forEach(b=>{const active=b.dataset.place===selected;b.setAttribute("aria-pressed",String(active));b.querySelector(".place-meta").textContent=active?"Selected":"View community";});
  $("map-unavailable").hidden=!unknown;$("map-unavailable").textContent=dataState==="stale"?"Stale source. Cached synthetic observations remain visible for inspection.":"Source unavailable. The illustration remains visible, but no current observations can be shown.";
  $("script-text").textContent=`This is a synthetic replay for ${place.name} on 18 August 2025, with an observation cutoff of ${clock(hour)}. ${summary} ${unknown?"Please review source availability.":"The source was retrieved at 15:05 UTC in this example. Retrieval time is separate from observation time."} These are thermal observations, not confirmed wildfire incidents. Use official local information for emergency decisions.`;
  if($("voice-dialog").open)$("voice-dialog").close();

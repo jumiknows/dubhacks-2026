@@ -6,6 +6,8 @@
 - Run `python3 tools/check_repo.py`, `python3 -m unittest discover -s tests -v`, and the affected application's checks.
 - Explain the problem, approach, verification, and remaining limitations in pull requests.
 - Keep documentation concise. Do not claim tests, deployment, or measurements that were not completed.
+- Use direct prose without semicolons, long dashes, emoji headings or promotional filler. Preserve required code and data syntax. Describe routine wording and styling changes as cleanup.
+- Follow the visual direction in docs/PRODUCT_BRIEF.md. Use system typography, consistent spacing, flat surfaces and readable contrast.
 - Preserve contributor work and avoid adding an application framework until the team has selected it.
 - The EmberReady implementation default is documented in docs/adr/0002-emberready-mvp.md. Read docs/GROK_HANDOFF.md and docs/CONTRACTS.md before implementing its issues.
 - Keep live observations, historical replay, and synthetic test fixtures visibly distinct.
