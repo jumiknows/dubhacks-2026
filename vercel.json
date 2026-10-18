@@ -35,10 +35,7 @@
           "maxDuration": 300,
           "excludeFiles": "{node_modules/**,apps/**,client/**,server/**,gesture_pipeline/**,research/**,data/**,packages/**,docs/**,tests/**,test-results/**,api/.venv/**,api/tests/**,api/scripts/**,**/__pycache__/**}"
         }
-      },
-      "bindings": [
-        { "type": "service", "service": "shop", "format": "url", "env": "PLANBOARD_URL" }
-      ]
+      }
     }
   },
   "rewrites": [
