@@ -3,10 +3,10 @@
 FastAPI backend for Conjure. Runs fully on mock data with an empty `.env`.
 
 ```bash
-python3 -m venv api/.venv
-api/.venv/bin/pip install -r api/requirements.txt
+npm run api:setup                     # once: creates api/.venv and installs requirements
 cp api/.env.example api/.env          # optional, every key is optional
-api/.venv/bin/uvicorn api.main:app --reload   # run from the repo root
+npm run dev                           # API on :8000 plus the rest of the app
+npm run api                           # or: just the API
 api/.venv/bin/python -m pytest api/tests      # tests
 api/.venv/bin/python -m api.trust.make_mock   # regenerate mock catalog + trust reports
 ```
