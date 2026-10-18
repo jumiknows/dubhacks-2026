@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "conjure-gestures": "file:../gesture_pipeline",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

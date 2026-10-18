@@ -32,6 +32,7 @@ export function hand(pose: 'open' | 'fist' | 'pinch' | 'swipe' | 'point', cx = 0
   pts[2] = at(-0.85, 0.4);
   pts[3] = at(-1.0, 0.1);
   pts[4] = pose === 'pinch' || pose === 'swipe' ? [pts[8][0] + 0.005, pts[8][1] + 0.005, 0] : at(-1.1, -0.2);
+  if (pose === 'fist') pts[4] = at(-0.15, 0.7); // curled into the palm, not onto the index tip
   if (pose === 'swipe') {
     pts[8] = at(-0.55, -0.25);
     pts[4] = at(-0.58, -0.22);

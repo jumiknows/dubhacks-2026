@@ -1,29 +1,15 @@
+import { Hints, useGestureEvents, useGestureStatus } from "conjure-gestures";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDate, money, quantityLabel } from "./format.js";
-import ElectronicsPlan from "./ElectronicsPlan.jsx";
-import WeeklyList from "./WeeklyList.jsx";
-
-/**
- * OWNER: UI
- * STATUS: Basic layout. Replace this folder to implement the real interface.
- *
- * Props are the contract. HTTP stays in App.jsx and api.js.
- *   tabs, category, prompt, plan, status, error
- *   onSelectCategory(id), onPromptChange(text), onPlan(event), onToggle(item)
- *
- * plan.items[]: { id, name, quantity, unit, reason, purchased, products, synthesis }
- * synthesis: { summary, image, dimensions, shippingDate, totalPrice, currency, best, alternatives }
- * plan.quote: { toBuyCount, purchasedCount, totalPrice, currency, readyBy }
- */
+import ItemHistory from "./ItemHistory.jsx";
+import SnapStage from "./SnapStage.jsx";
+import { takeSwipe } from "./swipeGate.js";
 
 export default function PlannerUI({
-  tabs,
-  category,
   prompt,
   plan,
   status,
   error,
-  onSelectCategory,
   onPromptChange,
   onPlan,
   onToggle,
@@ -36,11 +22,12 @@ export default function PlannerUI({
   const closers = useRef([]);
   const skipPop = useRef(0);
   const [layers, setLayers] = useState(0);
-  const active = tabs.find((tab) => tab.id === category) || tabs[0];
+  const [selectedId, setSelectedId] = useState(null);
   const shown = drag ?? (open ? 1 : 0);
 
   useEffect(() => {
     if (plan) setOpen(true);
+    setSelectedId(null);
   }, [plan]);
 
   const bindBack = useCallback((close) => {
@@ -115,14 +102,17 @@ export default function PlannerUI({
     return () => root.removeEventListener("pointerdown", onDown);
   }, []);
 
-  function choose(id) {
-    if (id === category && open && drag == null) {
-      requestBack();
-      return;
-    }
-    onSelectCategory(id);
+  useGestureEvents("reveal", () => {
+    if (open || !takeSwipe()) return;
     setOpen(true);
-  }
+  });
+
+  useGestureEvents("dismiss", () => {
+    if (!open) return;
+    if (closers.current.length) return;
+    if (!takeSwipe()) return;
+    setOpen(false);
+  });
 
   function onPull(value) {
     if (value == null) {
@@ -135,7 +125,7 @@ export default function PlannerUI({
   }
 
   return (
-    <main ref={shellRef} className="shell" data-hue={open ? category : "home"}>
+    <main ref={shellRef} className="shell" data-hue={open ? plan?.category || "custom" : "home"}>
       <div className="glow" aria-hidden="true">
         <span className="glow-core" />
         <span className="glow-ring" />
@@ -148,7 +138,7 @@ export default function PlannerUI({
         <p className="eyebrow">Planboard</p>
         <h1>What do you need to get ready?</h1>
         <p className="lede">
-          A prompt becomes a checklist. Anything still unchecked is what to buy.
+          Describe what you are shopping for. The list is built from that prompt, not from a widget picker.
         </p>
         <form className="prompt" onSubmit={onPlan}>
           <label className="sr-only" htmlFor="plan-prompt">
@@ -158,23 +148,18 @@ export default function PlannerUI({
             id="plan-prompt"
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder="I need to prepare for camping."
+            placeholder="Camping trip, weekly groceries, new laptop…"
           />
           <button className="transition duration-200 ease-snap active:scale-[0.98]" type="submit" disabled={loading || !prompt.trim()}>
             {loading ? "Planning…" : "Build list"}
           </button>
         </form>
-        <p className="home-hint">Pull the bar, or choose a widget.</p>
+        <p className="home-hint">Fist to select. Pinch, then swipe left, right, up, or down — one item at a time.</p>
+        <HandToggle />
       </section>
+      <Hints />
 
-      <Dock
-        tabs={tabs}
-        category={category}
-        open={open}
-        onChoose={choose}
-        onPull={onPull}
-        onToggle={() => setOpen((value) => !value)}
-      />
+      <EdgePull open={open} onPull={onPull} onToggle={() => setOpen((value) => !value)} />
 
       <section
         className={drag == null ? "sheet" : "sheet is-dragging"}
@@ -184,53 +169,63 @@ export default function PlannerUI({
         }}
         aria-hidden={shown < 0.05}
         inert={shown < 0.05}
-        aria-label={active ? `${active.label} widget` : "Widget"}
+        aria-label={plan?.title || "Shopping list"}
       >
         <header className="sheet-bar">
-          <span>{active?.label}</span>
+          <span>{plan?.title || "List"}</span>
           <button className="transition duration-200 ease-snap active:scale-[0.98]" type="button" onClick={requestBack}>
             {layers > 0 ? "Back" : "Close"}
           </button>
         </header>
-        <div
-          className={`sheet-body ${
-            {
-              groceries: "animate-sheet",
-              wedding: "animate-bloom",
-              camping: "animate-unroll",
-              electronics: "animate-scan",
-              custom: "animate-lift",
-            }[category] || "animate-sheet"
-          }`}
-          key={category}
-        >
+        <div className="sheet-body animate-sheet" key={plan?.id || "empty"}>
           {error ? (
             <p className="banner" role="alert">
               {error}
             </p>
           ) : null}
-          {category === "groceries" ? (
-            <WeeklyList bindBack={bindBack} onBack={requestBack} />
-          ) : null}
-          {category === "electronics" ? (
-            <ElectronicsPlan bindBack={bindBack} onBack={requestBack} />
-          ) : null}
-          {plan ? (
-            <PlanBody plan={plan} onToggle={onToggle} />
-          ) : category === "groceries" || category === "electronics" ? null : (
-            <p className="empty">
-              {loading
-                ? "Looking up items and store offers…"
-                : "Describe the occasion on the home screen, then build the list."}
-            </p>
-          )}
+          <div className="sheet-stage">
+            <ItemHistory plan={plan} selectedId={selectedId} onSelect={setSelectedId} />
+            {plan ? (
+              <PlanBody
+                plan={plan}
+                onToggle={onToggle}
+                bindBack={bindBack}
+                onBack={requestBack}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            ) : (
+              <p className="empty">
+                {loading
+                  ? "Looking up items and store offers…"
+                  : "Type a prompt on the home screen, then build the list."}
+              </p>
+            )}
+          </div>
         </div>
       </section>
     </main>
   );
 }
 
-function Dock({ tabs, category, open, onChoose, onPull, onToggle }) {
+function HandToggle() {
+  const { camera, start, stop } = useGestureStatus();
+  const starting = camera === "starting";
+  const on = camera === "on";
+  return (
+    <button
+      type="button"
+      className="hand-toggle transition duration-200 ease-snap active:scale-[0.98]"
+      data-gesture-ignore
+      disabled={starting}
+      onClick={() => (on ? stop() : start())}
+    >
+      {on ? "Hands on" : starting ? "Starting camera…" : "Use hands"}
+    </button>
+  );
+}
+
+function EdgePull({ open, onPull, onToggle }) {
   const start = useRef(null);
 
   function pointerDown(event) {
@@ -246,8 +241,7 @@ function Dock({ tabs, category, open, onChoose, onPull, onToggle }) {
   function pointerMove(event) {
     if (!start.current) return;
     const dx = start.current.x - event.clientX;
-    const dy = event.clientY - start.current.y;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) start.current.moved = true;
+    if (Math.abs(dx) > 6 || Math.abs(event.clientY - start.current.y) > 6) start.current.moved = true;
     if (!start.current.moved) return;
     const travel = 140;
     const progress = start.current.open
@@ -265,11 +259,11 @@ function Dock({ tabs, category, open, onChoose, onPull, onToggle }) {
   }
 
   return (
-    <nav className="dock" aria-label="Widgets">
+    <nav className={open ? "dock is-out" : "dock"} aria-label="Shopping list">
       <button
         type="button"
         className="pull"
-        aria-label={open ? "Pull to close the widget" : "Pull to open the widget"}
+        aria-label={open ? "Pull to close the list" : "Pull to open the list"}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
@@ -277,176 +271,116 @@ function Dock({ tabs, category, open, onChoose, onPull, onToggle }) {
       >
         <span className="pull-grip" />
       </button>
-      <div className="dock-icons">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className="dock-btn transition duration-200 ease-snap active:scale-95"
-          aria-pressed={open && tab.id === category}
-          title={tab.label}
-          onClick={() => onChoose(tab.id)}
-        >
-          <WidgetIcon id={tab.id} />
-          <span>{tab.label}</span>
-        </button>
-      ))}
-      </div>
     </nav>
   );
 }
 
-function WidgetIcon({ id }) {
-  const pen = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.6,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-  };
-  if (id === "groceries") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path {...pen} d="M6 8h12l-1.2 11H7.2L6 8z" />
-        <path {...pen} d="M9 8V6.5a3 3 0 0 1 6 0V8" />
-      </svg>
-    );
-  }
-  if (id === "wedding") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle {...pen} cx="8" cy="9" r="2.3" />
-        <circle {...pen} cx="16" cy="9" r="2.3" />
-        <path {...pen} d="M6.2 15c1.1-2 3.2-2 4.3 0M13.5 15c1.1-2 3.2-2 4.3 0" />
-      </svg>
-    );
-  }
-  if (id === "camping") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path {...pen} d="M4 18 12 5l8 13z" />
-        <path {...pen} d="M12 18V11" />
-      </svg>
-    );
-  }
-  if (id === "electronics") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path {...pen} d="M8 4h8v4H8zM6 8h12v11H6z" />
-        <path {...pen} d="M9 13h6M9 16h3" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path {...pen} d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" />
-    </svg>
-  );
-}
-
-function PlanBody({ plan, onToggle }) {
-  const toBuy = plan.items.filter((item) => !item.purchased);
+function PlanBody({ plan, onToggle, bindBack, onBack, selectedId, onSelect }) {
+  useEffect(() => {
+    if (!selectedId || !bindBack) return undefined;
+    return bindBack(() => onSelect(null));
+  }, [selectedId, bindBack, onSelect]);
 
   return (
-    <>
+    <section className="week" aria-label="Shopping list">
       <div className="plan-head">
         <h2>{plan.title}</h2>
         <p>{plan.prompt}</p>
       </div>
-      <div className="layout">
-        <section className="panel" aria-label="Checklist">
-          <h3>Checklist</h3>
-          <ul className="checklist">
-            {plan.items.map((item, index) => {
-              const qty = quantityLabel(item);
-              return (
-                <li
-                  key={item.id}
-                  className={item.purchased ? "is-purchased animate-stretch-in transition duration-200" : "animate-stretch-in"}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={item.purchased}
-                      onChange={() => onToggle(item)}
-                    />
-                    <span>
-                      <span className="name">
-                        {item.name}
-                        {qty ? <span className="qty">{qty}</span> : null}
-                      </span>
-                      <span className="reason">{item.reason}</span>
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <section className="panel" aria-label="Items to buy">
-          <h3>To buy</h3>
-          {toBuy.length === 0 ? (
-            <p className="quiet">Nothing left to buy.</p>
-          ) : (
-            <ul className="cards">
-              {toBuy.map((item) => (
-                <ProductCard key={item.id} item={item} />
-              ))}
-            </ul>
-          )}
-          <Quote quote={plan.quote} />
-        </section>
-      </div>
-    </>
+      <SnapStage
+        items={plan.items}
+        getId={(item) => item.id}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onBack={onBack}
+        renderCard={(item, { selected, onChoose }) => (
+          <ShopCard item={item} selected={selected} onChoose={onChoose} />
+        )}
+        renderDetail={(item) => (
+          <ShopDetail item={item} onToggle={onToggle} />
+        )}
+      />
+      <Quote quote={plan.quote} />
+    </section>
   );
 }
 
-function ProductCard({ item }) {
+function ShopCard({ item, selected, onChoose }) {
+  const qty = quantityLabel(item);
+  const price = item.synthesis?.totalPrice;
+  return (
+    <article className={selected ? "meal is-open" : "meal"}>
+      <button
+        type="button"
+        className="meal-hit transition duration-200 ease-snap active:scale-[0.98]"
+        aria-pressed={selected}
+        onClick={onChoose}
+      >
+        <p className="meal-day">{item.purchased ? "Got it" : "To buy"}</p>
+        <p className="meal-name">{item.name}</p>
+        <p className="meal-meta">
+          <span>{qty || item.reason}</span>
+          <span>{price != null ? money(price, item.synthesis?.currency) : "Shop"}</span>
+        </p>
+      </button>
+    </article>
+  );
+}
+
+function ShopDetail({ item, onToggle }) {
   const offer = item.synthesis;
   const best = offer?.best;
+  const qty = quantityLabel(item);
 
   return (
-    <li className="card animate-stretch-in transition duration-200">
-      <Thumb image={offer?.image} store={best?.store} />
-      <div>
-        <p className="card-name">{item.name}</p>
-        <p className="summary">
-          {best?.url ? (
-            <a href={best.url} target="_blank" rel="noreferrer">
-              {offer.summary}
-            </a>
-          ) : (
-            offer?.summary || "Waiting on a product listing."
-          )}
-        </p>
-        <dl className="facts">
-          <div>
-            <dt>Price</dt>
-            <dd>{money(offer?.totalPrice, offer?.currency)}</dd>
-          </div>
-          <div>
-            <dt>Dimensions</dt>
-            <dd>{offer?.dimensions?.label || "—"}</dd>
-          </div>
-          <div>
-            <dt>Ships</dt>
-            <dd>{formatDate(offer?.shippingDate)}</dd>
-          </div>
-        </dl>
-        {offer?.alternatives?.length ? (
-          <ul className="alts">
-            {offer.alternatives.map((alt) => (
-              <li key={alt.id}>
-                {alt.store} · {money(alt.price, alt.currency)}
-                {alt.inStock ? "" : " · out of stock"}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+    <>
+      <p className="modal-kicker">{item.purchased ? "Already have it" : "Shopping"}</p>
+      <h3 className="detail-title">{item.name}</h3>
+      <p className="summary">{item.reason}{qty ? ` · ${qty}` : ""}</p>
+      <label className="item-row">
+        <input type="checkbox" checked={item.purchased} onChange={() => onToggle(item)} />
+        <span>{item.purchased ? "Purchased" : "Mark purchased"}</span>
+      </label>
+      <div className="card animate-stretch-in transition duration-200">
+        <Thumb image={offer?.image} store={best?.store} />
+        <div>
+          <p className="card-name">{best?.store || "Store listing"}</p>
+          <p className="summary">
+            {best?.url ? (
+              <a href={best.url} target="_blank" rel="noreferrer">
+                {offer.summary}
+              </a>
+            ) : (
+              offer?.summary || "Waiting on a product listing."
+            )}
+          </p>
+          <dl className="facts">
+            <div>
+              <dt>Price</dt>
+              <dd>{money(offer?.totalPrice, offer?.currency)}</dd>
+            </div>
+            <div>
+              <dt>Dimensions</dt>
+              <dd>{offer?.dimensions?.label || "—"}</dd>
+            </div>
+            <div>
+              <dt>Ships</dt>
+              <dd>{formatDate(offer?.shippingDate)}</dd>
+            </div>
+          </dl>
+          {offer?.alternatives?.length ? (
+            <ul className="alts">
+              {offer.alternatives.map((alt) => (
+                <li key={alt.id}>
+                  {alt.store} · {money(alt.price, alt.currency)}
+                  {alt.inStock ? "" : " · out of stock"}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </div>
-    </li>
+    </>
   );
 }
 

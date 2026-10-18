@@ -3,9 +3,10 @@ import { installKeyboard } from './adapters/keyboard';
 import { installPointer } from './adapters/pointer';
 import { gestureBus } from './bus';
 import { gestures } from './loop';
-import { activateTarget, markPressed, scrollTarget } from './hitTest';
+import { markPressed, scrollTarget } from './hitTest';
 import type { GestureEvent, GestureStatus, GestureType } from './types';
 import { CameraPreview } from './ui/CameraPreview';
+import { GestureDebug } from './ui/GestureDebug';
 import { Cursor } from './ui/Cursor';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { TuningPanel } from './ui/TuningPanel';
@@ -26,9 +27,6 @@ export function GestureProvider({ children, debug = debugFromUrl() }: { children
     const offDown = gestureBus.on('pointer_down', e => markPressed(e.target_id, true));
     const offUp = gestureBus.on('pointer_up', e => markPressed(e.target_id, false));
     const offScroll = gestureBus.on('scroll', e => scrollTarget(e.target_id, e.delta_y ?? 0));
-    const offSelect = gestureBus.on('select', e => {
-      if (e.source === 'hand' && e.target_id) activateTarget(e.target_id);
-    });
     const offCancel = gestureBus.on('cancel', e => {
       markPressed(e.target_id, false);
       if (e.source !== 'hand') gestures.cancelInteraction(false);
@@ -37,7 +35,7 @@ export function GestureProvider({ children, debug = debugFromUrl() }: { children
       offHover();
       offPointer();
       offKeys();
-      offDown(); offUp(); offSelect(); offCancel(); offScroll();
+      offDown(); offUp(); offCancel(); offScroll();
       gestures.stop();
     };
   }, []);
@@ -46,6 +44,7 @@ export function GestureProvider({ children, debug = debugFromUrl() }: { children
     <>
       {children}
       <CameraPreview />
+      <GestureDebug />
       <Cursor />
       {debug && <DebugOverlay />}
       {debug && <TuningPanel />}

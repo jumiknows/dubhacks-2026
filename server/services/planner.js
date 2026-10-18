@@ -40,18 +40,28 @@ const TEMPLATES = {
     { name: "Coffee", quantity: 1, unit: "bag", reason: "Morning" },
     { name: "Pasta", quantity: 2, unit: "box", reason: "Pantry" },
   ],
+  electronics: [
+    { name: "Laptop", quantity: 1, unit: null, reason: "Daily work" },
+    { name: "Phone", quantity: 1, unit: null, reason: "Primary device" },
+    { name: "Headphones", quantity: 1, unit: null, reason: "Calls and focus" },
+    { name: "USB-C charger", quantity: 1, unit: null, reason: "Power" },
+    { name: "Laptop sleeve", quantity: 1, unit: null, reason: "Carry" },
+    { name: "Screen protector", quantity: 1, unit: null, reason: "Phone face" },
+  ],
 };
 
 const HINTS = [
-  { category: "camping", words: ["camp", "camping", "hike", "backpacking"] },
+  { category: "camping", words: ["camp", "camping", "hike", "backpacking", "trail"] },
   { category: "wedding", words: ["wedding", "bride", "groom", "reception"] },
-  { category: "groceries", words: ["grocery", "groceries"] },
+  { category: "groceries", words: ["grocery", "groceries", "meal", "dinner", "week"] },
+  { category: "electronics", words: ["laptop", "phone", "headphones", "electronics", "gadget"] },
 ];
 
 const TITLES = {
-  camping: "Camping trip",
-  wedding: "Wedding",
-  groceries: "Groceries",
+  camping: "Camping kit",
+  wedding: "Wedding shopping",
+  groceries: "Grocery run",
+  electronics: "Device shopping",
 };
 
 export function generatePlan({ prompt, category }) {
@@ -91,23 +101,36 @@ function resolveCategory(prompt, category) {
 }
 
 function customFromPrompt(prompt) {
-  const name = prompt
-    .replace(/^i need to (prepare for|plan|buy|get)?\s*/i, "")
+  const cleaned = prompt
+    .replace(/^i need to (prepare for|plan|buy|get ready for|get)?\s*/i, "")
     .replace(/^i need\s*/i, "")
     .replace(/[.?!]+$/, "")
     .trim();
 
-  return [
-    {
-      name: name || "Custom item",
+  const named = cleaned
+    .split(/\s*(?:,|;|\band\b|\bplus\b|\bwith\b)\s*/i)
+    .map((part) => part.replace(/^(some|a|an|the)\s+/i, "").trim())
+    .filter((part) => part.length > 1);
+
+  if (named.length >= 2) {
+    return named.slice(0, 10).map((name) => ({
+      name,
       quantity: 1,
       unit: null,
       reason: "From your prompt",
-    },
+    }));
+  }
+
+  const topic = named[0] || "Custom item";
+  return [
+    { name: topic, quantity: 1, unit: null, reason: "Main pickup" },
+    { name: `${clip(topic, 28)} kit`, quantity: 1, unit: null, reason: "Matching supplies" },
+    { name: "Backup option", quantity: 1, unit: null, reason: "If the first pick is out" },
+    { name: "Consumables", quantity: 1, unit: null, reason: "Day-of extras" },
   ];
 }
 
-function clip(prompt) {
-  if (prompt.length <= 48) return prompt;
-  return `${prompt.slice(0, 48).trim()}…`;
+function clip(prompt, max = 48) {
+  if (prompt.length <= max) return prompt;
+  return `${prompt.slice(0, max).trim()}…`;
 }

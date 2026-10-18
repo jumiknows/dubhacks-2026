@@ -51,9 +51,16 @@ export function scrollTargetAt(x: number, y: number): string | null {
   return 'scroll:page';
 }
 
+export function scrollElement(id: string | null | undefined): HTMLElement | null {
+  if (id === 'scroll:page') return (document.scrollingElement as HTMLElement | null) ?? null;
+  return id ? scrollTargets.get(id) ?? null : null;
+}
+
 export function scrollTarget(id: string | null | undefined, delta: number) {
-  const element = id === 'scroll:page' ? document.scrollingElement : id ? scrollTargets.get(id) : null;
+  const element = scrollElement(id);
   if (!element?.isConnected || !Number.isFinite(delta)) return;
+  // The host steps these surfaces one box at a time instead of pixel-scrolling.
+  if (element.hasAttribute('data-gesture-step')) return;
   // Immediate frame-sized updates avoid stacking smooth-scroll animations or leaking to the page at an edge.
   element.scrollBy({ top: delta * innerHeight, behavior: 'instant' });
 }

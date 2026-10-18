@@ -1,14 +1,13 @@
 import { useState } from 'react';
 
-const KEY = 'conjure.gesture.hintsSeen.swipes-v3';
+const KEY = 'conjure.gesture.hintsSeen.pinch-swipe-v1';
 const HINTS = [
-  { title: 'Point', text: 'Point at a card to highlight it.' },
-  { title: 'Swipe left', text: 'Bring thumb, index and middle together, then sweep right to left for the next product. Release before the next swipe.' },
-  { title: 'Swipe right', text: 'Start on a card, bring those three fingers together and sweep left to right to dismiss it.' },
-  { title: 'Scroll', text: 'Point inside a catalogue, bring those three fingers together and move up to see lower items, or down to go back. Hold to continue scrolling; release to reset.' },
-  { title: 'Pinch to select', text: 'Touch thumb and index together, then release to open the card.' },
-  { title: 'Pinch to drag', text: 'Keep thumb and index together and move your hand. Release to place the card.' },
-  { title: 'Keyboard', text: 'Left arrow brings a card in. Right arrow dismisses the focused card. Esc closes details.' },
+  { title: 'Point', text: 'Point with your index finger. That is the cursor.' },
+  { title: 'Grab', text: 'Close the whole fist, thumb included, to highlight a control. Open the hand to confirm it.' },
+  { title: 'Pinch, then swipe', text: 'Touch thumb and index together, then move left, right, up, or down. A swipe without a pinch is ignored.' },
+  { title: 'Swipe left', text: 'While pinched, move left to open the shopping list from your prompt.' },
+  { title: 'Swipe right', text: 'While pinched, move right to step back. The hand returning after a left swipe is ignored.' },
+  { title: 'Scroll', text: 'While pinched, swipe up or down to move one item. Wait half a second before the next swipe.' },
 ];
 
 

@@ -6,7 +6,8 @@ import { config, type Config } from './config';
 import { initialState, interactionActive, step, type EngineOutput, type EngineState } from './engine';
 import { extract } from './features';
 import { initialPrimary, selectPrimary, type PrimaryState } from './hands';
-import { dropTargetAt, scrollTargetAt, targetAt } from './hitTest';
+import { activateTarget, dropTargetAt, markPressed, scrollTargetAt, targetAt } from './hitTest';
+import { PoseDetector } from './pose';
 import { PointerMapper } from './mapping';
 import { CursorPresentation } from './presentation';
 import { createRecognizer, type HandTracker } from './recognizer';
@@ -37,6 +38,8 @@ export class GestureController {
   private engine: EngineState = initialState();
   private primary: PrimaryState = initialPrimary();
   private mapper = new PointerMapper();
+  private poses = new PoseDetector();
+  private grabTarget: string | null = null;
   private generation = 0;
   private starting = false;
   private startAbort: AbortController | null = null;
@@ -320,12 +323,40 @@ export class GestureController {
       hit: { targetId: hovered, draggable, swipeTargetId, dropTargetId: input.dropTargetId, scrollTargetId: input.scrollTargetId },
       timing: { inferenceMs: r4(inferMs), processingMs: r4(processingMs) },
     });
+    if (sel.hand && f) {
+      const named = this.poses.update(sel.hand.landmarks, t, config.mapping.mirror, {
+        width: frame.videoW,
+        height: frame.videoH,
+      });
+      if (named === 'swipe-left') gestureBus.emit(makeEvent('reveal', 'hand', { x: (cursor?.x ?? 0) / innerWidth, y: (cursor?.y ?? 0) / innerHeight }));
+      if (named === 'swipe-right') gestureBus.emit(makeEvent('dismiss', 'hand', { target_id: swipeTargetId, x: (cursor?.x ?? 0) / innerWidth, y: (cursor?.y ?? 0) / innerHeight }));
+      if (named === 'swipe-up' || named === 'swipe-down') {
+        gestureBus.emit(makeEvent('scroll', 'hand', {
+          target_id: input.scrollTargetId,
+          delta_y: named === 'swipe-up' ? 0.12 : -0.12,
+          x: (cursor?.x ?? 0) / innerWidth,
+          y: (cursor?.y ?? 0) / innerHeight,
+        }));
+      }
+      if (named === 'grab' && hovered) {
+        this.grabTarget = hovered;
+        markPressed(hovered, true);
+      }
+      if (named === 'release') {
+        if (this.grabTarget) activateTarget(this.grabTarget);
+        markPressed(this.grabTarget ?? hovered, false);
+        this.grabTarget = null;
+      }
+    } else if (!f) this.poses.reset();
+
     const out = step(this.engine, input, config);
     this.engine = out.state;
     if (cursor) this.lastCursor = cursor;
 
     for (const intent of out.intents) {
       if (intent.type === 'drag_move' && this.running && this.renderTicket !== null) continue;
+      // Swipes come from a pinched two-finger drag. A three-finger pinch is not a gesture.
+      if (intent.type === 'reveal' || intent.type === 'dismiss' || intent.type === 'scroll') continue;
       const pos = cursor ?? this.lastCursor ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       const e = makeEvent(intent.type, 'hand', {
         x: pos.x / window.innerWidth,
