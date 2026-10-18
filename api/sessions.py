@@ -41,6 +41,8 @@ class Session:
     anomalous_turns: int = 0
     used_nonces: set[str] = field(default_factory=set)
     demo_private_key: object | None = None  # only with DEMO_SERVER_SIGNING=true
+    chat_history: list[dict] = field(default_factory=list)  # user/assistant text only, no tool output
+    llm_killed: bool = False  # kill switch: set after repeated anomalous turns (ASI10)
 
 
 class SessionStore:
@@ -78,3 +80,45 @@ class SessionStore:
 
 
 sessions = SessionStore(get_settings().session_ttl_s)
+
+
+class CircuitBreaker:
+    """Process-wide LLM breaker (ASI08): after `threshold` consecutive failures, skip the LLM
+    for `cooldown_s` seconds and let the fallback agent answer."""
+
+    def __init__(self, threshold: int = 3, cooldown_s: float = 60.0) -> None:
+        self.threshold = threshold
+        self.cooldown_s = cooldown_s
+        self.failures = 0
+        self.open_until = 0.0
+        self.trips = 0
+        self._lock = threading.Lock()
+
+    def allow(self) -> bool:
+        with self._lock:
+            return time.time() >= self.open_until
+
+    def success(self) -> None:
+        with self._lock:
+            self.failures = 0
+
+    def failure(self) -> None:
+        with self._lock:
+            self.failures += 1
+            if self.failures >= self.threshold:
+                self.open_until = time.time() + self.cooldown_s
+                self.failures = 0
+                self.trips += 1
+
+    def status(self) -> dict:
+        with self._lock:
+            is_open = time.time() < self.open_until
+            return {
+                "state": "open" if is_open else "closed",
+                "open_until": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.open_until)) if is_open else None,
+                "consecutive_failures": self.failures,
+                "trips": self.trips,
+            }
+
+
+breaker = CircuitBreaker()

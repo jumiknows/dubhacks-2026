@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from api import nlu
 from api.agent import tools
 from api.agent.tools import ToolOutcome, money
-from api.schemas import OpenDetail, UIContext
+from api.schemas import OpenDetail, ToolTrace, UIContext
 from api.sessions import Session
 from api.store import store
 
@@ -41,16 +41,32 @@ _PATTERN = {
 AI_DISCLOSURE = "Hi, I'm Conjure, an AI shopping assistant, and I can't spend money without your signature."
 
 
+def explicit_yes(text: str) -> bool:
+    """Deterministic consent check used before any cart is staged, by either agent."""
+    t = text.lower().strip()
+    return bool(_BUY.search(t)) and not _NO.search(t)
+
+
 @dataclass
 class Turn:
-    actions: list[BaseModel] = field(default_factory=list)
+    # Ordered stream events: ("trace" | "action", model). Order is what the UI shows.
+    events: list[tuple[str, BaseModel]] = field(default_factory=list)
     speech: str = ""
     facts: list[dict[str, Any]] = field(default_factory=list)  # tool results, for grounding
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
 
+    @property
+    def actions(self) -> list[BaseModel]:
+        return [m for kind, m in self.events if kind == "action"]
+
+    def action(self, model: BaseModel) -> None:
+        self.events.append(("action", model))
+
     def add(self, name: str, args: dict[str, Any], outcome: ToolOutcome) -> ToolOutcome:
         self.tool_calls.append({"name": name, "args": args})
-        self.actions.extend(outcome.actions)
+        self.events.append(("trace", ToolTrace(name=name, args=args, ms=outcome.ms)))
+        self.events.extend(("trace", t) for t in outcome.traces)
+        self.events.extend(("action", a) for a in outcome.actions)
         self.facts.append(outcome.result)
         return outcome
 
@@ -141,7 +157,7 @@ def _why_seeing(session: Session, ctx: UIContext, turn: Turn) -> bool:
     if match is None:
         return False
     turn.facts.append({"product_id": pid, "fit_percent": match.fit_percent, "fit_terms": match.fit_terms.model_dump()})
-    turn.actions.append(OpenDetail(product_id=pid))
+    turn.action(OpenDetail(product_id=pid))
     reasons = " and ".join(r.lower() for r in match.reasons) or "your search"
     turn.speech = f"{match.title} is a {match.fit_percent}% fit, mostly because of {reasons}."
     return True
@@ -193,7 +209,7 @@ def _detail(session: Session, ctx: UIContext, turn: Turn) -> None:
     assert p is not None
     t = store.trust_report(pid)
     session.focused_id = pid
-    turn.actions.append(OpenDetail(product_id=pid))
+    turn.action(OpenDetail(product_id=pid))
     turn.facts.append({"product_id": pid, "price": p.price, "summary": p.summary,
                        "trust_score": t.score if t else None, "rating_adjusted": t.rating_adjusted if t else None})
     trust = f"a Trust Score of {t.score}" if t and t.score is not None else "too few reviews for a Trust Score"
