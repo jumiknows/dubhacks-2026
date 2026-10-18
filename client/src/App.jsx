@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
-import { compareItems, createPlan, setPurchased } from "./api.js";
+import { useState } from "react";
+import { createPlan, setPurchased } from "./api.js";
 import PlannerUI from "./ui/PlannerUI.jsx";
+import { TONES } from "./ui/shopState.js";
 
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [plan, setPlan] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [marks, setMarks] = useState({});
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-  const [trustFloor, setTrustFloor] = useState(0.5);
-  const [selected, setSelected] = useState({});
-  const [compareItemId, setCompareItemId] = useState(null);
-  const [compare, setCompare] = useState(null);
+  const [focusId, setFocusId] = useState(null);
 
   async function onPlan(event) {
     event.preventDefault();
@@ -20,10 +19,13 @@ export default function App() {
     setStatus("loading");
     setError("");
     try {
-      setPlan(await createPlan(text));
-      setSelected({});
-      setCompare(null);
-      setCompareItemId(null);
+      const next = await createPlan(text);
+      const stamped = {
+        ...next,
+        items: (next.items || []).map((item) => ({ ...item, planId: next.id })),
+      };
+      setPlans((current) => [...current, stamped]);
+      setPrompt("");
       setStatus("idle");
     } catch (err) {
       setStatus("error");
@@ -31,120 +33,62 @@ export default function App() {
     }
   }
 
+  function onMark(itemId, tone) {
+    setMarks((current) => ({ ...current, [itemId]: tone }));
+    if (tone === TONES.purchased) {
+      const found = findItem(plans, itemId);
+      if (found && !found.item.purchased) patchPurchased(found.plan, found.item, true);
+    }
+  }
+
   async function onToggle(item) {
-    if (!plan) return;
+    const found = findItem(plans, item.id);
+    if (!found) return;
     setError("");
     try {
-      setPlan(await setPurchased(plan.id, item.id, !item.purchased));
+      await patchPurchased(found.plan, item, !item.purchased);
+      setMarks((current) => ({
+        ...current,
+        [item.id]: item.purchased ? TONES.needed : TONES.purchased,
+      }));
     } catch (err) {
       setError(err.message);
     }
   }
 
-  function onToggleListing(item, product) {
-    setSelected((current) => {
-      const ids = current[item.id] || [];
-      const nextIds = ids.includes(product.id)
-        ? ids.filter((id) => id !== product.id)
-        : [...ids, product.id].slice(-2);
-      return { ...current, [item.id]: nextIds };
-    });
-    setCompareItemId(item.id);
-  }
-
-  useEffect(() => {
-    if (!plan || !compareItemId) return;
-    const item = plan.items.find((row) => row.id === compareItemId);
-    const ids = selected[compareItemId] || [];
-    if (!item || ids.length !== 2) {
-      setCompare(null);
-      return;
-    }
-    const left = (item.products || []).find((row) => row.id === ids[0]);
-    const right = (item.products || []).find((row) => row.id === ids[1]);
-    if (!left || !right) return;
-    let cancelled = false;
-    compareItems(toValued(left), toValued(right), trustFloor)
-      .then((result) => {
-        if (!cancelled) setCompare(result);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [plan, selected, compareItemId, trustFloor]);
-
-  function onConfirmPick(listing) {
-    if (!plan || !compareItemId) return;
-    setPlan({
-      ...plan,
-      items: plan.items.map((item) => {
-        if (item.id !== compareItemId) return item;
-        const quantity = item.quantity > 0 ? item.quantity : 1;
-        const total = typeof listing.price === "number" ? Math.round(listing.price * quantity * 100) / 100 : null;
-        return {
-          ...item,
-          synthesis: {
-            ...item.synthesis,
-            summary: `${listing.title} from ${listing.store}`,
-            image: listing.image,
-            dimensions: listing.dimensions,
-            totalPrice: total,
-            currency: listing.currency || "USD",
-            best: listing,
-          },
-        };
-      }),
-    });
+  async function patchPurchased(plan, item, purchased) {
+    const updated = await setPurchased(plan.id, item.id, purchased);
+    setPlans((current) => current.map((row) => (row.id === updated.id ? stamp(updated) : row)));
   }
 
   return (
     <PlannerUI
       prompt={prompt}
-      plan={plan}
+      plans={plans}
+      marks={marks}
       status={status}
       error={error}
-      trustFloor={trustFloor}
-      compare={compare}
-      selected={selected}
+      focusId={focusId}
       onPromptChange={setPrompt}
       onPlan={onPlan}
       onToggle={onToggle}
-      onTrustFloor={setTrustFloor}
-      onToggleListing={onToggleListing}
-      onConfirmPick={onConfirmPick}
+      onMark={onMark}
+      onInspect={setFocusId}
     />
   );
 }
 
-function toValued(product) {
+function stamp(plan) {
   return {
-    id: product.id,
-    title: product.title,
-    store: product.store,
-    url: product.url,
-    price: product.price,
-    in_stock: product.in_stock ?? product.inStock ?? true,
-    bang_per_buck: product.bang_per_buck ?? 0.5,
-    relevancy: product.relevancy ?? 1,
-    trust: product.trust ?? 0.5,
-    flags: product.flags || [],
-    brand: product.brand,
-    specs: product.specs || {},
-    marketplace: product.marketplace,
-    history: product.history,
-    condition: product.condition || "new",
-    rating: product.rating,
-    review_count: product.review_count ?? product.reviewCount ?? 0,
-    prime: product.prime || false,
-    shipping_days: product.shipping_days ?? product.shippingDays,
-    image: product.image,
-    currency: product.currency || "USD",
-    asin: product.asin,
-    walmart_id: product.walmart_id,
-    dimensions: product.dimensions,
-    seller: product.seller,
+    ...plan,
+    items: (plan.items || []).map((item) => ({ ...item, planId: plan.id })),
   };
+}
+
+function findItem(plans, itemId) {
+  for (const plan of plans) {
+    const item = plan.items.find((row) => row.id === itemId);
+    if (item) return { plan, item };
+  }
+  return null;
 }
