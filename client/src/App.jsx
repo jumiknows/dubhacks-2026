@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { chooseListing, compareItems, confirmCheckout, createPlan, getPlan, setPurchased, startCheckout } from "./api.js";
+import { createPlan, getMe, setPurchased } from "./api.js";
+import AccountChip from "./onboarding/AccountChip.jsx";
+import Onboarding from "./onboarding/Onboarding.jsx";
 import PlannerUI from "./ui/PlannerUI.jsx";
 
 const TABS = [
@@ -10,51 +12,67 @@ const TABS = [
   { id: "custom", label: "Custom", prompt: "" },
 ];
 
+/** ?google=connected|denied|expired|error after the Google redirect; ?onboarding replays setup. */
+function readLaunchParams() {
+  const params = new URLSearchParams(window.location.search);
+  const google = params.get("google");
+  const replay = params.has("onboarding");
+  if (google || replay) window.history.replaceState(null, "", window.location.pathname);
+  return { google, replay };
+}
+
 export default function App() {
+  const [launch] = useState(readLaunchParams);
+  const [me, setMe] = useState(null);
+  const [onboarding, setOnboarding] = useState(null);
+  const [initialStart, setInitialStart] = useState(null);
+
+  useEffect(() => {
+    // If the server is down or slow, open the planner rather than a blank screen.
+    let settled = false;
+    const fallback = window.setTimeout(() => {
+      if (!settled) setOnboarding(false);
+    }, 3000);
+    getMe()
+      .then((body) => {
+        setMe(body);
+        setOnboarding((current) => (current === false && !launch.replay ? false : launch.replay || !body.profile?.completedAt));
+      })
+      .catch(() => setOnboarding(false))
+      .finally(() => {
+        settled = true;
+        window.clearTimeout(fallback);
+      });
+    return () => window.clearTimeout(fallback);
+  }, [launch]);
+
+  if (onboarding === null) return <main className="onb-boot" aria-busy="true" />;
+  if (onboarding) {
+    return (
+      <Onboarding
+        me={me}
+        googleStatus={launch.google}
+        onFinish={(start) => {
+          setInitialStart(start);
+          setOnboarding(false);
+        }}
+      />
+    );
+  }
+  return (
+    <>
+      <Planner initialStart={initialStart} />
+      <AccountChip me={me} />
+    </>
+  );
+}
+
+function Planner({ initialStart }) {
   const [category, setCategory] = useState("groceries");
   const [prompt, setPrompt] = useState(TABS[0].prompt);
   const [plan, setPlan] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-  const [trustFloor, setTrustFloor] = useState(0.5);
-  const [selected, setSelected] = useState({});
-  const [compareItemId, setCompareItemId] = useState(null);
-  const [compare, setCompare] = useState(null);
-  const [notice, setNotice] = useState("");
-  const [mockCheckout, setMockCheckout] = useState(null);
-  const [receipt, setReceipt] = useState(null);
-
-  // Stripe sends the shopper back here. The plan lives on the server, so reload it.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const outcome = params.get("checkout");
-    if (!outcome) return;
-    window.history.replaceState(window.history.state, "", window.location.pathname);
-
-    const load =
-      outcome === "success"
-        ? confirmCheckout(params.get("session_id") || "").then((result) => {
-            if (result.receipt) setReceipt(result.receipt);
-            else if (result.status === "paid") setNotice("Payment received. Those items are now bought.");
-            else {
-              setNotice("Stripe has not confirmed this payment yet.");
-            }
-            return result.plan;
-          })
-        : getPlan(params.get("plan_id") || "").then((restored) => {
-            setNotice("Checkout cancelled. Nothing was charged.");
-            return restored;
-          });
-
-    load
-      .then((restored) => {
-        if (!restored) return;
-        setCategory(TABS.some((tab) => tab.id === restored.category) ? restored.category : "custom");
-        setPrompt(restored.prompt);
-        setPlan(restored);
-      })
-      .catch((err) => setError(err.message));
-  }, []);
 
   function onSelectCategory(id) {
     const tab = TABS.find((item) => item.id === id);
@@ -62,27 +80,31 @@ export default function App() {
     setPrompt(tab ? tab.prompt : "");
     setPlan(null);
     setError("");
-    setNotice("");
-    setMockCheckout(null);
-    setReceipt(null);
     setStatus("idle");
-    setSelected({});
-    setCompare(null);
-    setCompareItemId(null);
   }
+
+  // A calendar suggestion picked during onboarding starts that plan right away.
+  useEffect(() => {
+    if (!initialStart) return;
+    setCategory(initialStart.category);
+    setPrompt(initialStart.prompt);
+    buildPlan(initialStart.prompt, initialStart.category);
+    // Run once, for the suggestion the planner opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function onPlan(event) {
     event.preventDefault();
-    const text = prompt.trim();
+    buildPlan(prompt.trim(), category);
+  }
+
+  async function buildPlan(text, planCategory) {
     if (!text) return;
 
     setStatus("loading");
     setError("");
     try {
-      setPlan(await createPlan(text, category));
-      setSelected({});
-      setCompare(null);
-      setCompareItemId(null);
+      setPlan(await createPlan(text, planCategory));
       setStatus("idle");
     } catch (err) {
       setStatus("error");
@@ -100,80 +122,6 @@ export default function App() {
     }
   }
 
-  function onToggleListing(item, product) {
-    setSelected((current) => {
-      const ids = current[item.id] || [];
-      const nextIds = ids.includes(product.id)
-        ? ids.filter((id) => id !== product.id)
-        : [...ids, product.id].slice(-2);
-      return { ...current, [item.id]: nextIds };
-    });
-    setCompareItemId(item.id);
-  }
-
-  useEffect(() => {
-    if (!plan || !compareItemId) return;
-    const item = plan.items.find((row) => row.id === compareItemId);
-    const ids = selected[compareItemId] || [];
-    if (!item || ids.length !== 2) {
-      setCompare(null);
-      return;
-    }
-    const left = (item.products || []).find((row) => row.id === ids[0]);
-    const right = (item.products || []).find((row) => row.id === ids[1]);
-    if (!left || !right) return;
-    let cancelled = false;
-    compareItems(toValued(left), toValued(right), trustFloor)
-      .then((result) => {
-        if (!cancelled) setCompare(result);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [plan, selected, compareItemId, trustFloor]);
-
-  // Saved on the server so checkout charges the listing the shopper picked.
-  async function onConfirmPick(listing) {
-    if (!plan || !compareItemId) return;
-    setError("");
-    try {
-      setPlan(await chooseListing(plan.id, compareItemId, listing.id));
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function onCheckout(itemIds) {
-    if (!plan) return;
-    setError("");
-    setNotice("");
-    setReceipt(null);
-    try {
-      const session = await startCheckout(plan.id, itemIds);
-      // No Stripe key on the server: review and place a demo order in place.
-      if (session.mock) setMockCheckout({ ...session, itemIds });
-      else window.location.assign(session.url);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function onPlaceMockOrder() {
-    if (!mockCheckout) return;
-    setError("");
-    try {
-      const result = await confirmCheckout(mockCheckout.id);
-      setPlan(result.plan);
-      setReceipt(result.receipt);
-      setMockCheckout(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   return (
     <PlannerUI
       tabs={TABS}
@@ -182,53 +130,10 @@ export default function App() {
       plan={plan}
       status={status}
       error={error}
-      notice={notice}
-      trustFloor={trustFloor}
-      compare={compare}
-      selected={selected}
       onSelectCategory={onSelectCategory}
       onPromptChange={setPrompt}
       onPlan={onPlan}
       onToggle={onToggle}
-      onTrustFloor={setTrustFloor}
-      onToggleListing={onToggleListing}
-      onConfirmPick={onConfirmPick}
-      onCheckout={onCheckout}
-      mockCheckout={mockCheckout}
-      receipt={receipt}
-      onPlaceMockOrder={onPlaceMockOrder}
-      onCancelMockOrder={() => setMockCheckout(null)}
-      onDismissReceipt={() => setReceipt(null)}
     />
   );
-}
-
-function toValued(product) {
-  return {
-    id: product.id,
-    title: product.title,
-    store: product.store,
-    url: product.url,
-    price: product.price,
-    in_stock: product.in_stock ?? product.inStock ?? true,
-    bang_per_buck: product.bang_per_buck ?? 0.5,
-    relevancy: product.relevancy ?? 1,
-    trust: product.trust ?? 0.5,
-    flags: product.flags || [],
-    brand: product.brand,
-    specs: product.specs || {},
-    marketplace: product.marketplace,
-    history: product.history,
-    condition: product.condition || "new",
-    rating: product.rating,
-    review_count: product.review_count ?? product.reviewCount ?? 0,
-    prime: product.prime || false,
-    shipping_days: product.shipping_days ?? product.shippingDays,
-    image: product.image,
-    currency: product.currency || "USD",
-    asin: product.asin,
-    walmart_id: product.walmart_id,
-    dimensions: product.dimensions,
-    seller: product.seller,
-  };
 }

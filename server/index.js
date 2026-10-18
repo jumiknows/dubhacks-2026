@@ -1,3 +1,4 @@
+import "./env.js";
 import express from "express";
 import cors from "cors";
 import { pathToFileURL } from "node:url";
@@ -9,6 +10,8 @@ import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
 import { CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { storesRouter } from "./routes/stores.js";
+import { accountRouter } from "./routes/account.js";
+import { budgetMax, currentSession, profileFor } from "./services/accounts.js";
 
 export function createApp(gatewayOptions) {
   const app = express();
@@ -21,6 +24,7 @@ export function createApp(gatewayOptions) {
   });
   app.use(express.json({ limit: "32kb" }));
   app.use("/api", storesRouter);
+  app.use("/api", accountRouter());
 
   app.get("/api/health", (req, res) => {
     res.json({ ok: true, stripe: stripeMode() });
@@ -33,10 +37,11 @@ export function createApp(gatewayOptions) {
       const prompt = req.body.prompt.trim();
       const category = req.body.category?.trim() || "";
       const marketplaces = req.body.marketplaces;
+      const prefs = prefsFor(req);
 
       const draft = generatePlan({ prompt, category });
-      const items = await attachOffers(draft.items, { marketplaces });
-      const plan = savePlan({ ...draft, items, quote: quotePlan(items) });
+      const items = await attachOffers(draft.items, { ...prefs, marketplaces });
+      const plan = savePlan({ ...draft, preferences: prefs, items, quote: quotePlan(items, prefs) });
       res.status(201).json(plan);
     } catch (err) {
       console.error(err);
@@ -83,13 +88,13 @@ export function createApp(gatewayOptions) {
 
       const nextItem = { ...plan.items[index], purchased: req.body.purchased };
       if (!nextItem.purchased && !nextItem.synthesis) {
-        const [withOffer] = await attachOffers([nextItem]);
+        const [withOffer] = await attachOffers([nextItem], plan.preferences || prefsFor(req));
         plan.items[index] = withOffer;
       } else {
         plan.items[index] = nextItem;
       }
 
-      plan.quote = quotePlan(plan.items);
+      plan.quote = quotePlan(plan.items, plan.preferences || prefsFor(req));
       res.json(plan);
     } catch (err) {
       console.error(err);
@@ -109,7 +114,7 @@ app.put("/api/plans/:id/items/:itemId/listing", (req, res) => {
   if (!picked) return res.status(404).json({ error: "listing not found for this item" });
 
   plan.items[index] = picked;
-  plan.quote = quotePlan(plan.items);
+  plan.quote = quotePlan(plan.items, plan.preferences || prefsFor(req));
   res.json(plan);
 });
 
@@ -136,6 +141,11 @@ app.get("/api/checkout/:sessionId", async (req, res) => {
     res.status(500).json({ error: "Unexpected server error" });
   });
   return app;
+}
+
+function prefsFor(req) {
+  const profile = profileFor(currentSession(req));
+  return { priority: profile.priority, budgetMax: budgetMax(profile) };
 }
 
 function sendError(res, err, fallback) {

@@ -15,7 +15,7 @@ export async function attachOffers(items, options = {}) {
       const fetched = await fetchProducts(item.name, options);
       const products = await shortlistTop(fetched, options);
 
-      const synthesisPromise = synthesize(item, products);
+      const synthesisPromise = synthesize(item, products, options);
       const synthesis = await synthesisPromise;
 
       // Expose the same sanitized listings used by synthesis, including sources
@@ -67,7 +67,7 @@ export function pickListing(item, listingId) {
   };
 }
 
-export function quotePlan(items) {
+export function quotePlan(items, { budgetMax = null } = {}) {
   const open = items.filter((item) => !item.purchased);
   const currencies = new Set(open.map((item) => normalizeCurrency(item.synthesis?.currency)).filter(Boolean));
   const currency = open.length === 0 ? "USD" : currencies.size === 1 ? [...currencies][0] : null;
@@ -93,6 +93,9 @@ export function quotePlan(items) {
   if (open.length) warnings.push("Merchandise subtotal excludes shipping and tax; the delivered total is unknown.");
   if (dates.some((date) => !date)) warnings.push("An arrival date is missing; ready-by date is unknown.");
   return {
+    budgetMax,
+    budgetCurrency: "USD",
+    overBudget: budgetMax !== null && subtotalComplete && currency === "USD" ? knownSubtotal > budgetMax : null,
     toBuyCount: open.length,
     purchasedCount: items.length - open.length,
     totalPrice: subtotalComplete ? knownSubtotal : null,

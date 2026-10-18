@@ -99,7 +99,7 @@ function centsAmount(value, currency) {
   return cents === null ? null : cents / 100;
 }
 
-export async function synthesize(item, products) {
+export async function synthesize(item, products, options = {}) {
   const originals = (Array.isArray(products) ? products : []).map(normalizeListing).filter(Boolean);
   let ranking = null;
   if (originals.length && originals.some((product) => product.source === "selenium")) {
@@ -115,10 +115,10 @@ export async function synthesize(item, products) {
       // Keep the checked local comparison available if the ranking service fails.
     }
   }
-  return chooseOffer(item, originals, ranking);
+  return chooseOffer(item, originals, ranking, options.priority);
 }
 
-function chooseOffer(item, products, ranking) {
+function chooseOffer(item, products, ranking, priority) {
   const listings = products;
   const warnings = [];
   if (!validQuantity(item.quantity)) warnings.push("Quantity must be a positive safe integer; no price was calculated.");
@@ -136,7 +136,11 @@ function chooseOffer(item, products, ranking) {
     warnings.push("Listings use different currencies; no cheapest offer can be selected without a requested currency.");
   }
   const ranked = currency ? available.filter((p) => p.currency === currency).sort((a, b) =>
-    (ranking?.includes(a.id) && ranking?.includes(b.id)
+    (priority === "speed" && a.shippingDays !== b.shippingDays
+      ? (a.shippingDays ?? Infinity) - (b.shippingDays ?? Infinity)
+      : priority === "trusted" && a.trust !== b.trust
+      ? (b.trust ?? -1) - (a.trust ?? -1)
+      : ranking?.includes(a.id) && ranking?.includes(b.id)
       ? ranking.indexOf(a.id) - ranking.indexOf(b.id)
       : parseCents(a.price, currency) - parseCents(b.price, currency))) : [];
   const best = ranked[0] ?? null;
@@ -149,6 +153,9 @@ function chooseOffer(item, products, ranking) {
   if (!best?.shippingDate) warnings.push("Shipping date is unknown; shipping duration alone is not a dated promise.");
   if (!best?.estimatedArrival) warnings.push("Arrival date is unknown.");
   return {
+    choice: priority === "speed" ? "Shortest reported shipping duration; dates may be unknown"
+      : priority === "trusted" ? "Highest available trust score; missing evidence remains unknown"
+      : "Lowest comparable merchandise price",
     method: ranking?.length ? "python_weighted_ranking_checked_quote" : "checked_local_merchandise_comparison",
     summary: best ? `${item.quantity > 1 ? `${item.quantity} × ` : ""}${best.title} from ${best.store}` : `No priced listing for ${item.name} yet.`,
     image: best?.image ?? null,

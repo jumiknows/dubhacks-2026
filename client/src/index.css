@@ -1484,3 +1484,4 @@ img.thumb { object-fit: cover; }
 }
 
 .mock-checkout button:disabled { opacity: 0.55; cursor: default; }
+.onb-boot { min-height: 100vh; background: #07080c; }

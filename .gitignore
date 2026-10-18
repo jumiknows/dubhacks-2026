@@ -12,3 +12,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Saved accounts, sessions and the token key (server/services/accountStore.js)
+server/data/
