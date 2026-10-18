@@ -8,7 +8,8 @@ React (Vite) frontend + Express backend. The list, the store lookup, and the off
 
 ```bash
 npm install
-npm run dev
+npm run api:setup   # once: creates api/.venv and installs the Python API (needs Python 3.11+)
+npm run dev         # starts the Conjure API, the Express server, and the client
 ```
 
 On Windows, if `server/.env` is missing:
@@ -19,6 +20,7 @@ copy server\.env.example server\.env
 
 - Frontend: http://localhost:5173
 - Backend: http://localhost:3001 (the frontend proxies `/api/*` to it)
+- Conjure API: http://localhost:8000 · docs http://localhost:8000/docs · health http://localhost:8000/health (see `api/README.md`)
 
 ## How a plan is built
 

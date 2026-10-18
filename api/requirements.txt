@@ -1,0 +1,15 @@
+# Pinned (OWASP ASI04). Optional extras are listed at the bottom, commented out.
+fastapi==0.143.3
+uvicorn==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
+httpx==0.28.1
+numpy==2.5.4
+cryptography==50.0.2
+stripe==16.0.0
+pytest==9.1.1
+
+# Optional: better semantic search (needs a model download on first run)
+# sentence-transformers
+# Optional: VADER sentiment for the consistency signal
+# vaderSentiment
