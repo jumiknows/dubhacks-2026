@@ -1,0 +1,30 @@
+name: Task
+description: A focused piece of work with a verifiable outcome
+labels: ["type:task", "status:backlog"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What needs to change and why?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is included in this task?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: State observable outcomes as a checklist.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and verification
+      description: Link blocking issues and describe how the outcome will be checked.

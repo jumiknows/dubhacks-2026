@@ -1,0 +1,13 @@
+[
+  {"name": "type:task", "color": "1D76DB", "description": "A focused implementation or maintenance task"},
+  {"name": "type:bug", "color": "D73A4A", "description": "A reproducible defect"},
+  {"name": "type:decision", "color": "5319E7", "description": "A technical choice that needs team agreement"},
+  {"name": "priority:P0", "color": "B60205", "description": "Blocks the core demo"},
+  {"name": "priority:P1", "color": "D93F0B", "description": "Required for the core demo"},
+  {"name": "priority:P2", "color": "FBCA04", "description": "Optional improvement"},
+  {"name": "status:backlog", "color": "EDEDED", "description": "Needs scope or prioritization"},
+  {"name": "status:ready", "color": "BFD4F2", "description": "Ready to be picked up"},
+  {"name": "status:in-progress", "color": "0052CC", "description": "Actively being worked on"},
+  {"name": "status:review", "color": "D4C5F9", "description": "Waiting for review or verification"},
+  {"name": "status:blocked", "color": "E99695", "description": "Waiting on a stated dependency"}
+]
