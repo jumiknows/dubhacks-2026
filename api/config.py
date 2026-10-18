@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -49,6 +50,14 @@ class Settings(BaseSettings):
     scrape_timeout_s: float = 25.0
     scrape_limit: int = 50
 
+    # Gemini Multimodal Live (browser audio <-> this API <-> Gemini)
+    gemini_api_key: str = Field(default="", repr=False)
+    # Preview ids can retire; the relay discovers an available Live model when needed.
+    gemini_live_model: str = "gemini-3.1-flash-live-preview"
+    gemini_live_captions: bool = True
+    gemini_live_max_session_s: int = Field(default=600, ge=1, le=3600)
+    planboard_url: str = "http://localhost:3001"
+
     # Review sources are explicitly configured public stores, not approved merchants.
     # JSON map of short merchant IDs to HTTPS origins; no credentials are needed.
     review_woocommerce_stores: dict[str, str] = Field(default_factory=dict)
@@ -76,6 +85,19 @@ class Settings(BaseSettings):
     @property
     def voice_enabled(self) -> bool:
         return bool(self.elevenlabs_api_key.strip())
+
+
+    @property
+    def gemini_live_key(self) -> str:
+        if self.gemini_api_key.strip():
+            return self.gemini_api_key.strip()
+        if urlsplit(self.llm_base_url).hostname == "generativelanguage.googleapis.com":
+            return self.llm_api_key.strip()
+        return ""
+
+    @property
+    def gemini_live_enabled(self) -> bool:
+        return bool(self.gemini_live_key)
 
 
 @lru_cache

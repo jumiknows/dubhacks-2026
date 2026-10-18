@@ -167,3 +167,18 @@ Express proxies those as `POST /api/compare` and `POST /api/top`.
 
 `SELENIUM_ENABLED=false` (default) returns fixture listings. Chrome must be installed for live mode. Comparison ideas live in `docs/product-compare.md`.
 
+## Live voice shopping
+
+`/ws-live` relays browser PCM audio to Gemini Live. Set `GEMINI_API_KEY` in the ignored
+`api/.env`, or use the existing Gemini `LLM_API_KEY`. `GEMINI_LIVE_MODEL` is configurable;
+the relay can discover an available Live model if a preview identifier retires.
+The browser marks speech activity, supports interruption, and receives optional captions.
+`GEMINI_LIVE_MAX_SESSION_S` caps a connection (default 600 seconds).
+
+Voice tools use the same Express plans, comparisons, and onboarding session as the
+shopping UI. Plan creation returns immediately with `status: "pricing"`; the browser
+loads `/api/plans/:id` until `status: "ready"`. `UI_UPDATE` events include `PLAN`,
+`COMPARE`, `SHORTLIST`, and `TRUST_FLOOR`. A `PLAN` event contains a compact view, so
+load the complete plan before replacing the UI's product listings. Comparisons and
+shortlists refresh server state after background pricing. Voice never processes payments.
+

@@ -17,6 +17,7 @@ from api.main import app
 # same results on every machine. Tests that need a key set one themselves.
 _settings = get_settings()
 _settings.llm_api_key = _settings.elevenlabs_api_key = _settings.stripe_secret_key = ""
+_settings.gemini_api_key = ""
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -37,7 +38,7 @@ def offline_integrations():
         raise AssertionError("Tests must use an explicit mock transport")
 
     with pytest.MonkeyPatch.context() as patch:
-        for name in ("LLM_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY", "WEBSITE_WEBRISK_API_KEY", "WEBSITE_PHISHTANK_API_KEY"):
+        for name in ("LLM_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY", "WEBSITE_WEBRISK_API_KEY", "WEBSITE_PHISHTANK_API_KEY"):
             patch.setenv(name, "")
         patch.setenv("DEMO_SERVER_SIGNING", "false")
         patch.setenv("WEBSITE_PHISHTANK_ENABLED", "false")
