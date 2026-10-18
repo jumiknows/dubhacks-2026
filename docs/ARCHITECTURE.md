@@ -1,8 +1,8 @@
 # EmberReady architecture
 
-Status: implementation design. These components are not built yet.
+Status: implementation design. The application and backend are not built yet. A synthetic [interactive design reference](prototype/README.md) is available.
 
-Decision: [ADR 0002](adr/0002-emberready-mvp.md). Interfaces: [contracts](CONTRACTS.md).
+Decisions: [ADR 0002](adr/0002-emberready-mvp.md) and [data foundation ADR 0003](adr/0003-data-foundation.md). Interfaces: [contracts](CONTRACTS.md). Pipeline: [data backend](DATA_BACKEND.md).
 
 ## Stack and boundaries
 
@@ -11,6 +11,8 @@ Decision: [ADR 0002](adr/0002-emberready-mvp.md). Interfaces: [contracts](CONTRA
 | Application | Next.js App Router, TypeScript, Node 24 LTS | UI and server route handlers in `apps/web` |
 | Map | MapLibre GL JS | Client-side GeoJSON layers and selection |
 | Shared domain | TypeScript in `packages/domain` | Schemas, UTC handling, proximity rules, briefing facts |
+| Data job | TypeScript in `apps/pipeline` and shared `packages/data` | Raw artifacts, normalization, quality gates and snapshot publication |
+| Snapshot store | Local development, bundled replay, later object storage | Immutable data and sanitized provenance |
 | Package management | npm workspaces and one root lockfile | Reproducible install and common commands |
 | Checks | Vitest, Playwright, accessibility checks | Domain behavior, main flow, failure states |
 | External data | NASA FIRMS, public place catalog, optional NWS | Observations and supporting context |
@@ -18,11 +20,11 @@ Decision: [ADR 0002](adr/0002-emberready-mvp.md). Interfaces: [contracts](CONTRA
 
 Select supported package versions during scaffolding, pin them in the lockfile, and use the same Node major locally and in CI. Keep the existing Python repository checks.
 
-Use one application server. A database, message broker, Python service, Earth Engine account, and machine learning training pipeline are not required for this MVP.
+Use one application server and a reusable batch data job. A relational database, message broker, Python service, Earth Engine account and model training are not required for the hackathon. The [data plan](DATA_BACKEND.md) specifies P0 reproducibility and later durable scheduled ingestion. The [labeling plan](LABELING_AND_ML.md) gates model research on independent labels and evaluation.
 
 ## Data flow
 
-The server requests a bounded FIRMS feed, normalizes it, and returns an immutable snapshot. The domain module combines that snapshot with a selected public place. Both the UI and voice tool read that same context. Replay loads a checked-in source snapshot and applies the same domain functions with an explicit clock.
+The server and batch job share one FIRMS adapter. The job preserves raw bytes, normalizes rows, validates quality and publishes immutable artifacts through SnapshotStore. The domain module combines a selected snapshot with a public place. UI and Voice read the same context. Replay loads a checked-in real source snapshot and applies the same domain functions with an explicit clock. Live, replay and test artifacts remain separate.
 
 | Location | Ownership |
 | --- | --- |
@@ -32,6 +34,8 @@ The server requests a bounded FIRMS feed, normalizes it, and returns an immutabl
 | `apps/web/src/components/voice` | Audio lifecycle, transcript, and tool response handling |
 | `apps/web/src/lib/server` | Provider adapters, cache, and server-only secrets |
 | `packages/domain/src` | Shared types, context computation, and deterministic facts |
+| `packages/data/src` | Shared provider parser, artifact validation and SnapshotStore |
+| `apps/pipeline` | Bounded ingest, validation, replay and publication commands |
 | `data/replay` | Real source snapshots and provenance manifests |
 | `tests/fixtures/synthetic` | Clearly labeled synthetic edge cases only |
 
@@ -42,6 +46,7 @@ The server requests a bounded FIRMS feed, normalizes it, and returns an immutabl
 | `GET /api/places` | Small curated public place catalog |
 | `GET /api/observations` | Validated bounding box, mode, time range, and snapshot response |
 | `GET /api/context` | `placeId`, `snapshotId`, and `asOf` produce a `PlaceContext` |
+| `GET /api/snapshots/:id/provenance` | Sanitized published manifest and quality summary |
 | `POST /api/voice/session` | Mint short-lived browser credentials after request validation |
 | `POST /api/voice/briefing` | Synthesize the server-generated briefing for a known context |
 
@@ -51,7 +56,7 @@ Do not let callers supply arbitrary upstream URLs or arbitrary text to a paid au
 
 Start with one VIIRS source to keep provenance and counts simple. Preserve original confidence and product metadata. Cache bounded queries for a configurable ten minutes, coalesce concurrent requests, and use timeouts and bounded retries.
 
-An in-memory cache is acceptable for the demo but is per process and disappears on restart. Cache contents must never be the only copy of the replay dataset. Use a content hash or manifest ID to resolve snapshots across requests, and return an explicit unavailable-snapshot error if a process has lost one.
+An in-memory live cache is acceptable for the first demo but is per process and disappears on restart. Replay uses a verified bundled artifact, not that cache. Both resolve through SnapshotStore. The pilot adds durable shared storage and scheduled ingestion. Return an explicit unavailable-snapshot error if a process has lost a live snapshot. Do not claim production persistence before the durable adapter is implemented.
 
 Do not replace a failed live request with replay data without changing the mode. Feed freshness and the age of the newest thermal observation are different values.
 

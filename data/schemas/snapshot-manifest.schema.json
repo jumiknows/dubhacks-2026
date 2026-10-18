@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmberReady published snapshot manifest",
+  "description": "Validate hashes, counts, bounds, timestamps and artifact access in runtime code as well.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifestVersion", "datasetId", "datasetVersion", "snapshotId", "supersedesSnapshotId", "runId", "mode", "synthetic", "source", "scope", "transformVersion", "codeCommit", "artifacts", "counts", "qualityStatus", "coverageStatus", "attribution"],
+  "properties": {
+    "manifestVersion": {"const": "1.0"},
+    "datasetId": {"type": "string", "minLength": 1},
+    "datasetVersion": {"$ref": "#/$defs/hash"},
+    "snapshotId": {"$ref": "#/$defs/hash"},
+    "supersedesSnapshotId": {"anyOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]},
+    "runId": {"type": "string", "minLength": 1},
+    "mode": {"enum": ["live", "replay", "test"]},
+    "synthetic": {"type": "boolean"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "provider", "product", "productVersion", "documentationUrl", "fetchedAt", "availableAt"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "provider": {"type": "string", "minLength": 1},
+        "product": {"type": "string", "minLength": 1},
+        "productVersion": {"type": "string", "minLength": 1},
+        "documentationUrl": {"type": "string", "format": "uri", "pattern": "^https://"},
+        "fetchedAt": {"$ref": "#/$defs/utc"},
+        "availableAt": {"anyOf": [{"$ref": "#/$defs/utc"}, {"type": "null"}]}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["regionId", "bbox", "windowStart", "windowEnd", "asOf"],
+      "properties": {
+        "regionId": {"type": "string", "minLength": 1},
+        "bbox": {"type": "array", "minItems": 4, "maxItems": 4, "prefixItems": [{"type": "number", "minimum": -180, "maximum": 180}, {"type": "number", "minimum": -90, "maximum": 90}, {"type": "number", "minimum": -180, "maximum": 180}, {"type": "number", "minimum": -90, "maximum": 90}], "items": false},
+        "windowStart": {"$ref": "#/$defs/utc"},
+        "windowEnd": {"$ref": "#/$defs/utc"},
+        "asOf": {"$ref": "#/$defs/utc"}
+      }
+    },
+    "transformVersion": {"type": "string", "minLength": 1},
+    "codeCommit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "normalized", "quality"],
+      "properties": {
+        "raw": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifact"}},
+        "normalized": {"$ref": "#/$defs/artifact"},
+        "quality": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rawRows", "retainedRows", "duplicateRows", "excludedRows", "quarantinedRows"],
+      "properties": {
+        "rawRows": {"type": "integer", "minimum": 0},
+        "retainedRows": {"type": "integer", "minimum": 0},
+        "duplicateRows": {"type": "integer", "minimum": 0},
+        "excludedRows": {"type": "integer", "minimum": 0},
+        "quarantinedRows": {"const": 0}
+      }
+    },
+    "qualityStatus": {"const": "passed"},
+    "coverageStatus": {"enum": ["unknown", "provider-reported"]},
+    "attribution": {"type": "string", "minLength": 1}
+  },
+  "allOf": [{"if": {"properties": {"mode": {"const": "test"}}}, "then": {"properties": {"synthetic": {"const": true}}}, "else": {"properties": {"synthetic": {"const": false}}}}],
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "utc": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/hash"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

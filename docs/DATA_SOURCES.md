@@ -51,6 +51,10 @@ Optical mineral mapping does not directly reveal underground ore or see through 
 
 ## Product and implementation references
 
+For future research, the [US Forest Service current FPA FOD service](https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_FireOccurrenceCurrentEdition_01/MapServer) currently identifies the seventh edition covering 1992 to 2024. Pin the actual archive and checksum before using it. [MTBS](https://www.mtbs.gov/project-overview) maps large-fire extent and severity and has size-selection limitations. Neither source is an operational ignition timestamp feed. The [labeling protocol](LABELING_AND_ML.md) defines their proposed use and exclusions.
+
+[Hugging Face dataset cards](https://huggingface.co/docs/hub/datasets-cards), [model cards](https://huggingface.co/docs/hub/model-cards), [Datasets loading](https://huggingface.co/docs/datasets/loading) and [scikit-learn leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html) inform the research handoff. No Hub repository or training job has been created.
+
 - [Watch Duty overview](https://www.watchduty.org/how-it-works/overview): established wildfire awareness product. Our proposed advantage needs user validation.
 - [Next.js installation](https://nextjs.org/docs/app/getting-started/installation), [Node release policy](https://nodejs.org/en/about/previous-releases), and [MapLibre examples](https://maplibre.org/maplibre-gl-js/docs/examples/): implementation references.
 - [Cursor project rules](https://cursor.com/docs/rules): the repository includes a project rule for this build.

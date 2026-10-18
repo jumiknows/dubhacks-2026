@@ -10,3 +10,5 @@
 - The EmberReady implementation default is documented in docs/adr/0002-emberready-mvp.md. Read docs/GROK_HANDOFF.md and docs/CONTRACTS.md before implementing its issues.
 - Keep live observations, historical replay, and synthetic test fixtures visibly distinct.
 - Record actual Cursor and Grok use. Planning files created elsewhere are not evidence of implementation in Cursor.
+- Read docs/DATA_BACKEND.md, docs/LABELING_AND_ML.md and data/README.md for data work. Reuse one parser, preserve raw lineage and validate artifacts before publication.
+- The prototype is synthetic. Model training is gated research, not required for the first demo. Never fabricate labels, reviewers, metrics or Hugging Face publication.
