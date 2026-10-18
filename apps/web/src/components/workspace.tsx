@@ -123,7 +123,7 @@ export function Workspace({ demo }: { demo: DemoProps }) {
   const band = context ? BAND[context.attentionBand] : null;
   const within = context?.matchingObservationIds.length ?? 0;
 
-  return <div className="app" data-mode={mode}>
+  return <div className="app" id="main-content" data-mode={mode}>
     <header className="topbar">
       <div className="brand"><span className="brand-mark" aria-hidden="true" />EmberReady</div>
       <div className="sat mono" aria-label="Data source">
