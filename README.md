@@ -1,4 +1,4 @@
-# Planboard
+# ESPER
 
 A planner for groceries and events. A prompt such as “I need to prepare for camping.” becomes a checklist. Checked items drop out of the buy list. What is left is priced from store data: image, dimensions, ship date, and total.
 

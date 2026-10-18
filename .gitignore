@@ -4,11 +4,11 @@ dist/
 .env.local
 .DS_Store
 *.log
+client/test-results/
+client/playwright-report/
 
 # Python
 __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
-client/test-results/
-client/playwright-report/
