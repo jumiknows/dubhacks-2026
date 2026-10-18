@@ -4,6 +4,8 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: { dedupe: ["react", "react-dom"] },
+  optimizeDeps: { exclude: ["conjure-gestures"] },
   server: {
     port: 5173,
     // Forward /api requests to the Express server

@@ -4,6 +4,8 @@ dist/
 .env.local
 .DS_Store
 *.log
+client/test-results/
+client/playwright-report/
 
 # Python
 __pycache__/

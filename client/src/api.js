@@ -13,10 +13,10 @@ async function request(path, options = {}) {
   return data;
 }
 
-export function createPlan(prompt, category) {
+export function createPlan(prompt) {
   return request("/api/plans", {
     method: "POST",
-    body: JSON.stringify({ prompt, category }),
+    body: JSON.stringify({ prompt }),
   });
 }
 

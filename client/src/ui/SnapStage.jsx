@@ -1,3 +1,5 @@
+import { scrollElement, useGestureEvents } from "conjure-gestures";
+import { takeSwipe } from "./swipeGate.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
@@ -11,6 +13,7 @@ export default function SnapStage({
   selectedId,
   onSelect,
   onBack,
+  onBeforeBack,
   renderCard,
   renderDetail,
 }) {
@@ -114,6 +117,46 @@ export default function SnapStage({
     moveReel(reel, direction);
   }
 
+  function live() {
+    const reel = reelRef.current;
+    if (!reel || reel.closest("[inert], [aria-hidden='true']")) return null;
+    const box = reel.getBoundingClientRect();
+    if (box.width < 2 || box.height < 2) return null;
+    return reel;
+  }
+
+  function remember(id) {
+    const slot = live()?.querySelector(`[data-product-id="${CSS.escape(String(id))}"]`);
+    if (slot) fromTop.current = slot.getBoundingClientRect().top;
+  }
+
+  const scrollCarry = useRef(0);
+  useGestureEvents("scroll", (event) => {
+    const reel = live();
+    if (!reel || selectedId || scrollElement(event.target_id) !== reel) return;
+    scrollCarry.current += event.delta_y ?? 0;
+    if (Math.abs(scrollCarry.current) < 0.08) return;
+    if (!takeSwipe()) {
+      scrollCarry.current = 0;
+      return;
+    }
+    const direction = scrollCarry.current > 0 ? 1 : -1;
+    scrollCarry.current = 0;
+    step(direction);
+  });
+
+  useGestureEvents("dismiss", () => {
+    if (!live()) return;
+    if (!takeSwipe()) return;
+    if (onBeforeBack?.()) return;
+    if (selectedId) {
+      remember(selectedId);
+      onSelect(null);
+      return;
+    }
+    onBack?.();
+  });
+
   function onPointerDown(event) {
     if (event.button != null && event.button !== 0) return;
     event.currentTarget.dataset.x = String(event.clientX);
@@ -164,6 +207,8 @@ export default function SnapStage({
       <div
         ref={reelRef}
         className={selectedId ? "snap-reel is-focused" : "snap-reel"}
+        data-gesture-scroll
+        data-gesture-step
         aria-label="Boxes"
       >
         {items.map((item) => {
@@ -173,6 +218,7 @@ export default function SnapStage({
             <div
               key={id}
               data-id={id}
+              data-product-id={id}
               className={`${selected ? "snap-slot is-open" : "snap-slot"} transition-all duration-200 ease-snap`}
             >
               {renderCard(item, { selected, onChoose: (event) => choose(id, event) })}

@@ -189,6 +189,65 @@ export const DEVICES = [
   },
 ];
 
+export const TRENDS = {
+  laptop: [
+    { month: "May", capacity: 94 },
+    { month: "Jun", capacity: 92 },
+    { month: "Jul", capacity: 91 },
+    { month: "Aug", capacity: 89 },
+    { month: "Sep", capacity: 88 },
+    { month: "Oct", capacity: 86 },
+  ],
+  phone: [
+    { month: "May", capacity: 96 },
+    { month: "Jun", capacity: 95 },
+    { month: "Jul", capacity: 94 },
+    { month: "Aug", capacity: 93 },
+    { month: "Sep", capacity: 92 },
+    { month: "Oct", capacity: 91 },
+  ],
+  tablet: [
+    { month: "May", capacity: 100 },
+    { month: "Jun", capacity: 100 },
+    { month: "Jul", capacity: 99 },
+    { month: "Aug", capacity: 99 },
+    { month: "Sep", capacity: 99 },
+    { month: "Oct", capacity: 98 },
+  ],
+  monitor: [
+    { month: "May", capacity: 100 },
+    { month: "Jun", capacity: 100 },
+    { month: "Jul", capacity: 100 },
+    { month: "Aug", capacity: 99 },
+    { month: "Sep", capacity: 99 },
+    { month: "Oct", capacity: 99 },
+  ],
+  headphones: [
+    { month: "May", capacity: 88 },
+    { month: "Jun", capacity: 86 },
+    { month: "Jul", capacity: 84 },
+    { month: "Aug", capacity: 81 },
+    { month: "Sep", capacity: 78 },
+    { month: "Oct", capacity: 74 },
+  ],
+  router: [
+    { month: "May", capacity: 100 },
+    { month: "Jun", capacity: 100 },
+    { month: "Jul", capacity: 100 },
+    { month: "Aug", capacity: 100 },
+    { month: "Sep", capacity: 100 },
+    { month: "Oct", capacity: 100 },
+  ],
+};
+
+export const ADVISORIES = [
+  { id: "intel-sa-2026", when: "2026-09-12", deviceId: "laptop", title: "Intel graphics firmware", severity: "High", status: "Install" },
+  { id: "pixel-bulletin", when: "2026-10-06", deviceId: "phone", title: "October Android security bulletin", severity: "High", status: "Installed" },
+  { id: "apple-rsr", when: "2026-10-01", deviceId: "tablet", title: "iPadOS rapid security response", severity: "Medium", status: "Install" },
+  { id: "sony-bt", when: "2026-08-20", deviceId: "headphones", title: "Bluetooth pairing advisory", severity: "Low", status: "Installed" },
+  { id: "asus-fw", when: "2026-07-15", deviceId: "router", title: "Router firmware CVE-2026-4411", severity: "High", status: "Install" },
+];
+
 export function nextReplacement(device) {
   return [...device.replacements].sort((a, b) => a.when.localeCompare(b.when))[0];
 }

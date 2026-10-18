@@ -46,6 +46,11 @@ export default function WeeklyList({ bindBack, onBack }) {
         selectedId={openMealId}
         onSelect={setOpenMealId}
         onBack={onBack}
+        onBeforeBack={() => {
+          if (!popup) return false;
+          setPopup(null);
+          return true;
+        }}
         renderCard={(meal, { selected, onChoose }) => (
           <MealCard meal={meal} selected={selected} onChoose={onChoose} />
         )}
