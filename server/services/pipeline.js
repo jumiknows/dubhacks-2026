@@ -47,6 +47,26 @@ async function shortlistTop(products, options) {
   return [...products].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, options.topLimit ?? 10);
 }
 
+/** Make one of the item's own listings the offer. Returns null if the id isn't one of them. */
+export function pickListing(item, listingId) {
+  const listing = (item.products || []).find((product) => product.id === listingId);
+  if (!listing) return null;
+  const quantity = item.quantity > 0 ? item.quantity : 1;
+  const total = typeof listing.price === "number" ? Math.round(listing.price * quantity * 100) / 100 : null;
+  return {
+    ...item,
+    synthesis: {
+      ...item.synthesis,
+      summary: `${listing.title} from ${listing.store}`,
+      image: listing.image,
+      dimensions: listing.dimensions,
+      totalPrice: total,
+      currency: listing.currency || "USD",
+      best: listing,
+    },
+  };
+}
+
 export function quotePlan(items) {
   const open = items.filter((item) => !item.purchased);
   const currencies = new Set(open.map((item) => normalizeCurrency(item.synthesis?.currency)).filter(Boolean));

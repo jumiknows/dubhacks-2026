@@ -3,20 +3,27 @@ import cors from "cors";
 import { pathToFileURL } from "node:url";
 import { getPlan, savePlan } from "./store.js";
 import { generatePlan, validatePlanRequest } from "./services/planner.js";
-import { attachOffers, quotePlan } from "./services/pipeline.js";
+import { attachOffers, pickListing, quotePlan } from "./services/pipeline.js";
 import { createPythonGateway } from "./pythonGateway.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
+import { CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
+import { storesRouter } from "./routes/stores.js";
 
 export function createApp(gatewayOptions) {
   const app = express();
 
   app.use(cors());
   app.use("/api/conjure", createPythonGateway(gatewayOptions));
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json", limit: "1mb" }), (req, res) => {
+    try { res.json(handleWebhook(req.body, req.headers["stripe-signature"])); }
+    catch (err) { sendError(res, err, "Could not handle webhook"); }
+  });
   app.use(express.json({ limit: "32kb" }));
+  app.use("/api", storesRouter);
 
   app.get("/api/health", (req, res) => {
-    res.json({ ok: true });
+    res.json({ ok: true, stripe: stripeMode() });
   });
 
   app.post("/api/plans", async (req, res) => {
@@ -90,6 +97,39 @@ export function createApp(gatewayOptions) {
     }
   });
 
+app.put("/api/plans/:id/items/:itemId/listing", (req, res) => {
+  const plan = getPlan(req.params.id);
+  if (!plan) return res.status(404).json({ error: "plan not found" });
+
+  const index = plan.items.findIndex((item) => item.id === req.params.itemId);
+  if (index === -1) return res.status(404).json({ error: "item not found" });
+  if (plan.items[index].purchased) return res.status(409).json({ error: "item already purchased" });
+
+  const picked = pickListing(plan.items[index], req.body?.listingId);
+  if (!picked) return res.status(404).json({ error: "listing not found for this item" });
+
+  plan.items[index] = picked;
+  plan.quote = quotePlan(plan.items);
+  res.json(plan);
+});
+
+app.post("/api/checkout", async (req, res) => {
+  try {
+    res.status(201).json(await createCheckout(req.body?.planId, req.body?.itemIds));
+  } catch (err) {
+    sendError(res, err, "Could not start checkout");
+  }
+});
+
+app.get("/api/checkout/:sessionId", async (req, res) => {
+  try {
+    res.json(await confirmCheckout(req.params.sessionId));
+  } catch (err) {
+    sendError(res, err, "Could not confirm checkout");
+  }
+});
+
+
   app.use((err, req, res, next) => {
     if (err.type === "entity.too.large") return res.status(413).json({ error: "Request body is too large" });
     if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Malformed JSON request" });
@@ -97,6 +137,13 @@ export function createApp(gatewayOptions) {
   });
   return app;
 }
+
+function sendError(res, err, fallback) {
+  if (err instanceof CheckoutError) return res.status(err.status).json({ error: err.message });
+  console.error(err);
+  res.status(500).json({ error: fallback });
+}
+
 
 function validListing(value) {
   return value && typeof value === "object" && !Array.isArray(value) && typeof value.id === "string";

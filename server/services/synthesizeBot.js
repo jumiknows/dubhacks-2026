@@ -78,6 +78,8 @@ function normalizeListing(raw, index) {
     tax: normalizeCurrency(raw.taxCurrency) === currency ? centsAmount(raw.tax, currency) : null,
     source: typeof raw.source === "string" ? raw.source : "unverified_source",
     isMock,
+    description: typeof raw.description === "string" ? raw.description : null,
+    gtin: typeof raw.gtin === "string" ? raw.gtin : null,
     marketplace: typeof raw.marketplace === "string" ? raw.marketplace : null,
     brand: typeof raw.brand === "string" ? raw.brand : null,
     specs: raw.specs && typeof raw.specs === "object" && !Array.isArray(raw.specs) ? raw.specs : {},
@@ -117,7 +119,7 @@ export async function synthesize(item, products) {
 }
 
 function chooseOffer(item, products, ranking) {
-  const listings = (Array.isArray(products) ? products : []).map(normalizeListing).filter(Boolean);
+  const listings = products;
   const warnings = [];
   if (!validQuantity(item.quantity)) warnings.push("Quantity must be a positive safe integer; no price was calculated.");
   if (listings.some((p) => p.price === null || p.currency === null)) {
