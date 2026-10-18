@@ -54,6 +54,14 @@ Without a Stripe test key, checkout uses an explicitly labelled mock order. `MOC
 
 The checked-in replay and seven days of research rankings are bundled by `npm ci` and `npm run build`. Gesture model and runtime assets are copied from the tracked gesture module into both web hosts during installation. Research downloads and trained runtime artifacts remain local as documented in [research setup](research/README.md).
 
+## Vercel deployment
+
+Deploy from the repository root. `vercel.json` defines the Next frontend, Express shopping service, and Python assistant as Vercel Services behind one public origin. Service bindings connect the backends. The existing shopping, gesture, and fire routes remain available.
+
+Set `XAI_API_KEY`, `VOICE_ACCESS_TOKEN`, `EARTHDATA_TOKEN`, and `XAI_VOICE_MODEL=grok-voice-latest` in the Vercel project's environment variables. Set `APP_ORIGIN` and `CLIENT_URL` to the public HTTPS origin, and supply a stable `SESSION_SECRET`. Keep credentials out of Git. Add optional provider credentials from the service environment examples for the integrations you use.
+
+Set `ACCOUNTS_FILE=/tmp/dubhacks/accounts.json` so account writes use Vercel's writable temporary directory. Accounts, sessions, shopping plans, and checkout state are currently local to a service instance and can reset when it restarts or traffic reaches another instance. A shared persistent store is required for durable accounts and carts across instances. Deployment configuration does not imply that deployment or live provider verification has completed.
+
 ## Verification
 
 ```bash

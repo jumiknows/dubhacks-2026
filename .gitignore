@@ -59,3 +59,6 @@ __pycache__/
 
 # Saved accounts, sessions and the token key (server/services/accountStore.js)
 server/data/
+
+# Local Vercel project links and downloaded environment values
+.vercel/

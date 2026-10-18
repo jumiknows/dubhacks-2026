@@ -88,6 +88,12 @@ export function createApp(gatewayOptions, { selectListing = pickListing, fronten
       const options = { ...prefs, marketplaces };
       if (req.body.async === true) {
         const plan = savePlan({ ...draft, status: "pricing", preferences: prefs, quote: quotePlan(draft.items, prefs) }, session);
+        // Serverless instances may stop as soon as the response completes.
+        // Finish pricing within the request there so the saved plan is usable.
+        if (process.env.VERCEL) {
+          await priceInBackground(plan, options);
+          return res.status(201).json(plan);
+        }
         res.status(201).json(plan);
         void priceInBackground(plan, options);
         return;
@@ -256,9 +262,12 @@ function validTrustFloor(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 }
 
+const app = createApp();
+export default app;
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const PORT = process.env.PORT || 3001;
-  const server = createApp().listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+  const server = app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
   attachVoiceGateway(server);
   attachFrontendGateway(server);
 }

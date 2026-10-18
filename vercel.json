@@ -1,0 +1,51 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "apps/web",
+      "framework": "nextjs",
+      "installCommand": "cd ../.. && npm ci",
+      "buildCommand": "cd ../.. && npm run build"
+    },
+    "shop": {
+      "root": ".",
+      "framework": "express",
+      "entrypoint": "server/index.js",
+      "installCommand": "node --version",
+      "buildCommand": "node --version",
+      "functions": {
+        "server/index.js": {
+          "maxDuration": 300,
+          "includeFiles": "apps/web/src/lib/server/shop.ts"
+        }
+      },
+      "bindings": [
+        { "type": "service", "service": "python", "format": "url", "env": "CONJURE_API_URL" },
+        { "type": "service", "service": "python", "format": "url", "env": "PYTHON_API_URL" },
+        { "type": "service", "service": "web", "format": "url", "env": "ORBICART_WEB_URL" }
+      ]
+    },
+    "python": {
+      "root": ".",
+      "framework": "fastapi",
+      "runtime": "python",
+      "entrypoint": "api.main:app",
+      "functions": {
+        "api/main.py": {
+          "maxDuration": 300,
+          "excludeFiles": "{node_modules/**,apps/**,client/**,server/**,gesture_pipeline/**,research/**,data/**,packages/**,docs/**,tests/**,test-results/**,api/.venv/**,api/tests/**,api/scripts/**,**/__pycache__/**}"
+        }
+      },
+      "bindings": [
+        { "type": "service", "service": "shop", "format": "url", "env": "PLANBOARD_URL" }
+      ]
+    }
+  },
+  "rewrites": [
+    { "source": "/ws-live", "destination": { "service": "python" } },
+    { "source": "/api/:namespace(health|voice-health|plans|checkout|stripe|me|auth|calendar|stores|orbicart|compare|top|conjure)/:path*", "destination": { "service": "shop" } },
+    { "source": "/api/products/search/:path*", "destination": { "service": "shop" } },
+    { "source": "/static/products/:path*", "destination": { "service": "shop" } },
+    { "source": "/:path*", "destination": { "service": "web" } }
+  ]
+}
