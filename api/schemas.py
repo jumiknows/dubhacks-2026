@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -253,3 +253,78 @@ class CheckoutIntentRequest(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=600)
+
+
+# --- /chat SSE: trace events (glass-box view) -------------------------------
+
+
+class ToolTrace(BaseModel):
+    kind: Literal["tool"] = "tool"
+    name: str
+    args: dict[str, Any]
+    ms: int
+
+
+class PolicyTrace(BaseModel):
+    kind: Literal["policy"] = "policy"
+    rule: str
+    passed: bool
+    reason: str
+
+
+class FilterTrace(BaseModel):
+    kind: Literal["filter"] = "filter"
+    removed: int
+    why: str
+
+
+TraceEvent = Annotated[Union[ToolTrace, PolicyTrace, FilterTrace], Field(discriminator="kind")]
+
+
+# --- Red team, security status, merchant insights ---------------------------
+
+RedTeamScenario = Literal["poisoned_review", "overspend", "tampered_cart"]
+
+
+class RedTeamResult(BaseModel):
+    scenario: RedTeamScenario
+    blocked: bool
+    control: str
+    detail: str
+    audit_hash: str
+
+
+class SecurityControl(BaseModel):
+    id: str
+    risk: str
+    control: str
+    status: Literal["enabled", "mocked", "tripped"]
+
+
+class SecurityCounters(BaseModel):
+    injections_flagged: int = 0
+    policy_refusals: int = 0
+    replays_rejected: int = 0
+    breaker_trips: int = 0
+    redteam_blocked: int = 0
+
+
+class BreakerState(BaseModel):
+    state: Literal["closed", "open"] = "closed"
+    open_until: str | None = None
+
+
+class SecurityStatus(BaseModel):
+    controls: list[SecurityControl]
+    counters: SecurityCounters
+    breaker: BreakerState
+
+
+class MerchantInsight(BaseModel):
+    product_id: str
+    title: str
+    merchant_id: str
+    views: int = 0
+    dismissals: dict[str, int] = {}
+    staged: int = 0
+    paid: int = 0

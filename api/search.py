@@ -67,19 +67,22 @@ class Ranker:
 
     # --- filters ----------------------------------------------------------
 
-    def _passes_filters(
+    def _filter_reason(
         self, p: Product, budget: float | None, profile: PreferenceProfile,
         mandate: IntentMandate | None, subcategory: str | None,
-    ) -> bool:
-        if budget is not None and p.price > budget:
-            return False
-        if any(nlu.violates_avoid(p, a) for a in profile.avoid):
-            return False
-        if mandate and mandate.verified_only and not self.store.merchant_verified(p.merchant_id):
-            return False
+    ) -> str | None:
+        """The first hard filter that removes `p`, or None if it stays."""
         if subcategory and p.subcategory != subcategory:
-            return False
-        return p.id not in {d.id for d in profile.dismissed}
+            return "subcategory"
+        if budget is not None and p.price > budget:
+            return "budget"
+        if any(nlu.violates_avoid(p, a) for a in profile.avoid):
+            return "avoid"
+        if mandate and mandate.verified_only and not self.store.merchant_verified(p.merchant_id):
+            return "unverified"
+        if p.id in {d.id for d in profile.dismissed}:
+            return "dismissed"
+        return None
 
     # --- terms ------------------------------------------------------------
 
@@ -143,15 +146,26 @@ class Ranker:
         self, req: SearchRequest, profile: PreferenceProfile | None = None,
         mandate: IntentMandate | None = None,
     ) -> list[RankedProduct]:
+        return self.search_with_stats(req, profile, mandate)[0]
+
+    def search_with_stats(
+        self, req: SearchRequest, profile: PreferenceProfile | None = None,
+        mandate: IntentMandate | None = None,
+    ) -> tuple[list[RankedProduct], dict[str, int]]:
+        """Results plus how many products each hard filter removed."""
         profile = profile or PreferenceProfile()
         budget_opts = [b for b in (req.max_price, profile.budget_max) if b is not None]
         budget = min(budget_opts) if budget_opts else None
-        cands = [
-            pid for pid in self.ids
-            if self._passes_filters(self.store.products[pid], budget, profile, mandate, req.subcategory)
-        ]
+        removed: dict[str, int] = {}
+        cands = []
+        for pid in self.ids:
+            why = self._filter_reason(self.store.products[pid], budget, profile, mandate, req.subcategory)
+            if why:
+                removed[why] = removed.get(why, 0) + 1
+            else:
+                cands.append(pid)
         if not cands:
-            return []
+            return [], removed
         cand_idx = [self._index[pid] for pid in cands]
         semantic_q = " ".join([req.query, *profile.needs, (profile.skin_type or "").replace(",", " ")])
         sem = self._semantic(semantic_q, cand_idx)
@@ -169,7 +183,7 @@ class Ranker:
                 RankedProduct(**p.model_dump(), fit_percent=round(100 * fit), reasons=self._reasons(pid, terms, matched), fit_terms=terms)
             )
         results.sort(key=lambda r: (-r.fit_percent, r.price))
-        return results[: max(1, min(req.limit, 50))]
+        return results[: max(1, min(req.limit, 50))], removed
 
 
 _ranker: Ranker | None = None

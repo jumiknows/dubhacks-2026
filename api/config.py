@@ -18,11 +18,16 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
-    llm_timeout_s: float = 4.0
+    llm_timeout_s: float = 4.0  # per LLM call; slower -> fallback agent answers
+    llm_turn_budget_s: float = 10.0  # whole turn, across tool round trips
+    # Optional, e.g. "none"/"low" to keep reasoning models fast. TODO(verify) per provider.
+    llm_reasoning_effort: str = ""
 
     # ElevenLabs
     elevenlabs_api_key: str = ""
     elevenlabs_voice_id: str = "JBFqnCBsd6RMkjVDRZzb"
+    elevenlabs_model_id: str = "eleven_flash_v2_5"
+    elevenlabs_timeout_s: float = 8.0
 
     # Stripe (test mode only)
     stripe_secret_key: str = ""
@@ -38,6 +43,10 @@ class Settings(BaseSettings):
     @property
     def llm_enabled(self) -> bool:
         return bool(self.llm_api_key)
+
+    @property
+    def voice_enabled(self) -> bool:
+        return bool(self.elevenlabs_api_key)
 
 
 @lru_cache

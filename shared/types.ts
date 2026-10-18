@@ -151,3 +151,68 @@ export type AuditEntry = {
 };
 
 export type AuditLog = { session_id: string; entries: AuditEntry[]; valid: boolean };
+
+// --- /chat SSE events ------------------------------------------------------
+// event: action -> UIAction
+// event: trace  -> TraceEvent   (glass-box view: what the agent and guards did)
+// event: say    -> { text }     (one sentence per event)
+// event: done   -> DoneEvent
+// event: error  -> { message }
+
+export type TraceEvent =
+  | { kind: "tool"; name: string; args: Record<string, unknown>; ms: number }
+  | { kind: "policy"; rule: string; passed: boolean; reason: string }
+  | { kind: "filter"; removed: number; why: string };
+
+export type SayEvent = { text: string };
+export type ErrorEvent = { message: string };
+
+// --- Red team (POST /redteam/{scenario}) ------------------------------------
+
+export type RedTeamScenario = "poisoned_review" | "overspend" | "tampered_cart";
+
+export type RedTeamResult = {
+  scenario: RedTeamScenario;
+  blocked: boolean;
+  control: string; // which safeguard stopped it, e.g. "ASI01 injection detector"
+  detail: string; // plain-English explanation for the panel
+  audit_hash: string; // hash of the audit entry recording the attempt
+};
+
+// --- Security status (GET /security) ----------------------------------------
+
+export type ControlStatus = "enabled" | "mocked" | "tripped";
+
+export type SecurityControl = {
+  id: string; // "ASI01" ... "ASI10"
+  risk: string;
+  control: string;
+  status: ControlStatus;
+};
+
+export type SecurityStatus = {
+  controls: SecurityControl[];
+  counters: {
+    injections_flagged: number;
+    policy_refusals: number;
+    replays_rejected: number;
+    breaker_trips: number;
+    redteam_blocked: number;
+  };
+  breaker: { state: "closed" | "open"; open_until: string | null };
+};
+
+// --- Merchant insights (GET /merchant/insights) -----------------------------
+// Aggregate and anonymous: counts only, no session ids.
+
+export type MerchantInsight = {
+  product_id: string;
+  title: string;
+  merchant_id: string;
+  views: number;
+  dismissals: Record<string, number>; // reason -> count ("fragrance", "unspecified", ...)
+  staged: number;
+  paid: number;
+};
+
+export type MerchantInsights = MerchantInsight[];

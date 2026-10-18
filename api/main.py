@@ -14,14 +14,14 @@ from fastapi.staticfiles import StaticFiles
 from api import checkout, search
 from api import store as store_mod
 from api import voice
-from api.agent import orchestrator, tools
+from api.agent import llm, orchestrator, tools
 from api.config import DATA_DIR, get_settings
 from api.guard import audit, mandates
 from api.schemas import (
     ChatRequest, CheckoutIntentRequest, CompareRequest, FeedbackRequest, IntentMandateRequest,
     PreferenceProfile, Product, RankedProduct, StageRequest, TrustReport,
 )
-from api.sessions import sessions
+from api.sessions import breaker, sessions, tts_cache
 from api.store import store
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -32,8 +32,11 @@ log = logging.getLogger("conjure")
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     store_mod.init()
     ranker = search.init(store)
-    log.info("Loaded %d products; search backend: %s", len(store.products), ranker.backend)
+    client = llm.init()
+    log.info("Loaded %d products; search backend: %s; agent: %s", len(store.products), ranker.backend,
+             f"LLM ({get_settings().llm_model})" if client else "fallback only (no LLM_API_KEY)")
     yield
+    await llm.close()
 
 
 app = FastAPI(title="Conjure API", version="0.1.0", lifespan=lifespan)
@@ -219,16 +222,26 @@ def health() -> dict[str, Any]:
     def status(live: bool) -> str:
         return "live" if live else "mocked"
 
+    b = breaker.status()
+    llm_live = llm.client() is not None
+    if not llm_live:
+        agent = "fallback"
+    elif b["state"] == "open":
+        agent = "fallback (circuit open)"
+    else:
+        agent = "llm"
     return {
         "ok": True,
         "products": len(store.products),
         "sessions": sessions.count(),
         "search_backend": search.ranker().backend,
         "integrations": {
-            "llm": "mocked (fallback agent only)",
-            "elevenlabs": status(False),
+            "llm": f"live ({s.llm_model})" if llm_live else "mocked (fallback agent only)",
+            "elevenlabs": status(s.voice_enabled),
             "stripe": status(False),
         },
-        "agent_source": "fallback",
+        "agent_source": agent,
+        "llm_breaker": b,
+        "tts_cache": tts_cache.stats(),
         "demo_server_signing": s.demo_server_signing,
     }
