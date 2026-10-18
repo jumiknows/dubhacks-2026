@@ -38,6 +38,10 @@ copy server\.env.example server\.env
 
 `category` is `groceries`, `wedding`, `camping`, or `custom`. If the prompt mentions one of those occasions, that list wins over the selected tab.
 
+Camping tab ideas — what that widget should surface for a trip — are in [docs/camping-widget.md](docs/camping-widget.md).
+
+The home shell — side dock, pull bar, and the sheet that slides in — is described in [docs/ui-shell.md](docs/ui-shell.md).
+
 ## Team workflow
 
 - Branch off `main` for each feature: `git checkout -b feature/thing`

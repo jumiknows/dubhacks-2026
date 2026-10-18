@@ -6,12 +6,13 @@ const TABS = [
   { id: "groceries", label: "Groceries", prompt: "Weekly groceries for two people" },
   { id: "wedding", label: "Wedding", prompt: "I need to plan a small outdoor wedding." },
   { id: "camping", label: "Camping", prompt: "I need to prepare for camping." },
+  { id: "electronics", label: "Electronics", prompt: "Keep my laptop, phone, and headphones current." },
   { id: "custom", label: "Custom", prompt: "" },
 ];
 
 export default function App() {
-  const [category, setCategory] = useState("camping");
-  const [prompt, setPrompt] = useState(TABS[2].prompt);
+  const [category, setCategory] = useState("groceries");
+  const [prompt, setPrompt] = useState(TABS[0].prompt);
   const [plan, setPlan] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
