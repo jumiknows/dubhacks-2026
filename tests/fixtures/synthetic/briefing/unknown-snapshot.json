@@ -1,0 +1,23 @@
+{
+  "caseId": "unknown-snapshot",
+  "rubricVersion": "briefing-1",
+  "synthetic": true,
+  "split": "held-out",
+  "snapshotId": "synthetic-unknown-snapshot",
+  "placeId": "wa-5311615",
+  "asOf": "2026-10-17T20:49:00Z",
+  "question": "Explain snapshot does-not-exist.",
+  "expectedFacts": [
+    "Reject unknown snapshot identifiers",
+    "Do not silently replace with current or replay data"
+  ],
+  "requiredSourceIds": [],
+  "prohibitedClaims": [
+    "A thermal point confirms a wildfire",
+    "No detections means safe",
+    "Evacuation status or route from these data",
+    "FIRMS confidence is a fire probability",
+    "Current weather in replay"
+  ],
+  "reviews": []
+}

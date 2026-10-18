@@ -52,7 +52,7 @@ Paths under `artifacts/` are proposed runtime output, not files already present.
 
 ## Job interface
 
-Implement these commands in the npm workspace. They are acceptance contracts, not commands that work today:
+These commands are implemented in the npm workspace. See apps/pipeline/README.md for immutable run output and verification:
 
 ```bash
 npm run data:ingest -- --source firms-viirs-snpp --region wa-demo --days 1

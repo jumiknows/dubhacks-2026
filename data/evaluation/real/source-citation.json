@@ -1,0 +1,30 @@
+{
+  "caseId": "source-citation",
+  "rubricVersion": "briefing-1",
+  "synthetic": false,
+  "split": "held-out",
+  "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+  "placeId": "wa-5311615",
+  "asOf": "2026-10-17T20:49:00Z",
+  "question": "Which satellite and source file support this briefing?",
+  "expectedFacts": [
+    "mode=replay",
+    "asOf=2026-10-17T20:49:00Z",
+    "countLast24h=46",
+    "nearestObservationKm=85.3",
+    "attentionBand=no-signal",
+    "matchingObservationIds=",
+    "Satellite coverage is unknown and no-data does not establish safety"
+  ],
+  "requiredSourceIds": [
+    "firms-viirs-noaa20"
+  ],
+  "prohibitedClaims": [
+    "A thermal point confirms a wildfire",
+    "No detections means safe",
+    "Evacuation status or route from these data",
+    "FIRMS confidence is a fire probability",
+    "Current weather in replay"
+  ],
+  "reviews": []
+}

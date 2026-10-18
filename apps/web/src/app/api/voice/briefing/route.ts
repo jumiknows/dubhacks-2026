@@ -1,7 +1,10 @@
 import { contextFor, jsonError, knownSnapshotIds, loadPlaces } from "../../../../lib/server/catalog";
 import { readVoiceRequest, synthesizeBriefing } from "../../../../lib/server/voice";
 
+import { voiceAccess } from "../../../../lib/server/voice-access";
+
 export async function POST(request: Request): Promise<Response> {
+  const denied = voiceAccess(request, "speech"); if (denied) return denied;
   let body: unknown;
   try {
     body = await request.json();
@@ -30,6 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     status: 200,
     headers: {
       "Content-Type": "audio/mpeg",
+      "Cache-Control": "no-store",
       "X-Context-Version": context.context.contextVersion,
     },
   });

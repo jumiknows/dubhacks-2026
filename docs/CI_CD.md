@@ -6,6 +6,7 @@
 | --- | --- |
 | `Repository checks` | Tracked-file hygiene, JSON syntax, local Markdown file links, Python compilation, and tooling regression tests |
 | `PR evidence` | Conventional title, a same-repository issue reference, and completed Problem, Approach, Verification, and Risks and limitations sections |
+| `Application checks` | Node 24 install, typecheck, lint, Vitest, Next production build and Chromium browser tests with screenshots |
 
 CI runs for pushes to `main` and `dev`, and pull requests into either branch. Editing a pull request description reruns its evidence check. Manual runs are also available in Actions.
 
@@ -23,13 +24,13 @@ git diff --check
 
 Actions are pinned to commit SHAs. Dependabot checks GitHub Actions updates weekly. The label workflow runs on changes to the label configuration on `main` and can also be run manually. It creates or updates the configured labels without deleting existing labels.
 
-## Add application checks with the first application
+## Application and deployment
 
-Add the runtime version, reproducible dependency install, formatting or lint checks, type checks where applicable, meaningful tests, and production build. Add an integration or browser smoke test for the demo's primary user flow.
+The root workspace owns dependency installation and application checks. Browser tests upload `browser-evidence` with a 14-day retention. The suite exercises replay, degraded map operation, Live failure, speech cancellation and mobile layout.
 
 Use path filters only when all shared dependencies are covered. Keep required check names stable and ensure required jobs report a result for every pull request.
 
-No application build, deployment, hosting environment, or production URL is configured yet.
+The owner-private Sites deployment and exact source versions are recorded in [release readiness](RELEASE_READINESS.md). Hosting is packaged explicitly through `tools/prepare_site.py` and the Sites workflow. GitHub CI does not automatically publish or contain provider keys. Complete the [demo checklist](DEMO_CHECKLIST.md) before promoting the full release to `main`.
 
 ## Repository settings
 

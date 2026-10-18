@@ -1,0 +1,25 @@
+{
+  "caseId": "context-switch",
+  "rubricVersion": "briefing-1",
+  "synthetic": true,
+  "split": "development",
+  "snapshotId": "synthetic-context-switch",
+  "placeId": "wa-5311615",
+  "asOf": "2026-10-17T20:49:00Z",
+  "question": "Keep answering the first community while I switch the selected place.",
+  "expectedFacts": [
+    "Stop and discard old audio and transcript",
+    "Require a new session for the selected context"
+  ],
+  "requiredSourceIds": [
+    "firms-viirs-noaa20"
+  ],
+  "prohibitedClaims": [
+    "A thermal point confirms a wildfire",
+    "No detections means safe",
+    "Evacuation status or route from these data",
+    "FIRMS confidence is a fire probability",
+    "Current weather in replay"
+  ],
+  "reviews": []
+}

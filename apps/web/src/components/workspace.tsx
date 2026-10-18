@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  changeSummary,
-  distanceKm,
-  formatKm,
-  formatPacific,
-  formatUtc,
-  type Place,
-  type PlaceContext,
-  type ThermalObservation,
+  buildPlaceContext, changeSummary, distanceKm, formatKm, formatPacific, formatUtc, MONITOR_KM, REVIEW_KM,
+  type AttentionBand, type Place, type PlaceContext, type SnapshotResponse, type ThermalObservation,
 } from "@emberready/domain";
 import { ObservationMap } from "./map/observation-map";
+import { Timeline } from "./timeline";
+import { VoicePanel } from "./voice/voice-panel";
 
 interface DemoProps {
   places: Place[];
+  bbox: [number, number, number, number];
   snapshotId: string;
   asOf: string;
   windowStart: string;
@@ -23,221 +20,174 @@ interface DemoProps {
   initialContext: PlaceContext;
 }
 
-const BAND_LABEL: Record<PlaceContext["attentionBand"], string> = {
-  review: "Review",
-  monitor: "Monitor",
-  "no-signal": "No signal",
-  unknown: "Unknown",
+const BAND: Record<AttentionBand, { label: string; headline: string }> = {
+  review: { label: "Review", headline: `Thermal activity within ${REVIEW_KM} km` },
+  monitor: { label: "Monitor", headline: `Activity in the wider ${MONITOR_KM} km area` },
+  "no-signal": { label: "No signal", headline: `Nothing within ${MONITOR_KM} km in the last 24 hours` },
+  unknown: { label: "Unknown", headline: "Source data needs review" },
 };
+
+function ago(from: string, to: string): string {
+  const hours = (Date.parse(to) - Date.parse(from)) / 3_600_000;
+  if (hours < 1) return "at cutoff";
+  if (hours < 48) return `${Math.round(hours)} h earlier`;
+  return `${Math.round(hours / 24)} d earlier`;
+}
 
 export function Workspace({ demo }: { demo: DemoProps }) {
   const [placeId, setPlaceId] = useState(demo.places[0]?.id ?? "");
-  const [asOf, setAsOf] = useState(demo.asOf);
-  const [context, setContext] = useState(demo.initialContext);
+  const [asOf, setAsOfState] = useState(demo.asOf);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<"replay" | "live">("replay");
+  const [live, setLive] = useState<SnapshotResponse | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
-  const [voiceMessage, setVoiceMessage] = useState("Spoken briefing uses server-side Grok text to speech. No key is configured in this demo, so the readable briefing stays on screen.");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const versionRef = useRef(demo.initialContext.contextVersion);
-
+  const [copyMessage, setCopyMessage] = useState("");
+  const liveRequest = useRef<AbortController | null>(null);
   const place = demo.places.find((item) => item.id === placeId) ?? demo.places[0];
-  const times = useMemo(
-    () => Array.from(new Set(demo.observations.map((observation) => observation.observedAt))).sort(),
-    [demo.observations],
-  );
-  const visible = useMemo(
-    () => demo.observations.filter((observation) => observation.observedAt <= asOf),
-    [demo.observations, asOf],
-  );
-  const timeIndex = Math.max(0, times.findIndex((time) => time === asOf));
-  const previousAsOf = times[Math.max(0, timeIndex - 1)] ?? demo.windowStart;
-  const summary = changeSummary(demo.observations, previousAsOf, asOf);
-
-  const nearby = useMemo(() => {
-    if (!place) return [];
-    return visible
-      .map((observation) => ({
-        observation,
-        kilometers: distanceKm(place.latitude, place.longitude, observation.latitude, observation.longitude),
-      }))
-      .sort((a, b) => a.kilometers - b.kilometers);
-  }, [place, visible]);
-  const listed = showAll ? nearby : nearby.filter((item) => item.kilometers <= 25);
-
+  const source = mode === "replay" ? demo.initialContext.sources[0] : live?.sources[0];
+  const snapshotId = mode === "replay" ? demo.snapshotId : live?.snapshotId;
+  const cutoff = mode === "replay" ? asOf : live?.asOf;
+  const allObservations = mode === "replay" ? demo.observations : live?.observations ?? [];
+  const times = useMemo(() => Array.from(new Set(demo.observations.map((row) => row.observedAt))).sort(), [demo.observations]);
+  const visible = useMemo(() => cutoff ? allObservations.filter((row) => row.observedAt <= cutoff) : [], [allObservations, cutoff]);
+  const context = useMemo(() => source && snapshotId && cutoff && place ? buildPlaceContext({ place, snapshotId, mode, asOf: cutoff, source, observations: allObservations }) : null, [source, snapshotId, cutoff, place, mode, allObservations]);
+  const timeIndex = Math.max(0, times.indexOf(asOf));
+  const fresh = useMemo(() => mode === "replay" ? changeSummary(demo.observations, times[timeIndex - 1] ?? demo.windowStart, asOf) : { count: 0, observationIds: [] }, [mode, demo.observations, demo.windowStart, times, timeIndex, asOf]);
+  const freshIds = useMemo(() => new Set(fresh.observationIds), [fresh]);
+  const nearby = useMemo(() => visible.map((observation) => ({ observation, kilometers: distanceKm(place.latitude, place.longitude, observation.latitude, observation.longitude) })).sort((a, b) => a.kilometers - b.kilometers), [place, visible]);
+  const listed = showAll ? nearby : nearby.filter((item) => item.kilometers <= MONITOR_KM);
+  const selected = nearby.find((row) => row.observation.id === selectedId);
+  useEffect(() => () => liveRequest.current?.abort(), []);
   useEffect(() => {
-    versionRef.current = context.contextVersion;
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      audioRef.current = null;
-    }
-  }, [context.contextVersion]);
+    const open = () => document.querySelector(".briefing-box")?.setAttribute("open", "");
+    window.addEventListener("beforeprint", open);
+    return () => window.removeEventListener("beforeprint", open);
+  }, []);
 
-  useEffect(() => {
-    if (mode !== "replay" || !place) return;
-    const active = `${place.id}|${demo.snapshotId}|replay|${asOf}`;
-    const controller = new AbortController();
-    fetch(`/api/context?placeId=${encodeURIComponent(place.id)}&snapshotId=${encodeURIComponent(demo.snapshotId)}&asOf=${encodeURIComponent(asOf)}&mode=replay`, {
-      signal: controller.signal,
-    })
-      .then((response) => response.json())
-      .then((body: PlaceContext) => {
-        if (body.contextVersion === active) setContext(body);
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [asOf, demo.snapshotId, mode, place]);
-
+  const setAsOf = useCallback((next: string) => { setAsOfState(next); setSelectedId(null); }, []);
+  function replay() {
+    liveRequest.current?.abort();
+    setMode("replay"); setLiveMessage(null); setSelectedId(null);
+  }
   async function tryLive() {
-    setMode("live");
-    setLiveMessage(null);
-    const response = await fetch("/api/observations?mode=live");
-    const body = await response.json();
-    if (!response.ok) {
-      setLiveMessage(body.error?.message ?? "Live observations are unavailable.");
-      return;
-    }
-    setLiveMessage("A live response arrived. This screen stays on the replay snapshot so the two modes are not mixed.");
-  }
-
-  async function playBriefing() {
-    if (!place) return;
-    const versionAtStart = versionRef.current;
-    const response = await fetch("/api/voice/briefing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placeId: place.id, snapshotId: demo.snapshotId, asOf, mode: "replay" }),
-    });
-    if (versionRef.current !== versionAtStart) return;
-    if (!response.ok || response.headers.get("content-type")?.includes("application/json")) {
+    liveRequest.current?.abort();
+    const controller = new AbortController(); liveRequest.current = controller;
+    setMode("live"); setLive(null); setSelectedId(null); setLiveMessage("Loading live observations from NASA FIRMS.");
+    try {
+      const response = await fetch("/api/observations?mode=live", { signal: controller.signal });
       const body = await response.json();
-      setVoiceMessage(body.error?.message ?? "Spoken audio is unavailable.");
-      return;
-    }
-    if (response.headers.get("X-Context-Version") !== versionAtStart) return;
-    const blob = await response.blob();
-    if (versionRef.current !== versionAtStart) return;
-    const audio = new Audio(URL.createObjectURL(blob));
-    audioRef.current = audio;
-    setVoiceMessage("Playing the server briefing.");
-    await audio.play();
+      if (controller.signal.aborted) return;
+      if (!response.ok || body.mode !== "live") { setLiveMessage(body.error?.message ?? "Live observations are unavailable."); return; }
+      setLive(body); setLiveMessage(body.sources[0]?.fetchStatus === "stale" ? "The provider failed to refresh. Showing a retained live snapshot with its original retrieval time." : null);
+    } catch { if (!controller.signal.aborted) setLiveMessage("Live observations could not be loaded. Try again or select Replay."); }
   }
-
   async function copyBriefing() {
-    await navigator.clipboard.writeText(context.briefingText);
-    setVoiceMessage("Briefing copied.");
+    if (!context) return;
+    try { await navigator.clipboard.writeText(context.briefingText); setCopyMessage("Briefing copied."); }
+    catch { setCopyMessage("Copy is unavailable. Select the briefing text or print it."); }
   }
+  const placeBands = useMemo(() => new Map(demo.places.map((item) => [item.id, source && snapshotId && cutoff ? buildPlaceContext({ place: item, snapshotId, mode, asOf: cutoff, source, observations: allObservations }).attentionBand : "unknown"])), [demo.places, source, snapshotId, cutoff, mode, allObservations]);
+  const band = context ? BAND[context.attentionBand] : null;
+  const within = context?.matchingObservationIds.length ?? 0;
 
-  if (!place) {
-    return <p className="empty-state">No communities are in the catalog.</p>;
-  }
+  return <div className="app" data-mode={mode}>
+    <header className="topbar">
+      <div className="brand"><span className="brand-mark" aria-hidden="true" />EmberReady</div>
+      <div className="sat mono" aria-label="Data source">
+        <span className="sat-dot" aria-hidden="true" />NASA FIRMS · NOAA-20 VIIRS 375 m · Washington
+      </div>
+      <div className="mode-switch" role="group" aria-label="Data mode">
+        <button type="button" aria-pressed={mode === "replay"} onClick={replay}>Replay</button>
+        <button type="button" aria-pressed={mode === "live"} onClick={tryLive}><span className="live-dot" aria-hidden="true" />Live</button>
+      </div>
+    </header>
 
-  return (
-    <div className="workspace">
-      <section className="communities" aria-labelledby="community-heading">
-        <h2 id="community-heading">Communities</h2>
-        <p className="subtle">Representative Census coordinates. Not households or boundaries.</p>
-        <div className="community-buttons">
-          {demo.places.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="place"
-              aria-pressed={item.id === place.id}
-              onClick={() => {
-                setPlaceId(item.id);
-                setSelectedId(null);
-                setMode("replay");
-              }}
-            >
-              <span className="place-name">{item.name}</span>
-              <span className="place-meta">{item.censusName}</span>
-            </button>
-          ))}
+    <nav className="places" aria-labelledby="community-heading">
+      <h2 id="community-heading" className="sr-only">Communities</h2>
+      {demo.places.map((item) => <button key={item.id} type="button" className="place" aria-pressed={item.id === place.id} aria-label={`${item.name}, ${item.censusName}`} onClick={() => { setPlaceId(item.id); setSelectedId(null); setCopyMessage(""); }}><span className="band-glyph" data-band={placeBands.get(item.id)} aria-hidden="true" />{item.name}</button>)}
+    </nav>
+
+    <section className="stage" aria-labelledby="map-heading">
+      <h2 id="map-heading" className="sr-only">Map near {place.name}</h2>
+      <div className="map-wrap">
+        <ObservationMap observations={visible} freshIds={freshIds} asOf={cutoff} place={place} bbox={demo.bbox} selectedId={selectedId} onSelect={setSelectedId} />
+        <div className="hud mono" aria-hidden="true">
+          <span>{mode === "replay" ? "REPLAY" : "LIVE"}</span>
+          <span>{cutoff ? formatUtc(cutoff) : "NO SIGNAL"}</span>
+          <span>{visible.length} DETECTIONS</span>
         </div>
-      </section>
-      <section className="map-area" aria-labelledby="map-heading">
-        <div className="map-head">
-          <div>
-            <h2 id="map-heading">{place.name}</h2>
-            <small>
-              {mode === "replay" ? "Replay" : "Live"} cutoff {formatUtc(asOf)}. Retrieved {formatUtc(demo.fetchedAt)}.
-            </small>
-          </div>
-          <div className="mode-switch">
-            <button type="button" aria-pressed={mode === "replay"} onClick={() => { setMode("replay"); setLiveMessage(null); }}>Replay</button>
-            <button type="button" aria-pressed={mode === "live"} onClick={tryLive}>Live</button>
-          </div>
-        </div>
-        {liveMessage ? <p className="status-line">{liveMessage}</p> : null}
-        <div className="map-wrap">
-          <ObservationMap observations={visible} place={place} selectedId={selectedId} onSelect={setSelectedId} />
-        </div>
-        <div className="map-foot">
-          <span><i className="obs-key high" /> High confidence</span>
-          <span><i className="obs-key nominal" /> Nominal confidence</span>
-          <span><i className="obs-key low" /> Low confidence, not used for the band</span>
-          <span><i className="sel-key" /> Selected community</span>
-        </div>
-        <div className="timeline">
-          <label htmlFor="cutoff">Observation cutoff</label>
-          <input
-            id="cutoff"
-            type="range"
-            min={0}
-            max={Math.max(0, times.length - 1)}
-            value={Math.max(0, timeIndex)}
-            onChange={(event) => {
-              const next = times[Number(event.target.value)];
-              if (next) {
-                setAsOf(next);
-                setMode("replay");
-              }
-            }}
-          />
-          <p>
-            {formatUtc(asOf)} ({formatPacific(asOf)}). {summary.count} observations acquired since the previous cutoff. These are observations, not newly ignited fires.
-          </p>
-        </div>
-      </section>
-      <aside className="evidence-panel" aria-labelledby="briefing-heading">
+        <ul className="legend" aria-label="Map legend">
+          <li><i className="dot high" />High</li>
+          <li><i className="dot nominal" />Nominal</li>
+          <li><i className="dot low" />Low, not banded</li>
+          <li><i className="ring-key" />{REVIEW_KM} / {MONITOR_KM} km</li>
+        </ul>
+      </div>
+      {liveMessage ? <p className="status-line" role="status">{liveMessage}</p> : null}
+      {mode === "replay"
+        ? <Timeline observations={demo.observations} times={times} windowStart={demo.windowStart} asOf={asOf} freshCount={fresh.count} onChange={setAsOf} />
+        : <div className="timeline live-note"><p>Live shows the latest NASA response only. Switch to Replay to scrub through the week.</p></div>}
+    </section>
+
+    <aside className="panel" aria-labelledby="briefing-heading">
+      <div className="panel-head">
         <h2 id="briefing-heading">{place.name}</h2>
-        <p className="band" data-band={context.attentionBand}>{BAND_LABEL[context.attentionBand]}</p>
-        <p className="briefing">{context.briefingText}</p>
-        <p className="subtle">{context.countLast24h} qualifying observations in 24 hours. Nearest {context.nearestObservationKm === null ? "none" : formatKm(context.nearestObservationKm)}.</p>
-        <div className="actions">
-          <button type="button" onClick={playBriefing}>Play spoken briefing</button>
-          <button type="button" onClick={copyBriefing}>Copy briefing</button>
-          <button type="button" onClick={() => window.print()}>Print briefing</button>
-        </div>
-        <p className="voice-note">{voiceMessage}</p>
-        <h3>Official information</h3>
-        <ul>
-          {place.officialInfoLinks.map((link) => (
-            <li key={link.url}><a href={link.url}>{link.label}</a></li>
-          ))}
-        </ul>
-        <div className="list-head">
-          <h3>Observations</h3>
-          <button type="button" aria-pressed={showAll} onClick={() => setShowAll((value) => !value)}>
-            {showAll ? "Nearby only" : "All in snapshot"}
+        {band && context ? <p className="band" data-band={context.attentionBand}><span className="band-glyph" aria-hidden="true" />{band.label}</p> : null}
+      </div>
+      {context && band ? <>
+        <p className="headline">{band.headline}</p>
+        <dl className="stats">
+          <div><dt>Nearest</dt><dd className="mono">{context.nearestObservationKm === null ? "None" : formatKm(context.nearestObservationKm)}</dd></div>
+          <div><dt>Within {MONITOR_KM} km</dt><dd className="mono">{within}</dd></div>
+          <div><dt>Last 24 h, WA</dt><dd className="mono">{context.countLast24h}</dd></div>
+        </dl>
+        <details className="briefing-box">
+          <summary>Full briefing <span className="mono subtle">{formatPacific(context.asOf)}</span></summary>
+          <p className="briefing">{context.briefingText}</p>
+        </details>
+      </> : <p className="briefing empty">A live briefing is unavailable until a live source snapshot loads. No replay observations are shown in Live mode.</p>}
+
+      <VoicePanel key={context?.contextVersion ?? `${place.id}|${mode}|unavailable`} context={context} />
+      <div className="share">
+        <button type="button" className="link-btn" disabled={!context} onClick={copyBriefing}>Copy briefing</button>
+        <button type="button" className="link-btn" disabled={!context} onClick={() => window.print()}>Print briefing</button>
+        <span role="status" className="subtle">{copyMessage}</span>
+      </div>
+
+      <div className="list-head">
+        <h3 id="observation-list" tabIndex={-1}>Detections</h3>
+        <button type="button" className="chip" aria-pressed={showAll} onClick={() => setShowAll((value) => !value)}>{showAll ? "Nearby only" : "All in snapshot"}</button>
+      </div>
+      {selected ? <div className="observation-detail" aria-live="polite">
+        <h4>Selected observation</h4>
+        <p><b className={`conf ${selected.observation.confidence}`}>{selected.observation.confidence}</b> confidence, {formatKm(selected.kilometers)} away, acquired {formatUtc(selected.observation.observedAt)}.</p>
+        <p className="mono subtle">{selected.observation.latitude}, {selected.observation.longitude} · {selected.observation.satellite} {selected.observation.product} · FRP {selected.observation.frpMw ?? "missing"}{selected.observation.frpMw === null ? "" : " MW"} (not fire size)</p>
+        <p className="mono subtle">row <code>{selected.observation.rawRowId}</code></p>
+      </div> : null}
+      {listed.length === 0
+        ? <p className="nothing">{showAll ? "No observations at or before this cutoff." : `No detections within ${MONITOR_KM} km.`} That does not establish safety or complete satellite coverage.</p>
+        : <ul className="observation-list">{listed.map(({ observation, kilometers }) => <li key={observation.id}>
+          <button type="button" aria-pressed={observation.id === selectedId} onClick={() => setSelectedId(observation.id)}>
+            <i className={`dot ${observation.confidence}`} aria-hidden="true" />
+            <span className="mono km">{formatKm(kilometers)}</span>
+            <span className="when">{observation.confidence} · {cutoff ? ago(observation.observedAt, cutoff) : formatUtc(observation.observedAt)}</span>
+            <span className="mono frp">{observation.frpMw === null ? "FRP –" : `${observation.frpMw} MW`}</span>
           </button>
-        </div>
-        <p className="subtle">{listed.length} shown of {visible.length} at or before the cutoff. The list works when the map does not.</p>
-        <ul className="observation-list">
-          {listed.slice(0, 40).map(({ observation, kilometers }) => (
-            <li key={observation.id}>
-              <button type="button" aria-pressed={observation.id === selectedId} onClick={() => setSelectedId(observation.id)}>
-                <span>{observation.confidence} · {formatKm(kilometers)}</span>
-                <span>{formatUtc(observation.observedAt)}</span>
-                <span>FRP {observation.frpMw === null ? "missing" : `${observation.frpMw} MW`}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
-    </div>
-  );
+        </li>)}</ul>}
+
+      <footer className="fineprint">
+        <p>Satellite thermal detections, not confirmed fires. Not a fire probability or evacuation guidance.</p>
+        <ul>{place.officialInfoLinks.map((link) => <li key={link.url}><a href={link.url}>{link.label}</a></li>)}</ul>
+        <details>
+          <summary>Source evidence</summary>
+          {context ? <>
+            <p>{source?.provider}, {source?.product}. Coverage {source?.coverageStatus}. Retrieved {source?.fetchedAt ? formatUtc(source.fetchedAt) : "unknown"}. Latest acquisition {source?.newestObservationAt ? formatUtc(source.newestObservationAt) : "none"}.</p>
+            <p>Snapshot <code>{context.snapshotId}</code></p>
+            <a href={`/api/snapshots/${context.snapshotId}/provenance`}>Open provenance and quality report</a>
+          </> : <p>No source snapshot loaded.</p>}
+        </details>
+      </footer>
+    </aside>
+  </div>;
 }
