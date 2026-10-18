@@ -40,6 +40,16 @@ const TEMPLATES = {
     { name: "Coffee", quantity: 1, unit: "bag", reason: "Morning" },
     { name: "Pasta", quantity: 2, unit: "box", reason: "Pantry" },
   ],
+  travel: [
+    { name: "Carry-on suitcase", quantity: 1, unit: null, reason: "Fits the overhead bin" },
+    { name: "Packing cubes", quantity: 1, unit: "set", reason: "Keeps the bag organized" },
+    { name: "Universal travel adapter", quantity: 1, unit: null, reason: "Charge anywhere" },
+    { name: "Portable charger", quantity: 1, unit: null, reason: "Phone power on the go" },
+    { name: "Noise-cancelling headphones", quantity: 1, unit: null, reason: "Quiet on the flight" },
+    { name: "Neck pillow", quantity: 1, unit: null, reason: "Sleep in transit" },
+    { name: "Toiletry bag", quantity: 1, unit: null, reason: "Liquids through security" },
+    { name: "Passport wallet", quantity: 1, unit: null, reason: "Documents in one place" },
+  ],
   electronics: [
     { name: "Laptop", quantity: 1, unit: null, reason: "Daily work" },
     { name: "Phone", quantity: 1, unit: null, reason: "Primary device" },
@@ -50,9 +60,19 @@ const TEMPLATES = {
   ],
 };
 
+// First match wins. Travel sits before groceries and electronics so "a week in Tokyo" or
+// "headphones for the flight" plan a trip, not a grocery run.
 const HINTS = [
   { category: "camping", words: ["camp", "camping", "hike", "backpacking", "trail"] },
   { category: "wedding", words: ["wedding", "bride", "groom", "reception"] },
+  {
+    category: "travel",
+    words: ["trip", "travel", "traveling", "travelling", "vacation", "holiday", "flight", "flying", "getaway",
+      "abroad", "packing", "luggage", "suitcase", "honeymoon", "itinerary", "beach", "cruise", "resort", "ski"],
+    // "I'm going to Tokyo" / "a week in Lisbon" have no travel word: a capitalized place after
+    // a travel verb or a length of stay.
+    pattern: /\b(?:going|headed|heading|off|moving|flying|visiting)\s+(?:to\s+)?[A-Z][a-z]|\b(?:weekend|week|days|nights?|month)\s+(?:in|to|at)\s+[A-Z][a-z]/,
+  },
   { category: "groceries", words: ["grocery", "groceries", "meal", "dinner", "week"] },
   { category: "electronics", words: ["laptop", "phone", "headphones", "electronics", "gadget"] },
 ];
@@ -60,20 +80,44 @@ const HINTS = [
 const TITLES = {
   camping: "Camping kit",
   wedding: "Wedding shopping",
+  travel: "Travel kit",
   groceries: "Grocery run",
   electronics: "Device shopping",
 };
 
+/** "Trip to Tokyo" when the prompt names a capitalized place, otherwise the template title. */
+function titleFor(prompt, category) {
+  if (category === "travel") {
+    const place = /\b(?:to|in|around|across)\s+((?:[A-Z][\p{L}'’.-]+)(?:\s+[A-Z][\p{L}'’.-]+){0,2})/u.exec(prompt);
+    if (place) return `Trip to ${place[1]}`;
+  }
+  return TITLES[category] || clip(prompt);
+}
+
 export function generatePlan({ prompt, category }) {
+  const error = validatePlanRequest({ prompt, category });
+  if (error) throw new TypeError(error);
+  prompt = prompt.trim();
+  category = category?.trim() || "";
   const resolved = resolveCategory(prompt, category);
   const source = itemsForPrompt(prompt, resolved);
+  if (!Array.isArray(source) || source.length === 0 || source.length > 100 || source.some((item) =>
+    typeof item.name !== "string" || !item.name.trim() || !Number.isSafeInteger(item.quantity) || item.quantity <= 0)) {
+    throw new TypeError("Plan items require names and positive safe integer quantities, with at most 100 items");
+  }
+  const planType = source.length === 1 ? "individual" : "plan";
 
   return {
     id: randomUUID(),
     category: resolved,
+    planType,
+    allowBreak: source.length > 1,
     prompt,
-    title: TITLES[resolved] || clip(prompt),
+    title: titleFor(prompt, resolved),
     createdAt: new Date().toISOString(),
+    source: "keyword_templates",
+    isMock: true,
+    warnings: ["Demo checklist uses fixed templates, not an AI model or live trip facts."],
     items: source.map((item) => ({
       id: randomUUID(),
       name: item.name,
@@ -87,6 +131,22 @@ export function generatePlan({ prompt, category }) {
   };
 }
 
+export function validatePlanRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return "Expected a JSON object";
+  if (Object.keys(body).some((key) => !["prompt", "category", "marketplaces"].includes(key))) {
+    return "Only prompt, category and marketplaces are accepted";
+  }
+  if (body.marketplaces !== undefined && (!Array.isArray(body.marketplaces) || body.marketplaces.length > 10 ||
+    body.marketplaces.some((name) => typeof name !== "string" || name.length > 32))) {
+    return "marketplaces must be a list of up to 10 names";
+  }
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) return "prompt is required";
+  if (body.prompt.length > 2000) return "prompt must be at most 2000 characters";
+  if (body.category !== undefined && typeof body.category !== "string") return "category must be a string";
+  if (body.category && !["", "groceries", "wedding", "camping", "travel", "custom", "electronics"].includes(body.category.trim())) return "Unsupported category";
+  return null;
+}
+
 function itemsForPrompt(prompt, category) {
   if (TEMPLATES[category]) return TEMPLATES[category];
   return customFromPrompt(prompt);
@@ -94,10 +154,15 @@ function itemsForPrompt(prompt, category) {
 
 function resolveCategory(prompt, category) {
   const text = prompt.toLowerCase();
-  const hinted = HINTS.find((hint) => hint.words.some((word) => text.includes(word)));
+  const hinted = HINTS.find((hint) => hint.words.some((word) => hasKeyword(text, word)) || hint.pattern?.test(prompt));
   if (hinted) return hinted.category;
   if (TEMPLATES[category]) return category;
   return "custom";
+}
+
+function hasKeyword(text, word) {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(text);
 }
 
 function customFromPrompt(prompt) {
@@ -122,12 +187,7 @@ function customFromPrompt(prompt) {
   }
 
   const topic = named[0] || "Custom item";
-  return [
-    { name: topic, quantity: 1, unit: null, reason: "Main pickup" },
-    { name: `${clip(topic, 28)} kit`, quantity: 1, unit: null, reason: "Matching supplies" },
-    { name: "Backup option", quantity: 1, unit: null, reason: "If the first pick is out" },
-    { name: "Consumables", quantity: 1, unit: null, reason: "Day-of extras" },
-  ];
+  return [{ name: topic, quantity: 1, unit: null, reason: "Individual pickup" }];
 }
 
 function clip(prompt, max = 48) {

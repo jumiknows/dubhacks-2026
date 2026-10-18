@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import checkout, search
+from api import checkout, live, planner_chat, recommendations, search
 from api import store as store_mod
 from api import voice
 from api.market import browser as market_browser
@@ -30,6 +30,10 @@ from api.schemas import (
 )
 from api.sessions import breaker, sessions, tts_cache
 from api.store import store
+from api.reviews.routes import router as reviews_router
+from api.reviews.body_limit import ReviewBodyLimitMiddleware
+from api.websites.routes import router as websites_router
+from api.websites.service import safety_service
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("conjure")
@@ -40,15 +44,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     store_mod.init()
     ranker = search.init(store)
     client = llm.init()
-    log.info("Loaded %d products; search backend: %s; agent: %s; selenium: %s", len(store.products), ranker.backend,
-             f"LLM ({get_settings().llm_model})" if client else "fallback only (no LLM_API_KEY)",
+    log.info("Loaded %d demo products; search backend: %s; agent: %s; selenium: %s", len(store.products), ranker.backend,
+             "LLM configured" if client else "deterministic fallback",
              "on" if get_settings().selenium_enabled else "off")
-    yield
-    market_browser.close_driver()
-    await llm.close()
+    try:
+        yield
+    finally:
+        market_browser.close_driver()
+        await llm.close()
 
 
 app = FastAPI(title="Conjure API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(ReviewBodyLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
@@ -58,6 +65,11 @@ app.add_middleware(
 (DATA_DIR / "images").mkdir(parents=True, exist_ok=True)
 app.mount("/static/products", StaticFiles(directory=DATA_DIR / "images"), name="product-images")
 app.include_router(voice.router)
+app.include_router(recommendations.router)
+app.include_router(reviews_router)
+app.include_router(websites_router)
+app.include_router(live.router)
+app.include_router(planner_chat.router)
 
 
 @app.exception_handler(checkout.CheckoutError)
@@ -152,6 +164,10 @@ def wipe_profile(session_id: str) -> dict[str, Any]:
     session.intent_mandate = session.public_key_jwk = session.mandate_id = None
     session.staged.clear()
     session.last_results, session.last_query, session.focused_id = [], "", None
+    session.last_subcategory = None
+    session.chat_history.clear()
+    session.greeted = False
+    session.demo_private_key = None
     audit.append(session.audit, "wiped", {"deleted": {k: v for k, v in deleted.items() if k != "profile"}})
     return {"wiped": True, "deleted": deleted}
 
@@ -162,7 +178,7 @@ def wipe_profile(session_id: str) -> dict[str, Any]:
 @app.get("/products/search")
 def products_search(
     q: str = Query(default="", max_length=300),
-    max_price: float | None = Query(default=None, ge=0),
+    max_price: float | None = Query(default=None, ge=0, le=10_000, allow_inf_nan=False),
     limit: int = Query(default=6, ge=1, le=50),
     session_id: str | None = None,
 ) -> list[RankedProduct]:
@@ -203,9 +219,14 @@ def register_intent(req: IntentMandateRequest) -> dict[str, Any]:
 
 
 @app.post("/checkout/stage")
-def checkout_stage(req: StageRequest) -> dict[str, Any]:
+async def checkout_stage(req: StageRequest) -> dict[str, Any]:
     session = sessions.get(req.session_id)
     tools.require_product(req.product_id)
+    product = store.product(req.product_id)
+    if product.merchant_id in safety_service().registrations:
+        assessment = await safety_service().assess_checkout(product.merchant_id)
+        audit.append(session.audit, "website_checkout_check", {"merchant_id": product.merchant_id,
+            "decision": assessment.decision, "origin": assessment.origin, "url_sha256": assessment.url_sha256})
     return orchestrator.validate_action(checkout.stage(session, req.product_id, req.quantity))
 
 
@@ -266,8 +287,9 @@ def market_top(req: TopRequest):
 def health() -> dict[str, Any]:
     s = get_settings()
 
-    def status(live: bool) -> str:
-        return "live" if live else "mocked"
+    b = breaker.status()
+    configured = llm.client() is not None
+    agent = "llm" if configured and b["state"] == "closed" else "fallback"
 
     b = breaker.status()
     llm_live = llm.client() is not None
@@ -283,13 +305,20 @@ def health() -> dict[str, Any]:
         "sessions": sessions.count(),
         "search_backend": search.ranker().backend,
         "integrations": {
-            "llm": f"live ({s.llm_model})" if llm_live else "mocked (fallback agent only)",
-            "elevenlabs": status(s.voice_enabled),
-            "stripe": status(False),
+            "llm": f"configured ({s.llm_model})" if configured else "not configured (fallback agent)",
+            "elevenlabs": "configured; browser fallback on failure" if s.voice_enabled else "not configured",
+            "stripe": "mocked (no real payment processing)",
+            "gemini_live": "configured" if s.gemini_live_enabled else "not configured (typed fallback)",
             "selenium": "live" if s.selenium_enabled else "mocked (fixture listings)",
         },
         "agent_source": agent,
         "llm_breaker": b,
         "tts_cache": tts_cache.stats(),
+        "data_sources": {
+            "catalog": "fictional demo products",
+            "reviews": "synthetic demo reviews",
+            "merchants": "local policy flags; no domain verification",
+            "shipping": "not provided by the catalog",
+        },
         "demo_server_signing": s.demo_server_signing,
     }

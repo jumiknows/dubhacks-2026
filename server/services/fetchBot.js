@@ -1,10 +1,16 @@
 /**
  * OWNER: Fetch bot
- * STATUS: Calls the Python marketplace service, then falls back to the mock catalog.
+ * STATUS: Live. Searches two sources in parallel and merges what they return:
+ *   - Python marketplace service: POST {PYTHON_API_URL}/market/search
+ *       { query, marketplaces, limit: 8, details: true }
+ *   - every configured store API (services/stores/), including the sample
+ *     stores DummyJSON and Fake Store that mock checkout can place orders with
+ * Falls back to the labelled demo catalog below when neither returns a match.
  *
- * POST {PYTHON_API_URL}/market/search
- *   { query, marketplaces, limit: 50, details: false }
+ * Store listings also carry description, source, isMock, warnings and gtin
+ * (see services/stores/core.js). Set STORES_LIVE=false to skip the store APIs.
  */
+import { searchStores } from "./stores/index.js";
 
 const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
 const MARKETS = (process.env.MARKETPLACES || "amazon,ebay,walmart")
@@ -13,9 +19,21 @@ const MARKETS = (process.env.MARKETPLACES || "amazon,ebay,walmart")
   .filter(Boolean);
 
 export async function fetchProducts(query, options = {}) {
-  const live = await searchPython(query, options);
-  if (live?.length) return live;
+  const [market, stores] = await Promise.all([searchPython(query, options), searchStoreApis(query)]);
+  const live = [...(market || []), ...stores];
+  if (live.length) return live;
   return searchCatalog(query);
+}
+
+async function searchStoreApis(query) {
+  if (process.env.STORES_LIVE === "false") return [];
+  try {
+    const { products } = await searchStores(query);
+    return products.map(toRaw);
+  } catch (err) {
+    console.error("[fetchBot] store search failed:", err);
+    return [];
+  }
 }
 
 async function searchPython(query, options) {
@@ -26,8 +44,11 @@ async function searchPython(query, options) {
       body: JSON.stringify({
         query,
         marketplaces: options.marketplaces || MARKETS,
-        limit: options.limit ?? 50,
-        details: options.details === true,
+        // A product card is a decision surface, not just a title and price.
+        // Ask Selenium for each listing page so image, dimensions, specs, seller,
+        // availability, and review data reach the UI.
+        limit: options.limit ?? 8,
+        details: options.details !== false,
         min_price: options.minPrice ?? options.min_price,
         max_price: options.maxPrice ?? options.max_price,
         brands_include: options.brandsInclude || options.brands_include || [],
@@ -51,7 +72,7 @@ export function toRaw(product) {
     title: product.title,
     price: product.price,
     currency: product.currency || "USD",
-    image: product.image,
+    image: resolveImage(product.image),
     url: product.url,
     dimensions: product.dimensions,
     shippingDays,
@@ -82,7 +103,16 @@ export function toRaw(product) {
     trust_multiplier: product.trust_multiplier ?? null,
     score: product.score ?? null,
     flags: product.flags || [],
+    description: product.description ?? null,
+    source: product.source ?? null,
+    isMock: product.isMock === true,
+    warnings: product.warnings || [],
   };
+}
+
+function resolveImage(image) {
+  if (!image || /^https?:\/\//i.test(image) || image.startsWith("data:")) return image || null;
+  return `${PYTHON_API}${image.startsWith("/") ? "" : "/"}${image}`;
 }
 
 export function toValued(product) {
@@ -144,6 +174,9 @@ function unlisted(query) {
     bang_per_buck: 0.35,
     relevancy: 0.4,
     trust: 0.2,
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["No demo listing matches this query; no live store lookup was performed."],
   });
 }
 
@@ -175,6 +208,9 @@ function listing({
     relevancy: 0.8,
     trust: 0.7,
     marketplace: "amazon",
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["Sample listing; price, stock, dimensions and shipping duration are not live merchant data."],
   };
 }
 
@@ -189,4 +225,21 @@ const CATALOG = [
   listing({ keyword: "first aid", store: "Target", title: "Adventure Medical Kit", price: 15, dimensions: "8 × 5 in", shippingDays: 5, url: "https://www.target.com/s?searchTerm=first+aid", brand: "Adventure Medical" }),
   listing({ keyword: "cooler", store: "Walmart", title: "Igloo Island Breeze", price: 30, dimensions: "16 can", shippingDays: 4, url: "https://www.walmart.com/search?q=cooler", brand: "Igloo" }),
   listing({ keyword: "laptop", store: "Best Buy", title: "14-inch Laptop", price: 699, dimensions: "12.4 × 8.9 in", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=laptop", brand: "Lenovo" }),
+  // Travel: two stores per item so a comparison is always possible offline.
+  listing({ keyword: "suitcase", store: "Amazon", title: "Samsonite Freeform 21\" Carry-On Spinner", price: 149, dimensions: "21 × 15 × 10 in", shippingDays: 2, url: "https://www.amazon.com/s?k=carry-on+suitcase", brand: "Samsonite" }),
+  listing({ keyword: "suitcase", store: "Target", title: "Open Story 20\" Hardside Carry-On", price: 89, dimensions: "20 × 14 × 9 in", shippingDays: 5, url: "https://www.target.com/s?searchTerm=carry-on+suitcase", brand: "Open Story" }),
+  listing({ keyword: "packing cube", store: "Amazon", title: "BAGSMART Packing Cubes, 6 Set", price: 24, dimensions: "6 pieces", shippingDays: 2, url: "https://www.amazon.com/s?k=packing+cubes", brand: "BAGSMART" }),
+  listing({ keyword: "packing cube", store: "REI", title: "Eagle Creek Pack-It Starter Set", price: 45, dimensions: "3 pieces", shippingDays: 4, url: "https://www.rei.com/search?q=packing+cubes", brand: "Eagle Creek" }),
+  listing({ keyword: "travel adapter", store: "Amazon", title: "EPICKA Universal Travel Adapter", price: 22, dimensions: "3 × 2 in", shippingDays: 2, url: "https://www.amazon.com/s?k=universal+travel+adapter", brand: "EPICKA" }),
+  listing({ keyword: "travel adapter", store: "Best Buy", title: "Insignia Worldwide Travel Adapter", price: 30, dimensions: "3 × 2 in", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=travel+adapter", brand: "Insignia" }),
+  listing({ keyword: "portable charger", store: "Best Buy", title: "Anker PowerCore 20,000 mAh", price: 50, dimensions: "6 × 2.9 in", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=portable+charger", brand: "Anker" }),
+  listing({ keyword: "portable charger", store: "Walmart", title: "onn. 10,000 mAh Power Bank", price: 15, dimensions: "5.6 × 2.8 in", shippingDays: 4, url: "https://www.walmart.com/search?q=portable+charger", brand: "onn." }),
+  listing({ keyword: "headphones", store: "Amazon", title: "Soundcore Space Q45 Noise Cancelling", price: 99, dimensions: "Over-ear", shippingDays: 2, url: "https://www.amazon.com/s?k=noise+cancelling+headphones", brand: "Soundcore" }),
+  listing({ keyword: "headphones", store: "Best Buy", title: "Bose QuietComfort Headphones", price: 299, dimensions: "Over-ear", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=noise+cancelling+headphones", brand: "Bose" }),
+  listing({ keyword: "neck pillow", store: "Amazon", title: "Cabeau Evolution S3 Travel Pillow", price: 40, dimensions: "Memory foam", shippingDays: 2, url: "https://www.amazon.com/s?k=travel+neck+pillow", brand: "Cabeau" }),
+  listing({ keyword: "neck pillow", store: "Target", title: "Open Story Memory Foam Neck Pillow", price: 15, dimensions: "Memory foam", shippingDays: 5, url: "https://www.target.com/s?searchTerm=neck+pillow", brand: "Open Story" }),
+  listing({ keyword: "toiletry", store: "Amazon", title: "BAGSMART Hanging Toiletry Bag", price: 20, dimensions: "10 × 7 in", shippingDays: 2, url: "https://www.amazon.com/s?k=toiletry+bag", brand: "BAGSMART" }),
+  listing({ keyword: "toiletry", store: "Target", title: "Open Story Clear Toiletry Bag", price: 12, dimensions: "TSA quart size", shippingDays: 5, url: "https://www.target.com/s?searchTerm=toiletry+bag", brand: "Open Story" }),
+  listing({ keyword: "passport", store: "Amazon", title: "Zoppen RFID Passport Wallet", price: 13, dimensions: "9 × 5 in", shippingDays: 2, url: "https://www.amazon.com/s?k=passport+wallet", brand: "Zoppen" }),
+  listing({ keyword: "passport", store: "REI", title: "Eagle Creek RFID Passport Wallet", price: 25, dimensions: "5.5 × 4 in", shippingDays: 4, url: "https://www.rei.com/search?q=passport+wallet", brand: "Eagle Creek" }),
 ];

@@ -1,6 +1,7 @@
 // Open-hand swipes and a fist closing or opening. Pure: no camera, no DOM.
 
 import type { Pt, Vec2 } from './types';
+import { config } from './config';
 
 export type NamedGesture = 'swipe-up' | 'swipe-down' | 'swipe-left' | 'swipe-right' | 'grab' | 'release';
 export type Fist = 'open' | 'closed' | 'unknown';
@@ -46,13 +47,13 @@ export function fingerCurl(lm: Pt[]): number {
   return curls.reduce((sum, value) => sum + value, 0) / curls.length;
 }
 
-export function allCurled(lm: Pt[]): boolean {
-  return digitCurls(lm).every((curl) => curl < 1.2);
+export function allCurled(lm: Pt[], threshold = config.fist.curlOn): boolean {
+  return digitCurls(lm).every((curl) => curl < threshold);
 }
 
 /** Fingertips closer to the lens than their knuckles. The 2D pose then looks curled even when the hand is open. */
-export function aimedAtCamera(lm: Pt[]): boolean {
-  return DIGITS.every((digit) => lm[digit.tip].z < lm[digit.mcp].z - 0.03);
+export function aimedAtCamera(lm: Pt[], zGap = config.fist.aimedZGap): boolean {
+  return DIGITS.every((digit) => lm[digit.tip].z < lm[digit.mcp].z - zGap);
 }
 
 function palmOf(lm: Pt[]): Vec2 {
@@ -85,7 +86,6 @@ function publish(next: PoseView) {
 type WristSample = { t: number; angle: number; tip: Vec2; wrist: Vec2; palm: number };
 type FrameSize = { width: number; height: number };
 
-const POINTING = 1.5;
 const ARC_DEG = 25 * Math.PI / 180;
 const WINDOW_MS = 220;
 
@@ -109,6 +109,8 @@ export class PoseDetector {
   private coolUntil = 0;
   private lastDir: 'left' | 'right' | 'up' | 'down' | null = null;
   private lastAt = 0;
+  private lastIndexReach: number | null = null;
+  private lastIndexMotionAt = -Infinity;
 
   reset() {
     this.closed = null;
@@ -119,15 +121,31 @@ export class PoseDetector {
     this.coolUntil = 0;
     this.lastDir = null;
     this.lastAt = 0;
+    this.lastIndexReach = null;
+    this.lastIndexMotionAt = -Infinity;
   }
 
   update(lm: Pt[], t: number, mirror: boolean, frame: FrameSize = { width: 640, height: 480 }, allowSwipes = true): NamedGesture | null {
     const curl = fingerCurl(lm);
     const aimed = aimedAtCamera(lm);
-    const curled = !aimed && allCurled(lm);
+    const curls = digitCurls(lm);
     const indexReach = dist(lm[8], lm[0]) / Math.max(1e-4, dist(lm[5], lm[0]));
-    const pointing = indexReach > POINTING;
-    const next = curled ? 'closed' : pointing || this.closed ? 'open' : null;
+    const indexClosing = !aimed
+      && curls.filter((_, index) => index !== 1).every((value) => value < config.fist.curlOn)
+      && indexReach <= config.fist.indexTransitionMaxReach
+      && this.lastIndexReach !== null
+      && this.lastIndexReach - indexReach >= config.fist.indexClosingDelta;
+    if (indexClosing) this.lastIndexMotionAt = t;
+    const motionGrace = t - this.lastIndexMotionAt <= config.fist.indexMotionGraceMs;
+    const curled = !aimed && (
+      allCurled(lm, config.fist.curlOn)
+      || (indexClosing && indexReach <= config.fist.indexTransitionMaxReach)
+      || (this.pending === 'closed' && motionGrace && indexReach <= config.fist.indexTransitionMaxReach
+        && curls.filter((_, index) => index !== 1).every((value) => value < config.fist.curlOn))
+    );
+    const pointing = indexReach > config.fist.pointingReach;
+    const opening = pointing || !allCurled(lm, config.fist.curlOff);
+    const next = curled ? 'closed' : this.closed ? (opening ? 'open' : 'closed') : pointing ? 'open' : null;
     let gesture: NamedGesture | null = null;
     let source: PoseView['source'] = null;
     let angle: number | null = null;
@@ -138,7 +156,7 @@ export class PoseDetector {
       if (this.pending !== next) {
         this.pending = next;
         this.pendingSince = t;
-      } else if (t - this.pendingSince >= 60) {
+      } else if (t - this.pendingSince >= (next === 'closed' ? config.fist.closeMs : config.fist.openMs)) {
         if (this.closed !== null) {
           gesture = next === 'closed' ? 'grab' : 'release';
           this.trail = [];
@@ -151,6 +169,8 @@ export class PoseDetector {
     } else {
       this.pending = null;
     }
+
+    this.lastIndexReach = indexReach;
 
     if (aimed || !allowSwipes) {
       this.trail = [];

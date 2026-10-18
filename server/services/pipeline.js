@@ -1,5 +1,5 @@
 import { fetchProducts, toRaw, toValued } from "./fetchBot.js";
-import { synthesize } from "./synthesizeBot.js";
+import { MAX_MONEY_CENTS, normalizeCurrency, parseCents, synthesize, validDate, validQuantity } from "./synthesizeBot.js";
 import { topItems } from "./topItemsBot.js";
 
 export async function attachOffers(items, options = {}) {
@@ -7,11 +7,21 @@ export async function attachOffers(items, options = {}) {
     items.map(async (item) => {
       if (item.purchased || item.synthesis) return item;
 
-      const fetched = await fetchProducts(item.name, options);
+      const fetched = await fetchProducts(item.name, {
+        ...options,
+        details: true,
+        // Detail scraping is intentionally bounded per component so a large plan
+        // stays responsive while still yielding a useful comparison rail.
+        limit: options.productLimit ?? 8,
+      });
       const shortlist = await shortlistTop(fetched, options);
       const synthesis = await synthesize(item, shortlist);
 
-      return { ...item, products: shortlist, synthesis };
+      // Expose the same sanitized listings used by synthesis, including sources
+      // and nulls for unsafe URLs/prices, rather than leaking unvalidated raw data.
+      const products = [synthesis.best, ...synthesis.alternatives].filter(Boolean);
+      const image = synthesis.image || products.find((product) => product.image)?.image || null;
+      return { ...item, products, synthesis, image };
     })
   );
 }
@@ -35,23 +45,74 @@ async function shortlistTop(products, options) {
     .slice(0, options.topLimit ?? 10);
 }
 
+/** Make one of the item's own listings the offer. Returns null if the id isn't one of them. */
+export function pickListing(item, listingId) {
+  const listing = (item.products || []).find((product) => product.id === listingId);
+  if (!listing) return null;
+  const currency = normalizeCurrency(listing.currency);
+  const unit = parseCents(listing.price, currency);
+  const cents = unit !== null && validQuantity(item.quantity) ? BigInt(unit) * BigInt(item.quantity) : null;
+  const total = cents !== null && cents <= MAX_MONEY_CENTS ? Number(cents) / 100 : null;
+  return {
+    ...item,
+    image: listing.image || item.image,
+    synthesis: {
+      ...item.synthesis,
+      summary: `${item.quantity > 1 ? `${item.quantity} × ` : ""}${listing.title} from ${listing.store}`,
+      image: listing.image,
+      dimensions: listing.dimensions,
+      shippingDate: listing.shippingDate ?? null,
+      estimatedArrival: listing.estimatedArrival ?? null,
+      totalPrice: total,
+      subtotal: total,
+      currency,
+      best: listing,
+      method: "user_pick",
+      source: listing.source ?? item.synthesis?.source,
+      isMock: listing.isMock === true,
+    },
+  };
+}
+
 export function quotePlan(items) {
   const open = items.filter((item) => !item.purchased);
-  const prices = open
-    .map((item) => item.synthesis?.totalPrice)
-    .filter((price) => typeof price === "number");
-  const dates = open
-    .map((item) => item.synthesis?.shippingDate)
-    .filter(Boolean)
-    .sort();
-
-  const total = prices.reduce((sum, price) => sum + price, 0);
-
+  const currencies = new Set(open.map((item) => normalizeCurrency(item.synthesis?.currency)).filter(Boolean));
+  const currency = open.length === 0 ? "USD" : currencies.size === 1 ? [...currencies][0] : null;
+  let knownCents = 0n;
+  let missingPriceCount = 0;
+  const warnings = [];
+  for (const item of open) {
+    const offer = item.synthesis;
+    const cents = parseCents(offer?.totalPrice, offer?.currency);
+    if (!currency || offer?.currency !== currency || cents === null || !validQuantity(item.quantity)) {
+      missingPriceCount++;
+    } else {
+      knownCents += BigInt(cents);
+    }
+  }
+  const safeAmount = knownCents <= MAX_MONEY_CENTS;
+  const subtotalComplete = missingPriceCount === 0 && safeAmount;
+  const knownSubtotal = currency && safeAmount ? Number(knownCents) / 100 : null;
+  const dates = open.map((item) => item.synthesis?.isMock ? null : validDate(item.synthesis?.estimatedArrival));
+  if (missingPriceCount) warnings.push("Some items lack comparable prices; the full merchandise subtotal is unknown.");
+  if (!safeAmount) warnings.push("Merchandise subtotal exceeds the supported safe amount.");
+  if (currencies.size > 1) warnings.push("Mixed currencies were not added or converted.");
+  if (open.length) warnings.push("Merchandise subtotal excludes shipping and tax; the delivered total is unknown.");
+  if (dates.some((date) => !date)) warnings.push("An arrival date is missing; ready-by date is unknown.");
   return {
     toBuyCount: open.length,
     purchasedCount: items.length - open.length,
-    totalPrice: Math.round(total * 100) / 100,
-    currency: "USD",
-    readyBy: dates.at(-1) || null,
+    totalPrice: subtotalComplete ? knownSubtotal : null,
+    currency,
+    readyBy: dates.length && dates.every(Boolean) ? dates.sort().at(-1) : null,
+    priceScope: "items_only",
+    knownSubtotal,
+    missingPriceCount,
+    subtotalComplete,
+    costComplete: open.length === 0,
+    fullTotal: open.length === 0 ? 0 : null,
+    isMock: open.some((item) => item.synthesis?.isMock),
+    source: "plan_merchandise_quote",
+    warnings,
   };
 }

@@ -79,7 +79,7 @@ class Dismissal(BaseModel):
 class PreferenceProfile(BaseModel):
     needs: list[str] = []
     avoid: list[str] = []
-    budget_max: float | None = None
+    budget_max: float | None = Field(default=None, ge=0, le=10_000, allow_inf_nan=False)
     skin_type: str | None = None
     liked_ids: list[str] = []
     dismissed: list[Dismissal] = []

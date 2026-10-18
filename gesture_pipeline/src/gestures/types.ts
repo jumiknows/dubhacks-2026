@@ -3,6 +3,39 @@ export type Pt = { x: number; y: number; z: number };
 export type Vec2 = { x: number; y: number };
 export type HandId = 'left' | 'right';
 export type BimanualKind = 'expand' | 'collapse' | 'compare';
+export type GestureId =
+  | 'hover'
+  | 'pinch_select'
+  | 'pinch_drag'
+  | 'drag_move'
+  | 'drop'
+  | 'swipe_left'
+  | 'swipe_right'
+  | 'swipe_up'
+  | 'swipe_down'
+  | 'fist_grab'
+  | 'fist_release'
+  | 'two_hand_split'
+  | 'two_hand_recombine'
+  | 'two_hand_compare'
+  | 'cancel';
+export type GestureAction =
+  | 'highlight_target'
+  | 'select'
+  | 'drag'
+  | 'drag_move'
+  | 'drop'
+  | 'browse_next'
+  | 'browse_previous'
+  | 'scroll_forward'
+  | 'scroll_backward'
+  | 'hold_target'
+  | 'activate_target'
+  | 'break_group'
+  | 'recombine_group'
+  | 'compare'
+  | 'cancel';
+export type GestureMap = Record<GestureId, GestureAction>;
 export type ObjectTarget = { id: string; groupId: string; kind: 'original' | 'component' | 'group' };
 export type HandFrame = { landmarks: Pt[]; handedness?: string; handednessScore?: number };
 export type FrameInput = { t: number; hands: HandFrame[]; videoW: number; videoH: number };
@@ -22,6 +55,8 @@ export type GestureType = 'hover' | 'pointer_down' | 'pointer_up' | 'select' | '
 export type GestureSource = 'hand' | 'mouse' | 'keyboard' | 'voice' | 'replay';
 export type GestureEvent = {
   type: GestureType;
+  gesture_id: GestureId;
+  action: GestureAction;
   hand_id?: HandId;
   hand_ids?: HandId[];
   target_ids?: string[];

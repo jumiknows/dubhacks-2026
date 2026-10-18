@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from api import checkout, nlu
 from api.schemas import (
-    Dismissal, FilterTrace, HighlightTrust, OpenCompare, PolicyTrace, PreferenceProfile, Product,
+    Dismissal, FilterTrace, HighlightTrust, IntentMandate, OpenCompare, PolicyTrace, PreferenceProfile, Product,
     RankedProduct, Rerank, ShowResults, Tradeoff, UpdateProfile,
 )
 from api.search import SearchRequest, ranker
@@ -80,28 +80,9 @@ class StageArgs(BaseModel):
 # --- helpers --------------------------------------------------------------
 
 
-_FRAGRANCE_FREE_WORDS = {"fragrance_free", "fragrancefree", "unscented", "no_fragrance", "scent_free", "without_fragrance"}
-
-
 def normalize_preferences(needs: list[str], avoid: list[str]) -> tuple[list[str], list[str]]:
-    """Map free-form LLM values onto the vocabulary search understands
-    ("fragrance-free" as a need becomes avoid: fragrance)."""
-    def key(v: str) -> str:
-        return v.strip().lower().replace("-", "_").replace(" ", "_")
-
-    out_needs: list[str] = []
-    out_avoid = [key(a) for a in avoid]
-    for n in map(key, needs):
-        if n in _FRAGRANCE_FREE_WORDS:
-            out_avoid.append("fragrance")
-        elif n in ("hydration", "moisturizing", "moisture"):
-            out_needs.append("hydrating")
-        elif n in ("sun_protection", "sunscreen", "uv"):
-            out_needs.append("spf")
-        else:
-            out_needs.append(n)
-    out_avoid = ["fragrance" if a in ("fragrance", "scent", "perfume", "fragrances") else a for a in out_avoid]
-    return list(dict.fromkeys(out_needs))[:20], list(dict.fromkeys(out_avoid))[:20]
+    """Keep the tool helper compatible; search and profile tools share one vocabulary."""
+    return nlu.normalize_preferences(needs, avoid)
 
 
 def money(x: float) -> str:
@@ -115,6 +96,8 @@ def _brief(p: RankedProduct | Product) -> dict[str, Any]:
         "fragrance_free": p.attributes.get("fragrance_free"), "skin_type": p.attributes.get("skin_type"),
         "trust_score": t.score if t else None, "trust_tier": t.tier if t else None,
         "rating_adjusted": t.rating_adjusted if t else None,
+        "data_source": "fictional_demo_catalog",
+        "delivery_available": False,
     }
     if isinstance(p, RankedProduct):
         out["fit_percent"] = p.fit_percent
@@ -132,11 +115,15 @@ def require_product(product_id: str) -> Product:
 def merge_parsed(profile: PreferenceProfile, q: nlu.ParsedQuery, provenance: str = "said") -> PreferenceProfile:
     """Returns a new profile with the parsed constraints added."""
     prof = profile.model_copy(deep=True)
-    for n in q.needs:
+    prof.needs, prof.avoid = normalize_preferences(prof.needs, prof.avoid)
+    if prof.skin_type:
+        prof.skin_type = ",".join(s.strip().lower() for s in prof.skin_type.split(",") if s.strip())
+    needs, avoid = normalize_preferences(q.needs, q.avoid)
+    for n in needs:
         if n not in prof.needs:
             prof.needs.append(n)
             prof.provenance[f"needs:{n}"] = provenance  # type: ignore[assignment]
-    for a in q.avoid:
+    for a in avoid:
         if a not in prof.avoid:
             prof.avoid.append(a)
             prof.provenance[f"avoid:{a}"] = provenance  # type: ignore[assignment]
@@ -157,10 +144,14 @@ def run_search_with_stats(
     Returns (results, products removed per hard filter, the effective profile)."""
     base = profile or (session.profile if session else PreferenceProfile())
     parsed = nlu.parse(args.query)
+    if parsed.budget_error:
+        raise ValueError(parsed.budget_error)
     # A budget in the query only tightens the search; it never loosens the profile's budget.
-    budgets = [b for b in (args.max_price, parsed.budget_max) if b is not None]
+    budgets = [b for b in (args.max_price, parsed.budget_max, base.budget_max) if b is not None]
     parsed.budget_max = None
     effective = merge_parsed(base, parsed)
+    # The returned effective profile is also the source of truthful filter traces.
+    effective.budget_max = min(budgets) if budgets else None
     req = SearchRequest(query=args.query, max_price=min(budgets) if budgets else None, limit=limit or args.limit,
                         subcategory=args.subcategory or parsed.subcategory)
     results, removed = ranker().search_with_stats(req, effective, session.intent_mandate if session else None)
@@ -173,13 +164,18 @@ def run_search(
     return run_search_with_stats(session, args, profile, limit)[0]
 
 
-def _filter_traces(removed: dict[str, int], profile: PreferenceProfile, max_price: float | None) -> list[BaseModel]:
-    budgets = [b for b in (max_price, profile.budget_max) if b is not None]
+def _filter_traces(
+    removed: dict[str, int], profile: PreferenceProfile, max_price: float | None,
+    mandate: IntentMandate | None = None,
+) -> list[BaseModel]:
+    budgets = [b for b in (max_price, profile.budget_max, mandate.budget_max if mandate else None) if b is not None]
     why = {
         "budget": f"over your {money(min(budgets))} budget" if budgets else "over budget",
         "avoid": f"contain something you avoid ({', '.join(profile.avoid)})",
-        "unverified": "sold by unverified merchants (your signed rules require verified)",
+        "unverified": "not approved by your signed local merchant rules",
         "dismissed": "you dismissed them",
+        "subcategory": "outside the requested or signed product categories",
+        "missing_price": "missing a usable price",
     }
     return [FilterTrace(removed=n, why=why[k]) for k, n in removed.items() if k in why and n]
 
@@ -192,13 +188,15 @@ def search_products(session: Session, args: SearchArgs, rerank_because: str | No
     results, removed, effective = run_search_with_stats(session, args)
     ids = [r.id for r in results]
     session.last_results, session.last_query = ids, args.query
+    if session.focused_id not in ids:
+        session.focused_id = None
     session.last_subcategory = args.subcategory or nlu.parse(args.query).subcategory
     if rerank_because:
         action: BaseModel = Rerank(product_ids=ids, changed_because=rerank_because)
     else:
         action = ShowResults(product_ids=ids, reason=f"Best matches for: {args.query}"[:200] if args.query else "Best matches for your profile")
     return ToolOutcome({"results": [_brief(r) for r in results], "count": len(results)}, [action],
-                       _filter_traces(removed, effective, args.max_price))
+                       _filter_traces(removed, effective, args.max_price, session.intent_mandate))
 
 
 @_timed
@@ -206,13 +204,15 @@ def get_trust(session: Session, args: ProductArg) -> ToolOutcome:
     p = require_product(args.product_id)
     t = store.trust_report(p.id)
     if t is None:
-        return ToolOutcome({"product_id": p.id, "error": "no trust report"})
+        return ToolOutcome({"product_id": p.id, "error": "no trust report", "data_source": "no_review_evidence"})
     result = {
         "product_id": p.id, "title": p.title, "score": t.score, "tier": t.tier,
         "rating_listed": t.rating_listed, "rating_adjusted": t.rating_adjusted,
         "review_count": p.review_count,
         "signals": [{"key": s.key, "subscore": s.subscore, "detail": s.detail} for s in t.signals],
         "top_reasons": t.top_reasons, "has_security_flags": bool(t.security_flags),
+        "data_source": "synthetic_demo_reviews", "catalog_source": "fictional_demo_catalog",
+        "evidence_is_synthetic": True,
     }
     session.focused_id = p.id
     return ToolOutcome(result, [HighlightTrust(product_id=p.id)])
@@ -231,9 +231,10 @@ def tradeoffs(a: Product, b: Product) -> list[Tradeoff]:
     better = None if sa is None or sb is None or sa == sb else ("a" if sa > sb else "b")
     out.append(Tradeoff(dimension="Trust Score", a=trust_str(ta), b=trust_str(tb), better=better))
 
-    ra, rb = (ta.rating_adjusted if ta else 0.0), (tb.rating_adjusted if tb else 0.0)
-    out.append(Tradeoff(dimension="Adjusted rating", a=f"{ra:.1f}", b=f"{rb:.1f}",
-                        better=None if ra == rb else ("a" if ra > rb else "b")))
+    ra, rb = (ta.rating_adjusted if ta else None), (tb.rating_adjusted if tb else None)
+    out.append(Tradeoff(dimension="Adjusted rating", a="Unknown" if ra is None else f"{ra:.1f}",
+                        b="Unknown" if rb is None else f"{rb:.1f}",
+                        better=None if ra is None or rb is None or ra == rb else ("a" if ra > rb else "b")))
 
     ma, mb = a.attributes.get("size_ml"), b.attributes.get("size_ml")
     if isinstance(ma, (int, float)) and isinstance(mb, (int, float)) and ma and mb:
@@ -241,13 +242,18 @@ def tradeoffs(a: Product, b: Product) -> list[Tradeoff]:
         out.append(Tradeoff(dimension="Price per ml", a=f"${pa:.2f}", b=f"${pb:.2f}",
                             better=None if round(pa, 2) == round(pb, 2) else ("a" if pa < pb else "b")))
 
-    fa, fb = bool(a.attributes.get("fragrance_free")), bool(b.attributes.get("fragrance_free"))
-    out.append(Tradeoff(dimension="Fragrance", a="Fragrance-free" if fa else "Contains fragrance",
-                        b="Fragrance-free" if fb else "Contains fragrance", better=None if fa == fb else ("a" if fa else "b")))
-    out.append(Tradeoff(dimension="Skin types", a=str(a.attributes.get("skin_type", "")).replace(",", ", "),
-                        b=str(b.attributes.get("skin_type", "")).replace(",", ", ")))
-    out.append(Tradeoff(dimension="Key ingredient", a=str(a.attributes.get("key_ingredient", "")),
-                        b=str(b.attributes.get("key_ingredient", ""))))
+    fa, fb = a.attributes.get("fragrance_free"), b.attributes.get("fragrance_free")
+
+    def fragrance_label(value: Any) -> str:
+        return "Fragrance-free" if value is True else "Contains fragrance" if value is False else "Unknown"
+
+    both_known = type(fa) is bool and type(fb) is bool
+    out.append(Tradeoff(dimension="Fragrance", a=fragrance_label(fa), b=fragrance_label(fb),
+                        better=None if not both_known or fa == fb else ("a" if fa else "b")))
+    out.append(Tradeoff(dimension="Skin types", a=str(a.attributes.get("skin_type") or "Unknown").replace(",", ", "),
+                        b=str(b.attributes.get("skin_type") or "Unknown").replace(",", ", ")))
+    out.append(Tradeoff(dimension="Key ingredient", a=str(a.attributes.get("key_ingredient") or "Unknown"),
+                        b=str(b.attributes.get("key_ingredient") or "Unknown")))
     return out
 
 

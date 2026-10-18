@@ -18,20 +18,18 @@ A second left swipe does nothing once the widget is already in the main frame. S
 
 ## Lists
 
-Inside groceries, swipe up to move one box later and swipe down to move one box earlier. The same up and down swipes move one row through the electronics fleet. The 0.5 second pause applies between those swipes too.
+Each submitted query is appended to one permanent vertical list. One-finger pan, or a pinched swipe up/down, moves through every group the user still needs.
 
-Groceries stays a week of meal boxes. Electronics is a health board: a fleet table, a battery trend, and a safety-update table. Swiping there changes which device the tables and the graph describe. It does not open a meal-style card.
+Grab the same group with both hands and pull apart to split it into pieces. Those pieces scroll horizontally. Grab one piece and hold to lift it to the center with buyable listings. Hold a listing for two seconds to mark it in the cart (yellow). Swipe up, or bring both fists together, to cancel. Swipe up/down while split to recombine and keep moving; both fists together to recombine in place.
+
+Black = owned, green = purchased, yellow = cart, red = still needs buying.
 
 ## Grab and release
 
 Close every finger, thumb included, to grab. Open the hand to release.
 
 - Grab highlights the control under the index finger.
-- Release confirms the control that was grabbed, even if the hand drifted. It does not select whatever is under the finger at the end.
-- A grocery box opens or closes on release.
-- A dock icon becomes the selection and sticks out. It does not open the main frame. Swipe left does that.
-- An electronics row becomes the focused device, and the trend and the safety table follow it.
-- Grab on empty space, then release, does nothing.
+- Holding a piece lifts it. Holding a product for two seconds adds it to the cart.
 - A fist with one finger still out is not a grab.
 - Fingers pointed at the camera are not a grab. The gesture panel says to rotate the wrist.
 

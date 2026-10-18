@@ -56,13 +56,12 @@ No concept zoom. The frame lists **possible relevant items**: the `products[]` f
 
 ## Color
 
-Purchased state is the only color language on the concept image and the sku list.
+Status color is the language on groups, pieces, and history.
 
-- **Green** — purchased (or a group whose children are all purchased).
-- **Red** — not purchased (or a group with anything still open).
-- A group that is mixed uses red on the group hotspot until every child is green.
-
-Do not use extra status colors. Green/red have to read on the dark shell and on the concept image.
+- **Black** — owned already.
+- **Green** — purchased.
+- **Yellow** — in the shopping cart.
+- **Red** — not purchased / still needs buying.
 
 ## Chat history (right panel)
 
@@ -77,14 +76,13 @@ The panel is history, not a widget picker. Tapping an older assistant turn can r
 
 ## Gestures (current rules)
 
-Pinch, then swipe. Fist to select.
+Copy that users see lives in `gesture_pipeline/src/gestures/ui/Hints.tsx` (first-run overlay) and the home hint in `client/src/ui/PlannerUI.jsx`.
 
-- Pinch left: open the chat panel, or keep it open.
-- Pinch right: close the chat panel, or zoom out if a group is focused.
-- Pinch up / down: one listing or one hotspot at a time.
-- Fist grab / release: highlight then confirm the hotspot or listing under the index.
-
-A swipe without a pinch is ignored. Same-direction cooldown 0.5s. Opposite-direction ignore 1.1s.
+- One finger pan (or pinch then swipe up/down): scroll every saved query.
+- Both hands grab one group and pull apart: split it into pieces. Pan those pieces left/right.
+- One-hand grab and hold a piece: lift it to the middle with store listings.
+- Grab a product and hold two seconds: put it in the cart (yellow). Swipe up, or bring both fists together, to cancel.
+- Swipe up/down while split: recombine and keep moving through the list. Both fists together: recombine without moving.
 
 ## Backend
 

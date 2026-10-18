@@ -29,8 +29,6 @@ SEEDS = [
          amazon=35.00, ebay=22.00, walmart=28.00),
     dict(query="milk", title="Whole Milk", brand="Organic Valley", specs={"size": "1 gal"},
          amazon=4.49, ebay=3.99, walmart=3.19),
-    dict(query="laptop", title="Headphones", brand="Sony", specs={"type": "over-ear"},
-         amazon=89.00, ebay=45.00, walmart=69.00),
 ]
 
 BRANDS = {
@@ -39,11 +37,48 @@ BRANDS = {
     "walmart": ["Ozark Trail", "Mainstays", "Hyper Tough", "Better Homes", "Equate", "Great Value"],
 }
 
+# Travel is the featured example, so each travel item gets brands that actually make it.
+_RESELLERS = ["Unbranded", "Generic", "travel-outlet", "gear-lot", "refurb-hub", "bag-deals"]
+
+
+def _brands(amazon: list[str], walmart: list[str]) -> dict[str, list[str]]:
+    return {"amazon": amazon, "ebay": _RESELLERS, "walmart": walmart}
+
+
+SEEDS += [
+    dict(query="headphones", title="Noise-Cancelling Headphones", brand="Sony",
+         specs={"type": "over-ear", "battery": "30 h"}, amazon=89.00, ebay=45.00, walmart=69.00,
+         brands=_brands(["Sony", "Soundcore", "Bose", "JBL", "Sennheiser", "Audio-Technica"],
+                        ["onn.", "JLab", "Sony", "Skullcandy"])),
+    dict(query="carry-on suitcase", title="Carry-On Spinner Suitcase", brand="Samsonite",
+         specs={"size": "22 x 14 x 9 in", "weight": "7.1 lb"}, amazon=129.99, ebay=64.00, walmart=89.00,
+         brands=_brands(["Samsonite", "Travelpro", "Osprey", "Delsey", "American Tourister", "Away"],
+                        ["Protege", "Travel Select", "American Tourister", "Samsonite"])),
+    dict(query="packing cubes", title="Packing Cubes 6-Piece Set", brand="BAGSMART",
+         specs={"pieces": "6", "size": "assorted"}, amazon=24.99, ebay=12.00, walmart=16.97,
+         brands=_brands(["BAGSMART", "Eagle Creek", "Gonex", "Veken", "Osprey"], ["Open Story", "Mainstays", "Protege"])),
+    dict(query="universal travel adapter", title="Universal Travel Adapter", brand="EPICKA",
+         specs={"countries": "150+", "usb ports": "4"}, amazon=21.99, ebay=9.50, walmart=14.88,
+         brands=_brands(["EPICKA", "Anker", "Ceptics", "TESSAN", "Unidapt"], ["onn.", "Travel Smart", "Conair"])),
+    dict(query="portable charger", title="Portable Charger 20000mAh", brand="Anker",
+         specs={"capacity": "20000 mAh", "weight": "12 oz"}, amazon=39.99, ebay=18.00, walmart=24.88,
+         brands=_brands(["Anker", "INIU", "Belkin", "Baseus", "UGREEN"], ["onn.", "Belkin", "Anker"])),
+    dict(query="neck pillow", title="Memory Foam Neck Pillow", brand="Cabeau",
+         specs={"fill": "memory foam", "size": "11 x 10 in"}, amazon=29.99, ebay=12.00, walmart=14.97,
+         brands=_brands(["Cabeau", "Trtl", "BCOZZY", "Travelrest"], ["Open Story", "Mainstays", "Travel Smart"])),
+    dict(query="toiletry bag", title="Hanging Toiletry Bag", brand="BAGSMART",
+         specs={"size": "10 x 7 in", "tsa": "clear quart pouch"}, amazon=19.99, ebay=9.00, walmart=12.97,
+         brands=_brands(["BAGSMART", "Eagle Creek", "Narwey", "Vera Bradley"], ["Open Story", "Protege", "Mainstays"])),
+    dict(query="passport wallet", title="RFID Passport Wallet", brand="Zoppen",
+         specs={"rfid": "blocking", "size": "9 x 5 in"}, amazon=15.99, ebay=7.00, walmart=9.97,
+         brands=_brands(["Zoppen", "Eagle Creek", "Travelambo", "Bellroy"], ["Travel Smart", "Open Story", "Mainstays"])),
+]
+
 STORES = {"amazon": "Amazon", "ebay": "eBay", "walmart": "Walmart"}
 
 
 def _variants(seed: dict, marketplace: str, count: int) -> list[MarketProduct]:
-    brand_cycle = BRANDS[marketplace]
+    brand_cycle = seed.get("brands", BRANDS)[marketplace]
     base_price = seed[marketplace]
     rows: list[MarketProduct] = []
     for index in range(count):
@@ -62,6 +97,8 @@ def _variants(seed: dict, marketplace: str, count: int) -> list[MarketProduct]:
             title=f"{brand} {seed['title']}" + (" Used" if used else ""),
             brand=brand,
             price=price,
+            # No picture rather than the wrong one: the catalog SVGs are skincare products.
+            image=None,
             url=f"https://www.{marketplace}.com/item/{index}",
             dimensions={"label": seed["specs"].get("packed size") or seed["specs"].get("size") or "see specs"},
             shipping_days=2 if marketplace == "amazon" else 4 + index % 5,
@@ -90,13 +127,19 @@ for seed in SEEDS:
 def for_query(query: str, marketplaces: list[str], limit: int) -> list[MarketProduct]:
     needle = query.lower()
     tokens = [part for part in needle.replace("-", " ").split() if len(part) > 2] or needle.split()
-    hits: list[MarketProduct] = []
+    # Listings matching every word come first ("sleeping pad" is not a sleeping bag);
+    # any-word matches are the fallback so loose queries still find something.
+    every: list[MarketProduct] = []
+    some: list[MarketProduct] = []
     for product in FIXTURES:
         if product.marketplace not in marketplaces:
             continue
         hay = f"{product.title} {product.query} {product.brand or ''}".lower()
-        if any(token in hay for token in tokens):
-            hits.append(product.model_copy(update={"query": query}))
+        if all(token in hay for token in tokens):
+            every.append(product.model_copy(update={"query": query}))
+        elif any(token in hay for token in tokens):
+            some.append(product.model_copy(update={"query": query}))
+    hits = every or some
     if not hits:
         return [MarketProduct(
             id=f"unlisted-{query.lower().replace(' ', '-')[:40]}",
