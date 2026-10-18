@@ -1,6 +1,8 @@
 # Labeling, evaluation and model readiness
 
-Status: a research and evaluation protocol. No training dataset, fitted model or performance result exists yet. See [data backend](DATA_BACKEND.md) and [data epic #29](https://github.com/jumiknows/spacex2026Hacks/issues/29).
+Status: the first research experiment is implemented in [research/](../research/README.md) and its measured results are in [the report](../research/results/wa-discovery-nextday-v1/report.md). See [data backend](DATA_BACKEND.md) and [data epic #29](https://github.com/jumiknows/spacex2026Hacks/issues/29).
+
+Product decision, 2026-10-18: the product owner chose to show the research ranking in the app as a separate layer named "Danger zones" and marked "Research model", before the independent review and shadow evaluation described below. It does not change the attention band, the briefing or Voice. The layer states its test performance and that it is retrospective research, not a forecast.
 
 ## Two different kinds of labels
 

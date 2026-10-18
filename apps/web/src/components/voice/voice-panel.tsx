@@ -44,7 +44,13 @@ export function VoicePanel({ context }: { context: PlaceContext | null }) {
     if (!context) return;
     stopResources(); setBusy(true); setMessage("Connecting to Grok Voice."); setTranscript("");
     const run = generation.current;
-    const voice = new VoiceConnection((text, isReady) => { if (active.current && run === generation.current) { setMessage(text); setReady(isReady); setBusy(false); } }, (text) => { if (active.current && run === generation.current) setTranscript((previous) => (previous + text).slice(-12000)); });
+    // "Talk to Grok" means talk: open the microphone as soon as the session is ready.
+    let listening = false;
+    const voice = new VoiceConnection((text, isReady) => {
+      if (!active.current || run !== generation.current) return;
+      setMessage(text); setReady(isReady); setBusy(false);
+      if (isReady && !listening) { listening = true; void voice.microphone(); }
+    }, (text) => { if (active.current && run === generation.current) setTranscript((previous) => (previous + text).slice(-12000)); });
     connection.current = voice;
     try { await voice.start(context, accessCode); }
     catch (error) { voice.stop(); if (active.current && run === generation.current) { setBusy(false); setReady(false); setMessage(error instanceof Error ? error.message : "Voice is unavailable."); } }

@@ -54,6 +54,9 @@ describe("bounded Voice access and grounding", () => {
     vi.stubEnv("XAI_API_KEY", "synthetic-test-key"); vi.stubEnv("VOICE_ACCESS_TOKEN", "test-access"); vi.stubEnv("VOICE_ACCESS_MODE", "");
     expect(voiceAccess(new Request("https://demo.example/api/voice/session"), "session")?.status).toBe(403);
     expect(voiceAccess(new Request("https://demo.example/api/voice/session", { headers: { Authorization: "Bearer test-access", Origin: "https://other.example" } }), "session")?.status).toBe(403);
+    // Next.js dev reports request.url as localhost while the page runs at 127.0.0.1: the Host header decides.
+    expect(voiceAccess(new Request("http://localhost:3000/api/voice/briefing", { headers: { Authorization: "Bearer test-access", Origin: "http://127.0.0.1:3000", "X-Forwarded-Host": "127.0.0.1:3000" } }), "speech")).toBeNull();
+    expect(voiceAccess(new Request("http://localhost:3000/api/voice/briefing", { headers: { Authorization: "Bearer test-access", Origin: "https://evil.example", "X-Forwarded-Host": "127.0.0.1:3000" } }), "speech")?.status).toBe(403);
     const request = new Request("https://demo.example/api/voice/session", { headers: { Authorization: "Bearer test-access" } });
     for (let i = 0; i < 5; i += 1) expect(voiceAccess(request, "session")).toBeNull();
     expect(voiceAccess(request, "session")?.status).toBe(429);

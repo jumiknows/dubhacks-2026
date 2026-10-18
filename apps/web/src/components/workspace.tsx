@@ -5,7 +5,9 @@ import {
   buildPlaceContext, changeSummary, distanceKm, formatKm, formatPacific, formatUtc, MONITOR_KM, REVIEW_KM,
   type AttentionBand, type Place, type PlaceContext, type SnapshotResponse, type ThermalObservation,
 } from "@emberready/domain";
-import { ObservationMap } from "./map/observation-map";
+import { riskDateFor, type RiskDay, type RiskGrid, type RiskSummary } from "../lib/risk";
+import { ObservationMap, type RiskLayer } from "./map/observation-map";
+import { RiskPanel } from "./risk-panel";
 import { Timeline } from "./timeline";
 import { VoicePanel } from "./voice/voice-panel";
 
@@ -23,7 +25,7 @@ interface DemoProps {
 const BAND: Record<AttentionBand, { label: string; headline: string }> = {
   review: { label: "Review", headline: `Thermal activity within ${REVIEW_KM} km` },
   monitor: { label: "Monitor", headline: `Activity in the wider ${MONITOR_KM} km area` },
-  "no-signal": { label: "No signal", headline: `Nothing within ${MONITOR_KM} km in the last 24 hours` },
+  "no-signal": { label: "Nothing nearby", headline: `Nothing within ${MONITOR_KM} km in the last 24 hours` },
   unknown: { label: "Unknown", headline: "Source data needs review" },
 };
 
@@ -59,6 +61,34 @@ export function Workspace({ demo }: { demo: DemoProps }) {
   const listed = showAll ? nearby : nearby.filter((item) => item.kilometers <= MONITOR_KM);
   const selected = nearby.find((row) => row.observation.id === selectedId);
   useEffect(() => () => liveRequest.current?.abort(), []);
+
+  // Research danger zones: the grid and model summary once, then one ranking per day.
+  const [riskMeta, setRiskMeta] = useState<{ summary: RiskSummary; grid: RiskGrid } | null>(null);
+  const [riskDay, setRiskDay] = useState<RiskDay | null>(null);
+  const [showRisk, setShowRisk] = useState(true);
+  useEffect(() => {
+    fetch("/api/risk").then((response) => response.ok ? response.json() : null).then(setRiskMeta).catch(() => setRiskMeta(null));
+  }, []);
+  const riskDate = useMemo(() => {
+    if (!riskMeta) return null;
+    if (mode === "replay") return cutoff ? riskDateFor(cutoff) : null;
+    const scored = Object.values(riskMeta.summary.dates).filter((entry) => entry.status !== "unavailable").map((entry) => entry.date).sort();
+    return scored.at(-1) ?? null;
+  }, [riskMeta, mode, cutoff]);
+  useEffect(() => {
+    if (!riskDate) { setRiskDay(null); return; }
+    const controller = new AbortController();
+    fetch(`/api/risk/${riskDate}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((body) => { if (!controller.signal.aborted) setRiskDay(body); })
+      .catch(() => { if (!controller.signal.aborted) setRiskDay(null); });
+    return () => controller.abort();
+  }, [riskDate]);
+  const riskLayer = useMemo<RiskLayer | null>(() => showRisk && riskMeta && riskDay
+    ? { polygons: riskMeta.grid.polygons, tier: riskDay.cells.tier, rank: riskDay.cells.rank }
+    : null, [showRisk, riskMeta, riskDay]);
+  const riskCell = riskMeta ? riskMeta.grid.placeCells[place.id] ?? null : null;
+
   useEffect(() => {
     const open = () => document.querySelector(".briefing-box")?.setAttribute("open", "");
     window.addEventListener("beforeprint", open);
@@ -111,10 +141,10 @@ export function Workspace({ demo }: { demo: DemoProps }) {
     <section className="stage" aria-labelledby="map-heading">
       <h2 id="map-heading" className="sr-only">Map near {place.name}</h2>
       <div className="map-wrap">
-        <ObservationMap observations={visible} freshIds={freshIds} asOf={cutoff} place={place} bbox={demo.bbox} selectedId={selectedId} onSelect={setSelectedId} />
+        <ObservationMap risk={riskLayer} observations={visible} freshIds={freshIds} asOf={cutoff} place={place} bbox={demo.bbox} selectedId={selectedId} onSelect={setSelectedId} />
         <div className="hud mono" aria-hidden="true">
           <span>{mode === "replay" ? "REPLAY" : "LIVE"}</span>
-          <span>{cutoff ? formatUtc(cutoff) : "NO SIGNAL"}</span>
+          <span>{cutoff ? formatUtc(cutoff) : "NO DATA"}</span>
           <span>{visible.length} DETECTIONS</span>
         </div>
         <ul className="legend" aria-label="Map legend">
@@ -122,6 +152,7 @@ export function Workspace({ demo }: { demo: DemoProps }) {
           <li><i className="dot nominal" />Nominal</li>
           <li><i className="dot low" />Low, not banded</li>
           <li><i className="ring-key" />{REVIEW_KM} / {MONITOR_KM} km</li>
+          {riskLayer ? <li><i className="zone-key" />Danger zones (research)</li> : null}
         </ul>
       </div>
       {liveMessage ? <p className="status-line" role="status">{liveMessage}</p> : null}
@@ -147,6 +178,8 @@ export function Workspace({ demo }: { demo: DemoProps }) {
           <p className="briefing">{context.briefingText}</p>
         </details>
       </> : <p className="briefing empty">A live briefing is unavailable until a live source snapshot loads. No replay observations are shown in Live mode.</p>}
+
+      {riskMeta ? <RiskPanel summary={riskMeta.summary} date={riskDate} day={riskDay} cell={riskCell} shown={showRisk} onToggle={() => setShowRisk((value) => !value)} /> : null}
 
       <VoicePanel key={context?.contextVersion ?? `${place.id}|${mode}|unavailable`} context={context} />
       <div className="share">

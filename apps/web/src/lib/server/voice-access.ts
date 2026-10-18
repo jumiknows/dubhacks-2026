@@ -5,11 +5,23 @@ function sameSecret(a: string, b: string): boolean {
   const left = Buffer.from(a); const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
+/**
+ * The browser's Origin must name the host it is talking to. Compare with the Host header the
+ * browser sent (or the proxy's X-Forwarded-Host), not request.url: in development Next.js reports
+ * request.url as localhost even when the page is opened at 127.0.0.1, which blocked Voice locally.
+ */
+function sameSite(request: Request, origin: string): boolean {
+  let host: string;
+  try { host = new URL(origin).host; } catch { return false; }
+  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const served = [forwarded, request.headers.get("host"), new URL(request.url).host].filter(Boolean);
+  return served.includes(host);
+}
 export function voiceAccess(request: Request, kind: "speech" | "session"): Response | null {
   const deny = (status: number, code: string, message: string) => Response.json({ error: { code, message } }, { status, headers: { "Cache-Control": "no-store" } });
   if (!process.env.XAI_API_KEY) return deny(503, "missing-credential", "XAI_API_KEY is not configured. The readable briefing remains available.");
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return deny(403, "forbidden", "Use Voice from this application.");
+  if (origin && !sameSite(request, origin)) return deny(403, "forbidden", "Use Voice from this application.");
   const privateSite = process.env.VOICE_ACCESS_MODE === "private-site" && !!request.headers.get("oai-authenticated-user-id");
   const token = process.env.VOICE_ACCESS_TOKEN;
   const authorized = privateSite || !!token && sameSecret(request.headers.get("authorization") ?? "", `Bearer ${token}`);

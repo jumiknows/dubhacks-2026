@@ -346,3 +346,30 @@ details[open] > summary::before { transform: rotate(90deg); }
   .briefing { color: #000; }
   .briefing-box > summary::before { display: none; }
 }
+
+/* Research danger zones */
+
+.zone-key { width: 12px; height: 10px; background: linear-gradient(90deg, #ffd166 0 33%, #ff8a00 33% 66%, #ff3b30 66%); opacity: 0.85; }
+
+.risk { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raise); }
+.risk-head { display: flex; align-items: center; gap: 8px; }
+.risk-head h3 { margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.risk-head .chip { margin-left: auto; }
+.risk-tag { padding: 2px 7px; border-radius: 4px; border: 1px dashed var(--line-strong); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.risk-line { margin: 0; font-size: 14px; }
+.risk-tier { font-weight: 600; }
+.risk-tier[data-tier="highest"] { color: #ff6b5f; }
+.risk-tier[data-tier="high"] { color: #ff9f40; }
+.risk-tier[data-tier="elevated"] { color: #ffd166; }
+.risk-tier[data-tier="low"] { color: #a8b3bf; }
+.risk-chance { margin: 0; font-size: 13px; color: #c6d0da; line-height: 1.5; }
+.risk-reasons { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.risk-reasons li { display: flex; gap: 8px; align-items: baseline; color: #c6d0da; }
+.risk-arrow { font-size: 9px; width: 10px; }
+.risk-reasons li[data-direction="up"] .risk-arrow { color: #ff8a00; }
+.risk-reasons li[data-direction="down"] .risk-arrow { color: var(--cyan); }
+.risk-note { margin: 0; font-size: 12px; color: var(--nominal); }
+.risk-about { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.risk-about summary { font-weight: 500; color: var(--ink); }
+.risk-about p { margin: 8px 0 0; }
+@media print { .risk { display: none; } }
