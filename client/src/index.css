@@ -1,3 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-detail-in: detail-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-detail-out: detail-out 0.2s ease both;
+  --animate-stretch-in: stretch-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: icon-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-click: click-pulse 0.2s ease-out forwards;
+  --animate-sheet: sheet-stretch 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bloom: sheet-bloom 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-unroll: sheet-unroll 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-scan: sheet-scan 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-lift: sheet-lift 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade: fade-in 0.2s ease both;
+}
+
 :root {
   color: #1c1915;
   background: #f3f0e8;
@@ -448,7 +465,7 @@ img.thumb { object-fit: cover; }
   place-items: center;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.55);
-  animation: fade-in 0.25s ease;
+  animation: fade-in 0.2s ease;
 }
 
 .modal {
@@ -461,7 +478,7 @@ img.thumb { object-fit: cover; }
   border-radius: 16px;
   padding: 1rem 1.1rem 1.15rem;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-  animation: sheet-bloom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: sheet-bloom 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .modal-kicker {
@@ -692,7 +709,7 @@ img.thumb { object-fit: cover; }
   opacity: 0.55;
   transform: translate(-50%, -46%);
   animation: glow-breathe 9s ease-in-out infinite;
-  transition: background 0.8s ease, opacity 0.8s ease;
+  transition: background 0.2s ease, opacity 0.2s ease;
 }
 
 .glow-ring {
@@ -711,7 +728,7 @@ img.thumb { object-fit: cover; }
 .glow-ring:nth-child(5) { width: 760px; height: 760px; opacity: 0.14; animation-delay: -4.2s; }
 .glow-ring:nth-child(6) { width: 980px; height: 980px; opacity: 0.08; animation-delay: -5.6s; }
 
-.shell[data-hue="groceries"] .glow-core { animation: glow-stretch 0.9s cubic-bezier(0.16, 1, 0.3, 1) both, glow-breathe 9s ease-in-out 0.9s infinite; }
+.shell[data-hue="groceries"] .glow-core { animation: glow-stretch 0.2s cubic-bezier(0.22, 1, 0.36, 1) both, glow-breathe 9s ease-in-out 0.2s infinite; }
 .shell[data-hue="wedding"] .glow-core { animation: glow-bloom 7s ease-in-out infinite; }
 .shell[data-hue="camping"] .glow-ring { animation: ring-out 6s ease-out infinite; }
 .shell[data-hue="electronics"] .glow-core { animation: glow-scan 5.5s linear infinite; }
@@ -728,7 +745,7 @@ img.thumb { object-fit: cover; }
 
 .home.is-dim {
   opacity: 0.45;
-  transition: opacity 0.35s ease;
+  transition: opacity 0.2s ease;
 }
 
 .home .eyebrow { color: #8ef0dc; }
@@ -810,7 +827,7 @@ img.thumb { object-fit: cover; }
 }
 
 .dock-btn[aria-pressed="true"] svg {
-  animation: icon-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: icon-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .pull {
@@ -852,8 +869,8 @@ img.thumb { object-fit: cover; }
   border-radius: 0;
   backdrop-filter: blur(18px);
   transition:
-    transform 0.46s cubic-bezier(0.2, 0.8, 0.2, 1),
-    clip-path 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.06s;
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sheet.is-dragging { transition: none; }
@@ -894,18 +911,9 @@ img.thumb { object-fit: cover; }
   flex-direction: column;
   padding: 0.6rem 7.2rem 0.8rem 1.4rem;
   transform-origin: top center;
-  animation: sheet-stretch 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.shell[data-hue="wedding"] .sheet-body { animation: sheet-bloom 0.65s cubic-bezier(0.16, 1, 0.3, 1); }
-.shell[data-hue="camping"] .sheet-body { animation: sheet-unroll 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
-.shell[data-hue="electronics"] .sheet-body { animation: sheet-scan 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-.shell[data-hue="custom"] .sheet-body { animation: sheet-lift 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-
-.stretch-in {
-  transform-origin: top center;
-  animation: stretch-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+.stretch-in { transform-origin: top center; }
 
 .sheet .week,
 .sheet .devices { flex: 1; min-height: 0; }
@@ -928,7 +936,7 @@ img.thumb { object-fit: cover; }
   height: 100%;
   overflow-y: auto;
   scroll-snap-type: y mandatory;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   overscroll-behavior: contain;
   touch-action: none;
   scrollbar-width: none;
@@ -947,7 +955,7 @@ img.thumb { object-fit: cover; }
   padding: 0.4rem 0;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  transition: height 0.46s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease, transform 0.36s ease;
+  transition: height 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, transform 0.2s ease;
 }
 
 .snap-slot > * { height: 100%; }
@@ -975,7 +983,6 @@ img.thumb { object-fit: cover; }
   background: rgba(10, 14, 22, 0.78);
   padding: 1rem 1.1rem 1.2rem;
   touch-action: pan-y;
-  animation: detail-in 0.42s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .snap-detail.is-leaving {
@@ -985,7 +992,6 @@ img.thumb { object-fit: cover; }
   bottom: 0;
   width: min(56%, 640px);
   pointer-events: none;
-  animation: detail-out 0.28s ease forwards;
 }
 
 .detail-title {
@@ -1101,9 +1107,24 @@ img.thumb { object-fit: cover; }
   to { opacity: 0; transform: translateY(12px) scale(0.98); }
 }
 
+.shell button:not(.pull),
+.shell .item-row,
+.shell a {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
 .shell button:not(.pull):active,
 .shell .item-row:active {
   transform: scale(0.97);
+}
+
+.checklist li,
+.card,
+.facts div,
+.dock-btn,
+.home.is-dim,
+.prompt input {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .click-pulse {
@@ -1116,7 +1137,6 @@ img.thumb { object-fit: cover; }
   border: 1px solid color-mix(in srgb, var(--hue) 75%, white);
   box-shadow: 0 0 16px color-mix(in srgb, var(--hue) 45%, transparent);
   pointer-events: none;
-  animation: click-pulse 0.55s ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

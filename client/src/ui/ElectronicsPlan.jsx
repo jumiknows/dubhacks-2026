@@ -37,7 +37,7 @@ function DeviceCard({ device, selected, onChoose }) {
   const next = nextReplacement(device);
   return (
     <article className={selected ? "device is-on" : "device"}>
-      <button type="button" className="device-hit" aria-pressed={selected} onClick={onChoose}>
+      <button type="button" className="device-hit transition duration-200 ease-snap active:scale-[0.98]" aria-pressed={selected} onClick={onChoose}>
         <p className="device-kind">{device.kind}</p>
         <p className="device-name">{device.name}</p>
         <p className="device-meta">
@@ -55,7 +55,7 @@ function DeviceCard({ device, selected, onChoose }) {
 
 function DeviceDetails({ device }) {
   return (
-    <aside className="device-panel is-inline" aria-label="Device details">
+    <aside className="device-panel is-inline animate-stretch-in" aria-label="Device details">
       <h3>Device details</h3>
       <p className="device-panel-kicker">{device.kind}</p>
       <p className="device-panel-name">{device.name}</p>
@@ -91,7 +91,7 @@ function DeviceDetails({ device }) {
       <h4>When to replace</h4>
       <ul className="replace-list">
         {device.replacements.map((item) => (
-          <li key={item.part}>
+          <li key={item.part} className="animate-stretch-in">
             <p className="replace-part">
               {item.part}
               <span>{formatWhen(item.when)}</span>

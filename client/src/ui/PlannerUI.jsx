@@ -105,7 +105,7 @@ export default function PlannerUI({
     function onDown(event) {
       if (event.button != null && event.button !== 0) return;
       const pulse = document.createElement("span");
-      pulse.className = "click-pulse";
+      pulse.className = "click-pulse animate-click";
       pulse.style.left = `${event.clientX}px`;
       pulse.style.top = `${event.clientY}px`;
       root.appendChild(pulse);
@@ -160,7 +160,7 @@ export default function PlannerUI({
             onChange={(event) => onPromptChange(event.target.value)}
             placeholder="I need to prepare for camping."
           />
-          <button type="submit" disabled={loading || !prompt.trim()}>
+          <button className="transition duration-200 ease-snap active:scale-[0.98]" type="submit" disabled={loading || !prompt.trim()}>
             {loading ? "Planning…" : "Build list"}
           </button>
         </form>
@@ -188,11 +188,22 @@ export default function PlannerUI({
       >
         <header className="sheet-bar">
           <span>{active?.label}</span>
-          <button type="button" onClick={requestBack}>
+          <button className="transition duration-200 ease-snap active:scale-[0.98]" type="button" onClick={requestBack}>
             {layers > 0 ? "Back" : "Close"}
           </button>
         </header>
-        <div className="sheet-body" key={category}>
+        <div
+          className={`sheet-body ${
+            {
+              groceries: "animate-sheet",
+              wedding: "animate-bloom",
+              camping: "animate-unroll",
+              electronics: "animate-scan",
+              custom: "animate-lift",
+            }[category] || "animate-sheet"
+          }`}
+          key={category}
+        >
           {error ? (
             <p className="banner" role="alert">
               {error}
@@ -271,7 +282,7 @@ function Dock({ tabs, category, open, onChoose, onPull, onToggle }) {
         <button
           key={tab.id}
           type="button"
-          className="dock-btn"
+          className="dock-btn transition duration-200 ease-snap active:scale-95"
           aria-pressed={open && tab.id === category}
           title={tab.label}
           onClick={() => onChoose(tab.id)}
@@ -351,7 +362,7 @@ function PlanBody({ plan, onToggle }) {
               return (
                 <li
                   key={item.id}
-                  className={item.purchased ? "is-purchased stretch-in" : "stretch-in"}
+                  className={item.purchased ? "is-purchased animate-stretch-in transition duration-200" : "animate-stretch-in"}
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <label>
@@ -397,7 +408,7 @@ function ProductCard({ item }) {
   const best = offer?.best;
 
   return (
-    <li className="card">
+    <li className="card animate-stretch-in transition duration-200">
       <Thumb image={offer?.image} store={best?.store} />
       <div>
         <p className="card-name">{item.name}</p>

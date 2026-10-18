@@ -39,7 +39,7 @@ export default function SnapStage({
     const timer = setTimeout(() => {
       setShownId(null);
       setLeaving(false);
-    }, 280);
+    }, 200);
     return () => clearTimeout(timer);
   }, [selectedId, shownId]);
 
@@ -59,7 +59,7 @@ export default function SnapStage({
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
     slot.animate(
       [{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }],
-      { duration: 460, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+      { duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
     );
     return undefined;
   }, [selectedId]);
@@ -72,11 +72,7 @@ export default function SnapStage({
       event.preventDefault();
       if (busy.current) return;
       const direction = event.deltaY > 0 ? 1 : -1;
-      busy.current = true;
-      reel.scrollBy({ top: direction * (reel.clientHeight / 2), behavior: "smooth" });
-      window.setTimeout(() => {
-        busy.current = false;
-      }, 520);
+      moveReel(reel, direction);
     }
     reel.addEventListener("wheel", onWheel, { passive: false });
     return () => reel.removeEventListener("wheel", onWheel);
@@ -88,14 +84,34 @@ export default function SnapStage({
     onSelect(selectedId === id ? null : id);
   }
 
+  function moveReel(reel, direction) {
+    if (busy.current) return;
+    const distance = reel.clientHeight / 2;
+    const max = reel.scrollHeight - reel.clientHeight;
+    const target = Math.max(0, Math.min(max, reel.scrollTop + direction * distance));
+    if (Math.abs(target - reel.scrollTop) < 1) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      reel.scrollTop = target;
+      return;
+    }
+    busy.current = true;
+    const start = reel.scrollTop;
+    const change = target - start;
+    const began = performance.now();
+    function frame(now) {
+      const progress = Math.min(1, (now - began) / 200);
+      const eased = 1 - (1 - progress) ** 3;
+      reel.scrollTop = start + change * eased;
+      if (progress < 1) requestAnimationFrame(frame);
+      else busy.current = false;
+    }
+    requestAnimationFrame(frame);
+  }
+
   function step(direction) {
     const reel = reelRef.current;
-    if (!reel || selectedId || busy.current) return;
-    busy.current = true;
-    reel.scrollBy({ top: direction * (reel.clientHeight / 2), behavior: "smooth" });
-    window.setTimeout(() => {
-      busy.current = false;
-    }, 520);
+    if (!reel || selectedId) return;
+    moveReel(reel, direction);
   }
 
   function onPointerDown(event) {
@@ -139,7 +155,7 @@ export default function SnapStage({
 
   return (
     <div
-      className={focused ? "snap-stage is-focused" : "snap-stage"}
+      className={`${focused ? "snap-stage is-focused" : "snap-stage"} transition-all duration-200 ease-snap`}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onClickCapture={onClickCapture}
@@ -157,7 +173,7 @@ export default function SnapStage({
             <div
               key={id}
               data-id={id}
-              className={selected ? "snap-slot is-open" : "snap-slot"}
+              className={`${selected ? "snap-slot is-open" : "snap-slot"} transition-all duration-200 ease-snap`}
             >
               {renderCard(item, { selected, onChoose: (event) => choose(id, event) })}
             </div>
@@ -165,7 +181,14 @@ export default function SnapStage({
         })}
       </div>
       {shown ? (
-        <div className={leaving ? "snap-detail is-leaving" : "snap-detail"} key={shownId}>
+        <div
+          className={
+            leaving
+              ? "snap-detail is-leaving animate-detail-out"
+              : "snap-detail animate-detail-in"
+          }
+          key={shownId}
+        >
           {renderDetail(shown)}
         </div>
       ) : null}

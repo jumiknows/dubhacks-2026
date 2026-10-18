@@ -69,7 +69,7 @@ function MealCard({ meal, selected, onChoose }) {
     <article className={selected ? "meal is-open" : "meal"}>
       <button
         type="button"
-        className="meal-hit"
+        className="meal-hit transition duration-200 ease-snap active:scale-[0.98]"
         aria-pressed={selected}
         onClick={onChoose}
       >
@@ -93,7 +93,7 @@ function MealDetail({ meal, onOpenItem }) {
       <h3 className="detail-title">{meal.name}</h3>
       <ul className="item-list">
         {meal.items.map((item, index) => (
-          <li key={item.id} className="stretch-in" style={{ animationDelay: `${index * 40}ms` }}>
+          <li key={item.id} className="animate-stretch-in" style={{ animationDelay: `${index * 35}ms` }}>
             <ItemButton meal={meal} item={item} onOpen={onOpenItem} />
           </li>
         ))}
@@ -107,7 +107,7 @@ function ItemButton({ meal, item, onOpen }) {
   return (
     <button
       type="button"
-      className="item-row"
+      className="item-row transition duration-200 ease-snap active:scale-[0.98]"
       onClick={(event) => onOpen(meal, item, event.currentTarget)}
     >
       <span className="item-name">{item.name}</span>
@@ -150,7 +150,7 @@ function ItemDialog({ meal, item, closeRef, onClose }) {
 
   return (
     <div
-      className="modal-back"
+      className="modal-back animate-fade"
       onClick={onClose}
       onPointerDown={(event) => {
         event.currentTarget.dataset.x = String(event.clientX);
@@ -161,7 +161,7 @@ function ItemDialog({ meal, item, closeRef, onClose }) {
       }}
     >
       <div
-        className="modal"
+        className="modal animate-bloom"
         role="dialog"
         aria-modal="true"
         aria-labelledby="item-dialog-title"
@@ -182,18 +182,18 @@ function ItemDialog({ meal, item, closeRef, onClose }) {
         )}
         <button
           type="button"
-          className="alt-toggle"
+          className="alt-toggle transition duration-200 ease-snap active:scale-[0.98]"
           aria-expanded={showAlternatives}
           onClick={() => setShowAlternatives((open) => !open)}
         >
           Find alternatives
         </button>
         {showAlternatives ? (
-          <p className="alt-todo stretch-in">
+          <p className="alt-todo animate-stretch-in">
             TODO: alternatives for {item.name} come from the backend. The fetch service needs to return other listings before this list can be filled in.
           </p>
         ) : null}
-        <button ref={closeRef} type="button" className="modal-close" onClick={onClose}>
+        <button ref={closeRef} type="button" className="modal-close transition duration-200 ease-snap active:scale-[0.98]" onClick={onClose}>
           Close
         </button>
       </div>
