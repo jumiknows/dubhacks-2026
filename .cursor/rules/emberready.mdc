@@ -1,0 +1,16 @@
+---
+description: EmberReady implementation scope, source fidelity, and review evidence
+alwaysApply: true
+---
+
+Read AGENTS.md, CONTRIBUTING.md, docs/GROK_HANDOFF.md, and docs/CONTRACTS.md before implementing an issue.
+
+Build the selected issue on a focused branch from dev. Use its acceptance criteria and dependency links. Keep one authoritative set of data contracts.
+
+The product is accessible wildfire awareness with NASA observations and Grok Voice. Counts, distances, timestamps, attention bands, and source references come from deterministic code. Do not invent probabilities, incidents, fire perimeters, or evacuation routes.
+
+Preserve the difference between observation time and retrieval time. Replay must not include future observations or current weather. Distinguish real source snapshots from synthetic test cases.
+
+Keep provider keys on the server. Use short-lived credentials for browser Voice sessions. Cancel old audio when place or timeline context changes.
+
+Run the repository and affected application checks. Record actual commands and outcomes in the pull request and actual Cursor work in docs/BUILD_EVIDENCE.md. Do not invent tool-use evidence or measurements.
