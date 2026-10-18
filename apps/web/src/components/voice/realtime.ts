@@ -117,7 +117,9 @@ export class VoiceConnection {
     for (let i = 0; i < data.length; i += 1) data[i] = samples.getInt16(i * 2, true) / 32768;
     const source = this.audio.createBufferSource(); source.buffer = buffer; source.connect(this.audio.destination);
     const start = Math.max(this.nextAudio, this.audio.currentTime);
-    if (start - this.audio.currentTime > 20) { this.fail("Voice output exceeded the demo buffer. Use the transcript."); return; }
+    // Grok can deliver a complete answer much faster than real-time playback.
+    // Bound queued audio to the two-minute session, including the incoming chunk.
+    if (start - this.audio.currentTime + buffer.duration > 120) { this.fail("Voice output exceeded the demo buffer. Use the transcript."); return; }
     this.sources.add(source); source.onended = () => this.sources.delete(source);
     source.start(start); this.nextAudio = start + buffer.duration;
   }

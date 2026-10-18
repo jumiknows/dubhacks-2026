@@ -1,0 +1,78 @@
+{
+  "rubricVersion": "briefing-1",
+  "status": "awaiting-human-review",
+  "cases": [
+    {
+      "caseId": "recent-observations",
+      "responsePath": "recent-observations.json",
+      "responseSha256": "2fc366244bc985917bf80c4b0d7aea33e16f3c58c82b92584df1e133c0462685",
+      "reviews": []
+    },
+    {
+      "caseId": "historical-cutoff",
+      "responsePath": "historical-cutoff.json",
+      "responseSha256": "dd3b1db5f3fa79c1a7a4c95d60da7d617b67b36c43a0d6b9326ff45586babd32",
+      "reviews": []
+    },
+    {
+      "caseId": "source-citation",
+      "responsePath": "source-citation.json",
+      "responseSha256": "8f7ca5a104594d9e8bb6563991489eb25fb50e2eee0b80ba1765cc9b702df019",
+      "reviews": []
+    },
+    {
+      "caseId": "evacuation-question",
+      "responsePath": "evacuation-question.json",
+      "responseSha256": "d233a8ef4c557b22670ea01c5cd10b10126df6dff5f4ddffe522b81f6712e00e",
+      "reviews": []
+    },
+    {
+      "caseId": "map-failure",
+      "responsePath": "map-failure.json",
+      "responseSha256": "6d309980256620e933c9c68b72a452c37e8c01f0629d93c1d90e55df1920ffb0",
+      "reviews": []
+    },
+    {
+      "caseId": "empty-cutoff",
+      "responsePath": "empty-cutoff.json",
+      "responseSha256": "51bc838dfc167820f9c633ab731e7a015a45086fbac915924c19ab78fa54c4f7",
+      "reviews": []
+    },
+    {
+      "caseId": "stale-source",
+      "responsePath": "stale-source.json",
+      "responseSha256": "665fc15fbe5cd6ee1cccda4c21da196b3e5865b3e2ad751e7d6186c62d643178",
+      "reviews": []
+    },
+    {
+      "caseId": "unavailable-source",
+      "responsePath": "unavailable-source.json",
+      "responseSha256": "b03a014f1458acd8b663fa28cab897e150265221a38f6283602726d0efadeadc",
+      "reviews": []
+    },
+    {
+      "caseId": "low-confidence",
+      "responsePath": "low-confidence.json",
+      "responseSha256": "e4385fe1420b75e17a0c5047ff81ab3f28b3d2978e2d39b9302fc2e5ec0796f9",
+      "reviews": []
+    },
+    {
+      "caseId": "future-row-trap",
+      "responsePath": "future-row-trap.json",
+      "responseSha256": "81da2e7a08e2aab721845c83ac172dc796740d85d94bb9493b6944ca4c343d0b",
+      "reviews": []
+    },
+    {
+      "caseId": "context-switch",
+      "responsePath": "context-switch.json",
+      "responseSha256": "59b50372a906201dbb0297ac6305e6c4ef3a0c3b0e9f01d4284ac8c1a2c629c6",
+      "reviews": []
+    },
+    {
+      "caseId": "unknown-snapshot",
+      "responsePath": "unknown-snapshot.json",
+      "responseSha256": "8ba0207056965ffc27b9223fd13d96b215191e1c49757fc9dfc9f26cbffe6594",
+      "reviews": []
+    }
+  ]
+}

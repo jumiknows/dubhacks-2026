@@ -9,8 +9,9 @@ This integration work continues the application on `dev` from `38d003d86b526e4f5
 - Two real raw-file rebuilds produced identical normalized bytes and datasetVersion. Both snapshot IDs remain independently readable. See [hash evidence](evidence/rebuild.json).
 - Tests simulate interruptions after artifact, manifest, directory and pointer staging writes. Each preserves the previous good current snapshot. Corrupted hashes and invalid provider bodies are rejected. A read-only bundled replay survives application restart.
 - Live selection clears replay observations. Unknown and unavailable states have no reassuring no-signal band. Map construction and tile errors show a non-map fallback.
-- Voice now implements speech, ephemeral sessions, one signed read-only context tool, transcript, optional transient microphone capture, stop, context cancellation, protected endpoints and process quotas. These controls are tested with synthetic responses. They are not actual Grok output evidence.
-- Twelve briefing evaluation cases are frozen, six real and six synthetic. Four are held out. [Review packet](../data/evaluation/README.md). Zero actual Grok responses and zero human reviews are recorded.
+- Actual hosted speech, ephemeral sessions and a tool-grounded conversation succeeded. The response used the selected immutable context. [Provider evidence](evidence/voice-provider.json) records MP3 and streamed-audio checksums and the exact transcript.
+- The deployed tool rejected changes to place, snapshot and time. xAI rejected an expired ephemeral token with HTTP 401. [Boundary evidence](evidence/voice-boundary.json).
+- Twelve frozen scenarios now have actual provider evidence. Each run contains eleven complete answers and one deliberate harness cancellation. Six scenarios use real replay and six are synthetic. Zero human reviews are recorded. The original four-case holdout was inspected before prompt revision and is no longer untouched. [Review packet](../data/evaluation/REVIEW_PACKET.md).
 
 ## Commands and limits
 
@@ -18,7 +19,7 @@ Local typecheck, lint, 46 Vitest tests, 17 repository tests and repository check
 
 The live adapter validates Washington bounds, product and one-to-five-day windows before network access. Concurrent requests share one fetch. One retry for 429 or server errors shares the total timeout. A provider wait above one second is not shortened. Tests cover coalescing, rate limits, retry exhaustion, deadline and stale cache behavior.
 
-## Deployment record
+## Initial deployment record
 
 The [private demo](https://emberready.jumiknows.chatgpt.site) is deployed for the site owner. The Sites Vinext build passed with all application server routes. `tools/prepare_site.py` copies the application and domain source into an initialized Sites checkout while preserving hosting integration. It bundles the verified immutable replay.
 
@@ -36,9 +37,20 @@ The [private demo](https://emberready.jumiknows.chatgpt.site) is deployed for th
 
 Deployment is available for review. Promotion to the verified `main` release remains blocked by #23 and #32. The remaining checklist is in [DEMO_CHECKLIST.md](DEMO_CHECKLIST.md).
 
+## Voice verification and correction
+
+Runtime xAI access was configured as a secret, and deployment `appgdep_6ad4aa90df0c8191a5c323b19f4cc901` verified speech and conversation at environment revision 3. A temporary verification access code was removed in revision 4. The private site continues to authorize its signed-in owner.
+
+Real provider delivery exposed the 20-second playback cap: the first run accumulated up to 77 seconds of audio ahead of playback. The client now bounds the queue to 120 seconds, with incoming chunks counted. Two tests cover an 80-second burst, immediate stop, late-frame discard and excessive-queue cleanup. Local typecheck, lint and 48 tests passed after the playback fix.
+
+The first responses incorrectly included low-confidence observations in a nominal/high count and interpreted unavailable-source zeros as observed absence. The revised prompt explicitly preserves both distinctions and asks for shorter answers. The repeated run corrected those two statements. [Findings](evidence/voice-findings.json) retain the original outputs and a remaining timestamp wording question for human review. Transport completion is not a factual-quality score.
+
+The provider runs used `grok-voice-latest` and Eve. The official [Voice pricing page](https://docs.x.ai/developers/models/speech-to-speech) listed $0.08 per minute and $0.004 per text input on 2026-10-18. Function results are excluded from the text-input fee. These are billing assumptions, not a measured invoice or an account spending cap. Account budget settings have not been verified.
+
 ## Outstanding external gates
 
-- Configure `XAI_API_KEY` privately and demonstrate actual speech and conversation. The app must not claim sponsor integration success from mocks. `FIRMS_MAP_KEY` is optional for the public-feed demo, but authenticated Area API access remains unverified.
+- Verify owner sign-in, microphone permissions, audible playback and the complete flow on the hosted origin. Provider execution is verified through HTTP and WebSocket clients, not a human browser session.
+- `FIRMS_MAP_KEY` is optional for the public-feed demo. Authenticated Area API access remains unverified. The supplied Earthdata credential is a different token type and was not configured as a map key.
 - Have real people review actual Grok answers using the frozen cases and rubric. A developer-generated expected-fact file is not a human review.
 - Confirm the organizer's submission deadline and the existing Cursor evidence with the team. No prize placement is promised.
 

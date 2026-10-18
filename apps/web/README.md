@@ -21,3 +21,7 @@ Voice is fail-closed. Use `VOICE_ACCESS_MODE=private-site` only behind the owner
 `npm ci` validates and bundles the checked-in replay. The web server reads that immutable bundle without runtime filesystem access. Live snapshots are retained in process memory, up to 32 IDs. Restart and another server instance can make a live ID unavailable. Replay IDs survive restart.
 
 The basemap defaults to `https://tiles.openfreemap.org/styles/liberty`. The place list and briefing remain usable when tiles do not load.
+
+Grok may stream an answer much faster than playback. The client accepts up to 120 seconds of queued audio, including each incoming chunk, within the two-minute session. Stop and context changes release scheduled sources. An 80-second burst and over-limit cleanup are covered by tests.
+
+An Earthdata bearer token is not a `FIRMS_MAP_KEY`. Obtain the separate key through the [official FIRMS map-key page](https://firms.modaps.eosdis.nasa.gov/api/map_key/). The public NOAA-20 fallback needs neither credential.

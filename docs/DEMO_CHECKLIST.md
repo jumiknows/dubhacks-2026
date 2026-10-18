@@ -12,7 +12,8 @@ Use this checklist in the release pull request from `dev` to `main`. Current evi
 - [ ] The presenter has a known working commit and a fallback recording or screenshots.
 - [x] Remaining limitations and exact evidence are stated in RELEASE_READINESS.md and implementation PR #44.
 - [ ] The owner has checked the deployed origin in a clean browser, including sign-in and microphone permission.
-- [ ] Actual Grok speech and conversation pass with a privately configured key and provider budget.
+- [x] Actual Grok speech and a grounded conversation execute with a privately configured key.
+- [ ] Provider account budget controls are confirmed by the account owner.
 - [ ] Actual briefing outputs have human review in #32.
 - [ ] The complete demo, including real Grok, passes three clean rehearsals in #23.
 - [ ] The organizer's deadline and sponsor evidence are confirmed in #11 and #24.

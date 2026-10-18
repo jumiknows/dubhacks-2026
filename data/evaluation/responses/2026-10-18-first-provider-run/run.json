@@ -1,0 +1,153 @@
+{
+  "runId": "2026-10-18-first-provider-run",
+  "startedAt": "2026-10-18T11:19:44.923955+00:00",
+  "applicationSource": "8d4ef4e94f1823d5d854a4925b5a8aaf33663a7a",
+  "method": "Offline WebSocket protocol evaluation using the unchanged application prompt and frozen deterministic contexts",
+  "modelRequested": "grok-voice-latest",
+  "maxCases": 12,
+  "maxSecondsPerCase": 90,
+  "cases": [
+    {
+      "caseId": "recent-observations",
+      "synthetic": false,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 84.77,
+      "maxEstimatedPlaybackQueueSeconds": 73.945,
+      "elapsedSeconds": 15.88
+    },
+    {
+      "caseId": "historical-cutoff",
+      "synthetic": false,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 53.09,
+      "maxEstimatedPlaybackQueueSeconds": 45.05,
+      "elapsedSeconds": 12.657
+    },
+    {
+      "caseId": "source-citation",
+      "synthetic": false,
+      "split": "held-out",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 48.93,
+      "maxEstimatedPlaybackQueueSeconds": 44.141,
+      "elapsedSeconds": 8.113
+    },
+    {
+      "caseId": "evacuation-question",
+      "synthetic": false,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 44.13,
+      "maxEstimatedPlaybackQueueSeconds": 37.626,
+      "elapsedSeconds": 11.167
+    },
+    {
+      "caseId": "map-failure",
+      "synthetic": false,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 87.97,
+      "maxEstimatedPlaybackQueueSeconds": 77.389,
+      "elapsedSeconds": 14.984
+    },
+    {
+      "caseId": "empty-cutoff",
+      "synthetic": false,
+      "split": "held-out",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 39.01,
+      "maxEstimatedPlaybackQueueSeconds": 32.81,
+      "elapsedSeconds": 10.644
+    },
+    {
+      "caseId": "stale-source",
+      "synthetic": true,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 67.49,
+      "maxEstimatedPlaybackQueueSeconds": 59.37,
+      "elapsedSeconds": 12.922
+    },
+    {
+      "caseId": "unavailable-source",
+      "synthetic": true,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 35.81,
+      "maxEstimatedPlaybackQueueSeconds": 31.016,
+      "elapsedSeconds": 8.55
+    },
+    {
+      "caseId": "low-confidence",
+      "synthetic": true,
+      "split": "held-out",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 24.29,
+      "maxEstimatedPlaybackQueueSeconds": 21.325,
+      "elapsedSeconds": 7.158
+    },
+    {
+      "caseId": "future-row-trap",
+      "synthetic": true,
+      "split": "development",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 33.57,
+      "maxEstimatedPlaybackQueueSeconds": 29.717,
+      "elapsedSeconds": 8.515
+    },
+    {
+      "caseId": "context-switch",
+      "synthetic": true,
+      "split": "development",
+      "transportCompleted": false,
+      "cancelledAfterFirstAudio": true,
+      "errorType": null,
+      "generatedAudioSeconds": 0.489,
+      "maxEstimatedPlaybackQueueSeconds": 0.489,
+      "elapsedSeconds": 5.43
+    },
+    {
+      "caseId": "unknown-snapshot",
+      "synthetic": true,
+      "split": "held-out",
+      "transportCompleted": true,
+      "cancelledAfterFirstAudio": null,
+      "errorType": null,
+      "generatedAudioSeconds": 18.53,
+      "maxEstimatedPlaybackQueueSeconds": 16.073,
+      "elapsedSeconds": 5.877
+    }
+  ],
+  "humanReviews": [],
+  "limitations": [
+    "No browser playback or microphone permission tested",
+    "Synthetic contexts supplied only by this offline harness",
+    "Context-switch case closes this harness connection, not the application browser",
+    "No factual pass rate until human review"
+  ],
+  "completedAt": "2026-10-18T11:21:46.836562+00:00",
+  "completedResponses": 11,
+  "cancelledCases": 1
+}
