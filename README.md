@@ -4,6 +4,8 @@ Community wildfire briefings from satellite observations.
 
 **Status:** real NASA replay and public-feed live observations, the accessible map and list, deterministic briefings, and a verified data pipeline are implemented. Grok Voice code is connected but real audio and conversation still need an xAI key. Twelve evaluation cases are prepared and await actual outputs and human review. No wildfire model has been trained.
 
+[Open the private demo](https://emberready.jumiknows.chatgpt.site). Access is limited to the site owner. [Test and deployment evidence](docs/RELEASE_READINESS.md) records what works and the remaining release gates.
+
 EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
 
 Start with the [implementation epic](https://github.com/jumiknows/spacex2026Hacks/issues/10), [product brief](docs/PRODUCT_BRIEF.md), and [Grok handoff](docs/GROK_HANDOFF.md).
