@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 for (let run = 1; run <= 3; run += 1) {
   test(`clean replay rehearsal ${run}`, async ({ page }, testInfo) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "What was observed near this community?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Chelan", exact: true })).toBeVisible();
     const spokane = page.getByRole("button", { name: /Spokane city/ }); await spokane.click();
     await expect(spokane).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".briefing")).toContainText("Spokane is shown in replay mode");
@@ -11,7 +11,8 @@ for (let run = 1; run <= 3; run += 1) {
     await page.locator(".observation-list button").first().click();
     await expect(page.getByRole("heading", { name: "Selected observation" })).toBeVisible();
     await page.locator("#cutoff").focus(); await page.keyboard.press("Home");
-    await expect(page.locator(".timeline")).toContainText("2026-10-10");
+    await expect(page.locator(".timeline")).toContainText("Satellite pass 1 of");
+    await expect(page.locator("#cutoff")).toHaveAttribute("aria-valuetext", /2026-10-10/);
     await expect(page.locator(".briefing")).toContainText("2026-10-10");
     await page.getByText("Source evidence", { exact: true }).click();
     await expect(page.getByRole("link", { name: "Open provenance and quality report" })).toBeVisible();
