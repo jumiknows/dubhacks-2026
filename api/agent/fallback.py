@@ -19,14 +19,23 @@ from api.schemas import OpenDetail, ToolTrace, UIContext
 from api.sessions import Session
 from api.store import store
 
-_BUY = re.compile(r"\b(yes|yeah|yep|buy|purchase|check ?out|order it|get it|add (it )?to (my )?cart)\b")
-_NO = re.compile(r"^\s*(no|nope|not now|cancel)\b")
+_BUY = re.compile(
+    r"\b(yes|yeah|yep|buy|purchase|check ?out|order (it|this|that|one|two|\d+)|get it|add (it |this |that )?to (my )?cart"
+    r"|take it|i'?ll take (it|this|that|one|two|\d+)|let'?s do it|go ahead"
+    r"|get me (this|that|it|these|those|(one|two|three|\d+) of (these|those|them|this|that)))\b"
+)
+_NO = re.compile(r"^\s*(no|nope|nah|not now|cancel|never ?mind)\b")
+_CHEAPER = re.compile(r"\b(cheaper|less expensive|lower price|more affordable|budget option|too expensive|too pricey)\b")
+_BEST = re.compile(r"\b(best|top pick|which (one )?should i (get|buy|pick|choose)|what do you recommend|your recommendation)\b")
+_SUITABLE = re.compile(r"\b(good|ok|okay|safe|work|suitable|right|fine)\b.{0,15}\bfor\b.{0,20}\b(dry|oily|combination|sensitive|normal)\b")
+_GREETING = re.compile(r"^\s*(hi|hello|hey|yo|good (morning|afternoon|evening))\b")
+_ANY_CATEGORY = re.compile(r"\b(anything|any product|all products|everything|any category)\b")
 _TRUST = re.compile(r"\b(flag\w*|trust\w*|suspicious|fake|legit|reviews?|caution)\b")
 _WHY_SEEING = re.compile(r"\bwhy\b.{0,30}\b(seeing|this one|recommend\w*|here|first|top)\b")
 _COMPARE = re.compile(r"\b(compare|comparison|versus|vs\.?|difference|which is better)\b")
 _DISLIKE = re.compile(r"\b(don'?t like|dislike|not (this|that) one|remove|hide|no thanks|not for me|skip)\b")
 _LIKE = re.compile(r"\b(i (like|love) (this|that|it)|more like (this|that)|this one'?s? (good|nice|great))\b")
-_DETAIL = re.compile(r"\b(tell me (more )?about|details?|more info|open|what'?s in|show me (this|that))\b")
+_DETAIL = re.compile(r"\b(tell me more|tell me about|details?|more info|open|what'?s in|show me (this|that)|ingredients?)\b")
 _QTY = re.compile(r"\b(\d+|one|two|three|four|five)\b\s*(of them|bottles?|units?|jars?|tubes?)?")
 _WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
 
@@ -98,16 +107,22 @@ def _search(session: Session, text: str, turn: Turn) -> None:
     prof_args = tools.ProfileArgs(needs=q.needs or None, avoid=q.avoid or None, budget_max=q.budget_max,
                                   skin_type=",".join(q.skin_types) or None)
     turn.add("update_profile", prof_args.model_dump(exclude_none=True), tools.update_profile(session, prof_args))
-    args = tools.SearchArgs(query=text[:300], subcategory=q.subcategory)
+    # Follow-ups ("under $25 please") stay in the category the user was already browsing.
+    subcategory = q.subcategory
+    if subcategory is None and not _ANY_CATEGORY.search(text.lower()):
+        subcategory = session.last_subcategory
+    args = tools.SearchArgs(query=text[:300], subcategory=subcategory)
     out = turn.add("search_products", args.model_dump(exclude_none=True), tools.search_products(session, args))
     results = out.result["results"]
     if not results:
         turn.speech = "I couldn't find anything that meets all of those requirements. Try raising the budget or removing a filter."
         return
-    noun = f"{q.subcategory}s" if q.subcategory else "products"
+    noun = subcategory or "product"
+    noun = noun if len(results) == 1 else f"{noun}s"
     top = results[0]
     trust = f"a Trust Score of {top['trust_score']}" if top["trust_score"] is not None else "too few reviews for a Trust Score"
-    first = f"I found {len(results)} {noun} that fit; the top match is {top['title']} at {money(top['price'])} with {trust}."
+    fit = "fits" if len(results) == 1 else "fit"
+    first = f"I found {len(results)} {noun} that {fit}; the top match is {top['title']} at {money(top['price'])} with {trust}."
     flagged = next((r for r in results if r["trust_tier"] in ("caution", "mixed")), None)
     if flagged:
         second = f"{flagged['title']} is marked {flagged['trust_tier']}, so ask me why before you pick it."
@@ -237,6 +252,60 @@ def _buy(session: Session, ctx: UIContext, text: str, turn: Turn) -> None:
         turn.speech = f"I can't stage that: {out.result['failed_checks'][0]} Nothing was charged."
 
 
+def _cheaper(session: Session, ctx: UIContext, turn: Turn) -> None:
+    ref_id = _focus(session, ctx) or next(iter(_visible(session, ctx)), None)
+    ref = store.product(ref_id) if ref_id else None
+    if ref is None:
+        turn.speech = "Tell me what you're looking for first, and then I can find cheaper options."
+        return
+    turn.facts.append({"reference_product": ref.title, "reference_price": ref.price})
+    args = tools.SearchArgs(query=session.last_query, subcategory=session.last_subcategory or ref.subcategory,
+                            max_price=round(ref.price - 0.01, 2))
+    because = f"Showing options cheaper than {ref.title} ({money(ref.price)})."
+    out = turn.add("search_products", args.model_dump(exclude_none=True), tools.search_products(session, args, rerank_because=because))
+    results = out.result["results"]
+    if not results:
+        turn.speech = f"Nothing cheaper than {ref.title} at {money(ref.price)} fits your other requirements."
+        return
+    cheapest = min(results, key=lambda r: r["price"])
+    options = "option" if len(results) == 1 else "options"
+    turn.speech = (f"Here {'is' if len(results) == 1 else 'are'} {len(results)} {options} under {money(ref.price)}; "
+                   f"the cheapest is {cheapest['title']} at {money(cheapest['price'])}.")
+
+
+def _best(session: Session, ctx: UIContext, turn: Turn) -> None:
+    visible = _visible(session, ctx)
+    if not visible:
+        turn.speech = "Tell me what you're looking for, and I'll find the best match."
+        return
+    p, t = store.product(visible[0]), store.trust_report(visible[0])
+    assert p is not None
+    session.focused_id = p.id
+    turn.action(OpenDetail(product_id=p.id))
+    turn.facts.append({"product_id": p.id, "price": p.price, "trust_score": t.score if t else None})
+    trust = f"a Trust Score of {t.score}" if t and t.score is not None else "too few reviews for a Trust Score"
+    turn.speech = f"For what you asked, the top match is {p.title} at {money(p.price)} with {trust}."
+
+
+def _suitable(session: Session, ctx: UIContext, text: str, turn: Turn) -> bool:
+    pid = _focus(session, ctx)
+    m = _SUITABLE.search(text)
+    p = store.product(pid) if pid else None
+    if p is None or m is None:
+        return False
+    asked = m.group(2)
+    types = nlu.product_skin_types(p)
+    turn.action(OpenDetail(product_id=p.id))
+    turn.facts.append({"product_id": p.id, "skin_type": p.attributes.get("skin_type")})
+    made_for = ", ".join(types) or "general"
+    fragrance = "it's fragrance-free" if p.attributes.get("fragrance_free") else "it contains fragrance"
+    if asked in types:
+        turn.speech = f"Yes, {p.title} is made for {made_for} skin, and {fragrance}."
+    else:
+        turn.speech = f"{p.title} is made for {made_for} skin, not specifically {asked} skin, and {fragrance}."
+    return True
+
+
 def respond(session: Session, text: str, ctx: UIContext) -> Turn:
     turn = Turn()
     t = text.lower().strip()
@@ -245,6 +314,8 @@ def respond(session: Session, text: str, ctx: UIContext) -> Turn:
 
     if _NO.search(t):
         turn.speech = "No problem, nothing was added to a cart."
+    elif _GREETING.search(t) and not nlu.parse(t).has_shopping_terms:
+        turn.speech = "Hi! Tell me what you're shopping for, like a fragrance-free moisturizer for dry skin."
     elif _BUY.search(t) and not _COMPARE.search(t):
         _buy(session, ctx, t, turn)
     elif _COMPARE.search(t):
@@ -257,10 +328,16 @@ def respond(session: Session, text: str, ctx: UIContext) -> Turn:
         _feedback(session, ctx, t, turn, "dismiss")
     elif _LIKE.search(t):
         _feedback(session, ctx, t, turn, "like")
+    elif _CHEAPER.search(t):
+        _cheaper(session, ctx, turn)
+    elif _SUITABLE.search(t) and _suitable(session, ctx, t, turn):
+        pass
     elif _DETAIL.search(t) and _focus(session, ctx):
         _detail(session, ctx, turn)
     elif nlu.parse(t).has_shopping_terms:
         _search(session, text, turn)
+    elif _BEST.search(t):
+        _best(session, ctx, turn)
     else:
         turn.facts.append({"example_budget": 40})
         turn.speech = ("I can search, compare two products, or explain a Trust Score. "

@@ -15,6 +15,22 @@ Interactive docs: http://localhost:8000/docs · Status: http://localhost:8000/he
 
 All brands in the mock catalog are fictional.
 
+## Team setup: API keys
+
+Keys live in `api/.env`, which is **never committed** (git ignores it), so they can't leak when
+the repo goes public.
+
+1. Ask a teammate for the team's `api/.env` file (sent by DM, never posted in a channel or committed).
+2. Save it as `api/.env` in your copy of the repo, next to `.env.example`.
+3. Restart `npm run dev`.
+4. Check http://localhost:8000/health: `"elevenlabs": "live"` means voice is on.
+
+No file? Everything still runs: the app uses the rule-based agent and the browser's own speech
+instead. To make your own: `cp api/.env.example api/.env` and fill in the keys you have.
+
+Never paste keys into Slack/Discord channels, GitHub issues, or code. If one leaks, rotate it in the
+provider's dashboard and send the team the new file.
+
 ## Turning on the AI and voice
 
 Set these in `api/.env` (copy from `.env.example`), then restart. `/health` shows what's live.

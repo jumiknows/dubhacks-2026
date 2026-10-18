@@ -12,7 +12,7 @@ import pytest
 from api import voice
 from api.agent import llm, tools
 from api.config import get_settings
-from api.sessions import breaker, sessions
+from api.sessions import breaker, sessions, tts_cache
 from api.tests.conftest import read_sse
 
 HERO = "fragrance-free moisturizer for dry, sensitive skin, under $40"
@@ -194,9 +194,11 @@ def test_tool_registry_is_exactly_five() -> None:
 def voice_key() -> Iterator[None]:
     s = get_settings()
     s.elevenlabs_api_key = "test-key"
+    tts_cache.clear()
     yield
     s.elevenlabs_api_key = ""
     voice.transport = None
+    tts_cache.clear()
 
 
 def test_voice_without_key_points_to_browser_fallbacks(client) -> None:
@@ -218,6 +220,23 @@ def test_stt_token_and_tts_proxy(client, voice_key) -> None:
     assert client.get("/stt/token").json()["token"] == "sutkn_abc"
     r = client.post("/tts", json={"text": "hello"})
     assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg" and r.content == b"ID3fakeaudio"
+
+
+def test_tts_repeats_come_from_cache(client, voice_key) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(json.loads(request.content)["text"])
+        return httpx.Response(200, content=b"ID3clip-" + calls[-1].encode())
+
+    voice.transport = httpx.MockTransport(handler)
+    text = "Nothing was charged, cache test."
+    first = client.post("/tts", json={"text": text})
+    second = client.post("/tts", json={"text": text})
+    assert first.headers["x-tts-cache"] == "miss" and second.headers["x-tts-cache"] == "hit"
+    assert first.content == second.content and calls == [text]
+    assert client.post("/tts", json={"text": "A different sentence, cache test."}).headers["x-tts-cache"] == "miss"
+    assert len(calls) == 2
 
 
 def test_voice_upstream_error_falls_back(client, voice_key) -> None:

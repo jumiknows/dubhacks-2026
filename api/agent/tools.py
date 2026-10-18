@@ -157,8 +157,11 @@ def run_search_with_stats(
     Returns (results, products removed per hard filter, the effective profile)."""
     base = profile or (session.profile if session else PreferenceProfile())
     parsed = nlu.parse(args.query)
+    # A budget in the query only tightens the search; it never loosens the profile's budget.
+    budgets = [b for b in (args.max_price, parsed.budget_max) if b is not None]
+    parsed.budget_max = None
     effective = merge_parsed(base, parsed)
-    req = SearchRequest(query=args.query, max_price=args.max_price, limit=limit or args.limit,
+    req = SearchRequest(query=args.query, max_price=min(budgets) if budgets else None, limit=limit or args.limit,
                         subcategory=args.subcategory or parsed.subcategory)
     results, removed = ranker().search_with_stats(req, effective, session.intent_mandate if session else None)
     return results, removed, effective
@@ -189,6 +192,7 @@ def search_products(session: Session, args: SearchArgs, rerank_because: str | No
     results, removed, effective = run_search_with_stats(session, args)
     ids = [r.id for r in results]
     session.last_results, session.last_query = ids, args.query
+    session.last_subcategory = args.subcategory or nlu.parse(args.query).subcategory
     if rerank_because:
         action: BaseModel = Rerank(product_ids=ids, changed_because=rerank_because)
     else:
@@ -270,7 +274,7 @@ def update_profile(session: Session, args: ProfileArgs, provenance: str = "said"
 def stage_checkout(session: Session, args: StageArgs) -> ToolOutcome:
     require_product(args.product_id)
     action = checkout.stage(session, args.product_id, args.quantity, args.unit_price)
-    result: dict[str, Any] = {"allowed": action.policy.allowed,
+    result: dict[str, Any] = {"allowed": action.policy.allowed, "quantity": args.quantity,
                               "failed_checks": [c.reason for c in action.policy.checks if not c.passed]}
     if action.policy.allowed:
         result["total"] = action.cart.total  # type: ignore[union-attr]
@@ -299,7 +303,8 @@ def apply_feedback(session: Session, product_id: str, signal: str, reason: str |
                 prof.provenance["avoid:fragrance"] = provenance  # type: ignore[assignment]
             because += " Products with fragrance are now hidden."
     prof.provenance[f"{signal}:{p.id}"] = provenance  # type: ignore[assignment]
-    outcome = search_products(session, SearchArgs(query=session.last_query), rerank_because=because)
+    outcome = search_products(session, SearchArgs(query=session.last_query, subcategory=session.last_subcategory),
+                              rerank_because=because)
     outcome.actions.append(UpdateProfile(profile=session.profile))
     outcome.result["changed_because"] = because
     return outcome

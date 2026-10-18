@@ -8,8 +8,14 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
+from api.config import get_settings
 from api.guard.mandates import jwk_from_public_key, sign_raw
 from api.main import app
+
+# Tests never use real keys from a developer's api/.env: no network calls, no credits spent,
+# same results on every machine. Tests that need a key set one themselves.
+_settings = get_settings()
+_settings.llm_api_key = _settings.elevenlabs_api_key = _settings.stripe_secret_key = ""
 
 
 @pytest.fixture(scope="session")

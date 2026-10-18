@@ -5,6 +5,7 @@ from __future__ import annotations
 import secrets
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from fastapi import HTTPException
@@ -37,6 +38,7 @@ class Session:
     greeted: bool = False
     last_results: list[str] = field(default_factory=list)
     last_query: str = ""
+    last_subcategory: str | None = None
     focused_id: str | None = None
     anomalous_turns: int = 0
     used_nonces: set[str] = field(default_factory=set)
@@ -122,3 +124,48 @@ class CircuitBreaker:
 
 
 breaker = CircuitBreaker()
+
+
+class BytesLRU:
+    """Small in-memory LRU for generated audio (saves ElevenLabs credits on repeated sentences)."""
+
+    def __init__(self, max_items: int = 128, max_bytes: int = 16 * 1024 * 1024) -> None:
+        self.max_items = max_items
+        self.max_bytes = max_bytes
+        self._items: OrderedDict[str, bytes] = OrderedDict()
+        self._size = 0
+        self.hits = 0
+        self.misses = 0
+        self._lock = threading.Lock()
+
+    def get(self, key: str) -> bytes | None:
+        with self._lock:
+            value = self._items.get(key)
+            if value is None:
+                self.misses += 1
+                return None
+            self._items.move_to_end(key)
+            self.hits += 1
+            return value
+
+    def put(self, key: str, value: bytes) -> None:
+        with self._lock:
+            if key in self._items:
+                self._size -= len(self._items.pop(key))
+            self._items[key] = value
+            self._size += len(value)
+            while self._items and (len(self._items) > self.max_items or self._size > self.max_bytes):
+                _, old = self._items.popitem(last=False)
+                self._size -= len(old)
+
+    def stats(self) -> dict:
+        with self._lock:
+            return {"items": len(self._items), "bytes": self._size, "hits": self.hits, "misses": self.misses}
+
+    def clear(self) -> None:
+        with self._lock:
+            self._items.clear()
+            self._size = self.hits = self.misses = 0
+
+
+tts_cache = BytesLRU()

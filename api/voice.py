@@ -6,26 +6,30 @@
   Docs: POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream
 
 Without a key, or on any upstream failure, both return 503 with the browser fallback to use.
-Speech text is never logged.
+Repeated sentences are served from an in-memory cache (no credits used). Speech text is never logged.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import AsyncIterator
 
 import httpx
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from api.config import get_settings
 from api.schemas import TTSRequest
+from api.sessions import tts_cache
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["Voice"])
 
 ELEVENLABS_API = "https://api.elevenlabs.io/v1"
 STT_TOKEN_TTL_S = 15 * 60
+MAX_CACHED_CLIP_BYTES = 1024 * 1024
+_AUDIO_HEADERS = {"Cache-Control": "no-store"}
 transport: httpx.AsyncBaseTransport | None = None  # test hook
 
 
@@ -56,11 +60,20 @@ async def stt_token() -> JSONResponse:
     return JSONResponse({"token": r.json()["token"], "expires_in_s": STT_TOKEN_TTL_S})
 
 
+def _cache_key(voice_id: str, model_id: str, text: str) -> str:
+    return hashlib.sha256(f"{voice_id}|{model_id}|{text.strip()}".encode()).hexdigest()
+
+
 @router.post("/tts", response_model=None)
-async def tts(req: TTSRequest) -> StreamingResponse | JSONResponse:
+async def tts(req: TTSRequest) -> Response:
     s = get_settings()
     if not s.voice_enabled:
         return _unavailable("ElevenLabs not configured", "speech_synthesis")
+    key = _cache_key(s.elevenlabs_voice_id, s.elevenlabs_model_id, req.text)
+    cached = tts_cache.get(key)
+    if cached is not None:
+        return Response(cached, media_type="audio/mpeg", headers={**_AUDIO_HEADERS, "X-TTS-Cache": "hit"})
+
     client = _client(s.elevenlabs_timeout_s)
     request = client.build_request(
         "POST",
@@ -83,11 +96,18 @@ async def tts(req: TTSRequest) -> StreamingResponse | JSONResponse:
         return _unavailable("Speech service error", "speech_synthesis")
 
     async def audio() -> AsyncIterator[bytes]:
+        # Stream to the browser as chunks arrive; keep a copy to cache once the clip completes.
+        clip = bytearray()
+        complete = False
         try:
             async for chunk in upstream.aiter_bytes():
+                clip += chunk
                 yield chunk
+            complete = True
         finally:
             await upstream.aclose()
             await client.aclose()
+            if complete and 0 < len(clip) <= MAX_CACHED_CLIP_BYTES:
+                tts_cache.put(key, bytes(clip))
 
-    return StreamingResponse(audio(), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+    return StreamingResponse(audio(), media_type="audio/mpeg", headers={**_AUDIO_HEADERS, "X-TTS-Cache": "miss"})

@@ -21,7 +21,7 @@ from api.schemas import (
     ChatRequest, CheckoutIntentRequest, CompareRequest, FeedbackRequest, IntentMandateRequest,
     PreferenceProfile, Product, RankedProduct, StageRequest, TrustReport,
 )
-from api.sessions import breaker, sessions
+from api.sessions import breaker, sessions, tts_cache
 from api.store import store
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -242,5 +242,6 @@ def health() -> dict[str, Any]:
         },
         "agent_source": agent,
         "llm_breaker": b,
+        "tts_cache": tts_cache.stats(),
         "demo_server_signing": s.demo_server_signing,
     }
