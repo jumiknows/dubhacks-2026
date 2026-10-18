@@ -21,6 +21,8 @@ export default function App() {
   const [compareItemId, setCompareItemId] = useState(null);
   const [compare, setCompare] = useState(null);
   const [notice, setNotice] = useState("");
+  const [mockCheckout, setMockCheckout] = useState(null);
+  const [receipt, setReceipt] = useState(null);
 
   // Stripe sends the shopper back here. The plan lives on the server, so reload it.
   useEffect(() => {
@@ -32,9 +34,9 @@ export default function App() {
     const load =
       outcome === "success"
         ? confirmCheckout(params.get("session_id") || "").then((result) => {
-            if (result.status === "paid") {
-              setNotice(result.mock ? "Mock checkout: items marked bought, no card was charged." : "Payment received. Those items are now bought.");
-            } else {
+            if (result.receipt) setReceipt(result.receipt);
+            else if (result.status === "paid") setNotice("Payment received. Those items are now bought.");
+            else {
               setNotice("Stripe has not confirmed this payment yet.");
             }
             return result.plan;
@@ -61,6 +63,8 @@ export default function App() {
     setPlan(null);
     setError("");
     setNotice("");
+    setMockCheckout(null);
+    setReceipt(null);
     setStatus("idle");
     setSelected({});
     setCompare(null);
@@ -146,9 +150,25 @@ export default function App() {
     if (!plan) return;
     setError("");
     setNotice("");
+    setReceipt(null);
     try {
       const session = await startCheckout(plan.id, itemIds);
-      window.location.assign(session.url);
+      // No Stripe key on the server: review and place a demo order in place.
+      if (session.mock) setMockCheckout({ ...session, itemIds });
+      else window.location.assign(session.url);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function onPlaceMockOrder() {
+    if (!mockCheckout) return;
+    setError("");
+    try {
+      const result = await confirmCheckout(mockCheckout.id);
+      setPlan(result.plan);
+      setReceipt(result.receipt);
+      setMockCheckout(null);
     } catch (err) {
       setError(err.message);
     }
@@ -174,6 +194,11 @@ export default function App() {
       onToggleListing={onToggleListing}
       onConfirmPick={onConfirmPick}
       onCheckout={onCheckout}
+      mockCheckout={mockCheckout}
+      receipt={receipt}
+      onPlaceMockOrder={onPlaceMockOrder}
+      onCancelMockOrder={() => setMockCheckout(null)}
+      onDismissReceipt={() => setReceipt(null)}
     />
   );
 }

@@ -1267,3 +1267,37 @@ img.thumb { object-fit: cover; }
 
 .cart-pay { width: 100%; }
 .cart-pay:disabled { opacity: 0.55; cursor: default; }
+
+.cart-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+
+.mock-tag {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e6c372;
+}
+
+.mock-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.ghost {
+  margin-top: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: inherit;
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+}
+
+.mock-checkout button:disabled { opacity: 0.55; cursor: default; }

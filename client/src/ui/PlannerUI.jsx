@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDate, money, quantityLabel } from "./format.js";
 import CartPanel from "./CartPanel.jsx";
 import ElectronicsPlan from "./ElectronicsPlan.jsx";
+import { MockCheckoutSheet, Receipt } from "./MockCheckout.jsx";
 import WeeklyList from "./WeeklyList.jsx";
 
 export default function PlannerUI({
@@ -23,6 +24,11 @@ export default function PlannerUI({
   onToggleListing,
   onConfirmPick,
   onCheckout,
+  mockCheckout,
+  receipt,
+  onPlaceMockOrder,
+  onCancelMockOrder,
+  onDismissReceipt,
 }) {
   const loading = status === "loading";
   const [open, setOpen] = useState(false);
@@ -227,6 +233,11 @@ export default function PlannerUI({
               onToggleListing={onToggleListing}
               onConfirmPick={onConfirmPick}
               onCheckout={onCheckout}
+              mockCheckout={mockCheckout}
+              receipt={receipt}
+              onPlaceMockOrder={onPlaceMockOrder}
+              onCancelMockOrder={onCancelMockOrder}
+              onDismissReceipt={onDismissReceipt}
             />
           ) : category === "groceries" || category === "electronics" ? null : (
             <p className="empty">
@@ -365,6 +376,11 @@ function PlanBody({
   onToggleListing,
   onConfirmPick,
   onCheckout,
+  mockCheckout,
+  receipt,
+  onPlaceMockOrder,
+  onCancelMockOrder,
+  onDismissReceipt,
 }) {
   const toBuy = plan.items.filter((item) => !item.purchased);
 
@@ -437,7 +453,17 @@ function PlanBody({
         </section>
       </div>
       {compare ? <CompareSheet compare={compare} onConfirmPick={onConfirmPick} /> : null}
-      {onCheckout ? <CartPanel items={plan.items} onCheckout={onCheckout} /> : null}
+      {receipt ? <Receipt receipt={receipt} items={plan.items} onDismiss={onDismissReceipt} /> : null}
+      {mockCheckout ? (
+        <MockCheckoutSheet
+          checkout={mockCheckout}
+          items={plan.items}
+          onPlace={onPlaceMockOrder}
+          onCancel={onCancelMockOrder}
+        />
+      ) : onCheckout ? (
+        <CartPanel items={plan.items} onCheckout={onCheckout} />
+      ) : null}
     </>
   );
 }

@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 import { getPlan } from "../store.js";
+import { placeMockOrder } from "./mockOrder.js";
 import { quotePlan } from "./pipeline.js";
 
 /**
  * OWNER: Checkout
- * STATUS: Stripe Checkout (test mode). Without STRIPE_SECRET_KEY it runs a labeled mock.
+ * STATUS: Stripe Checkout (test mode). Without STRIPE_SECRET_KEY it runs a labeled mock
+ * that places a demo order through the sample stores' sandbox carts (mockOrder.js).
  *
  * The browser sends plan + item ids only. Names and prices come from the plan
  * the server stored, so a tampered request can't change what gets charged.
@@ -19,6 +21,7 @@ const METADATA_MAX = 500;
 
 let stripe = makeClient(process.env.STRIPE_SECRET_KEY);
 let webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
+let mockOrderOptions = {};
 const mockSessions = new Map();
 
 function makeClient(key) {
@@ -29,10 +32,11 @@ function makeClient(key) {
   return new Stripe(key);
 }
 
-/** Tests swap in a fake client; null means mock mode. */
-export function configureStripe({ client = null, secret = "" } = {}) {
+/** Tests swap in a fake client (null means mock mode) and a fake fetch for the sandboxes. */
+export function configureStripe({ client = null, secret = "", mockOrder = {} } = {}) {
   stripe = client;
   webhookSecret = secret;
+  mockOrderOptions = mockOrder;
   mockSessions.clear();
 }
 
@@ -72,6 +76,8 @@ export function cartLines(plan, itemIds) {
       image: typeof best?.image === "string" && best.image.startsWith("https://") ? best.image : null,
       amount: Math.round(price * 100),
       currency: (item.synthesis.currency || "USD").toLowerCase(),
+      quantity: item.quantity > 0 ? item.quantity : 1,
+      listing: best ? { id: best.id, source: best.source ?? null } : null,
     };
   });
 
@@ -90,7 +96,7 @@ export async function createCheckout(planId, itemIds) {
 
   if (!stripe) {
     const id = `cs_mock_${randomUUID()}`;
-    mockSessions.set(id, { planId, itemIds: [...itemIds] });
+    mockSessions.set(id, { planId, itemIds: [...itemIds], lines, amount, currency, receipt: null });
     return { id, url: successUrl(id), amount, currency, mock: true };
   }
 
@@ -128,7 +134,14 @@ export async function confirmCheckout(sessionId) {
   if (sessionId.startsWith("cs_mock_")) {
     const pending = mockSessions.get(sessionId);
     if (!pending) throw new CheckoutError(404, "checkout session not found");
-    return { status: "paid", mock: true, plan: markPaid(pending.planId, pending.itemIds, sessionId) };
+    // Keep the promise so a double confirm can't place two orders.
+    pending.receipt ??= placeMockOrder(
+      { lines: pending.lines, amount: pending.amount, currency: pending.currency },
+      mockOrderOptions
+    );
+    const receipt = await pending.receipt;
+    const plan = markPaid(pending.planId, pending.itemIds, sessionId, receipt.orderId);
+    return { status: "paid", mock: true, plan, receipt };
   }
 
   if (!stripe) throw new CheckoutError(503, "Stripe is not configured on this server.");
@@ -173,14 +186,14 @@ function fromMetadata(session) {
 }
 
 /** Idempotent: the redirect and the webhook can both land. */
-function markPaid(planId, itemIds, sessionId) {
+function markPaid(planId, itemIds, sessionId, orderId = null) {
   const plan = getPlan(planId);
   // Plans live in memory; a restart between paying and returning loses the plan, not the payment.
   if (!plan) return null;
   const paidAt = new Date().toISOString();
   plan.items = plan.items.map((item) =>
     itemIds.includes(item.id) && !item.purchased
-      ? { ...item, purchased: true, order: { checkoutSessionId: sessionId, paidAt } }
+      ? { ...item, purchased: true, order: { checkoutSessionId: sessionId, orderId, paidAt } }
       : item
   );
   plan.quote = quotePlan(plan.items);
