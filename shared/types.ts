@@ -151,3 +151,12 @@ export type AuditEntry = {
 };
 
 export type AuditLog = { session_id: string; entries: AuditEntry[]; valid: boolean };
+
+// Additive /chat SSE events. Existing product and payment contracts are unchanged.
+export type TraceEvent =
+  | { kind: "tool"; name: string; args: Record<string, unknown>; ms: number }
+  | { kind: "policy"; rule: string; passed: boolean; reason: string }
+  | { kind: "filter"; removed: number; why: string };
+
+export type SayEvent = { text: string };
+export type ErrorEvent = { message: string };

@@ -11,12 +11,13 @@ import json
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from api.config import get_settings
 from api.guard import audit, mandates, policy
-from api.schemas import Cart, CartItem, PolicyRefusal, PolicyResult, StageCheckout
+from api.schemas import Cart, CartItem, PolicyCheck, PolicyRefusal, PolicyResult, StageCheckout
 from api.sessions import Session, StagedCart
 from api.store import store
 
@@ -26,6 +27,66 @@ class CheckoutError(Exception):
         super().__init__(message)
         self.status = status
         self.message = message
+
+
+_CENT = Decimal("0.01")
+_MAX_AMOUNT = Decimal("999999999999.99")
+
+
+def _amount(value: object, label: str, *, cents: bool = True) -> Decimal:
+    """Validate money before arithmetic; never round an unknown fraction of a cent."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+        raise CheckoutError(400, f"{label} must be a nonnegative, finite numeric amount.")
+    try:
+        amount = Decimal(str(value))
+        if not amount.is_finite() or amount < 0 or amount > _MAX_AMOUNT:
+            raise ValueError
+        if cents and amount != amount.quantize(_CENT):
+            raise ValueError
+    except (InvalidOperation, ValueError) as exc:
+        raise CheckoutError(400, f"{label} must be nonnegative, finite and use at most two decimal places.") from exc
+    return amount
+
+
+def _quantity(value: int) -> int:
+    if type(value) is not int or value < 1:
+        raise CheckoutError(400, "Quantity must be a positive integer.")
+    return value
+
+
+def _total(items: list[CartItem]) -> Decimal:
+    return sum((_amount(item.unit_price, "Unit price") * _quantity(item.quantity) for item in items), Decimal(0))
+
+
+def _evaluate(session: Session, lines: list[policy.ProposedLine]) -> PolicyResult:
+    """Keep existing policy checks, using exact cents for the final money limits."""
+    total = Decimal(0)
+    for line in lines:
+        _amount(line.unit_price, "Proposed unit price")
+        _quantity(line.quantity)
+        product = store.product(line.product_id)
+        if product is not None:
+            total += _amount(product.price, "Catalog unit price") * line.quantity
+    limits = _limits(session)
+    spent = _amount(session.spent, "Session spend")
+    budget = _amount(limits.budget_max, "Budget", cents=False)
+    cap = _amount(limits.session_cap, "Session spend cap", cents=False)
+    result = policy.evaluate(lines, store.products, store.merchants, limits, session.spent)
+    source = "your signed rules" if limits.from_mandate else "safe defaults (no signed rules yet)"
+    replacements = {
+        "within_budget": PolicyCheck(
+            rule="within_budget", passed=total <= budget,
+            reason=(f"Total ${total:,.2f} is within the ${budget:,.2f} budget from {source}."
+                    if total <= budget else f"Total ${total:,.2f} is over the ${budget:,.2f} budget from {source}."),
+        ),
+        "session_spend_cap": PolicyCheck(
+            rule="session_spend_cap", passed=spent + total <= cap,
+            reason=(f"Session spend would be ${spent + total:,.2f} of the ${cap:,.2f} cap."
+                    if spent + total <= cap else f"Session spend would reach ${spent + total:,.2f}, over the ${cap:,.2f} cap."),
+        ),
+    }
+    checks = [replacements.get(check.rule, check) for check in result.checks]
+    return PolicyResult(allowed=all(check.passed for check in checks), checks=checks)
 
 
 def _sha256(s: str) -> str:
@@ -39,7 +100,8 @@ def _limits(session: Session) -> policy.Limits:
 def build_cart_payload(session: Session, items: list[CartItem]) -> tuple[Cart, str]:
     """Canonical JSON (sorted keys, no spaces) built only from server-side catalog data.
     cart_hash = sha256(canonical body); cart_payload = canonical(body + cart_hash)."""
-    total = round(sum(i.unit_price * i.quantity for i in items), 2)
+    # Keep the public numeric JSON schema; all arithmetic happens in Decimal first.
+    total = float(_amount(_total(items), "Cart total"))
     body = {
         "session_id": session.id,
         "mandate_id": session.mandate_id,
@@ -61,7 +123,7 @@ def stage(session: Session, product_id: str, quantity: int, proposed_price: floa
         unit_price=proposed_price if proposed_price is not None else (p.price if p else 0.0),
         quantity=quantity,
     )
-    result = policy.evaluate([line], store.products, store.merchants, _limits(session), session.spent)
+    result = _evaluate(session, [line])
     audit.append(session.audit, "proposal", {"product_id": product_id, "quantity": quantity, "proposed_price": line.unit_price})
     audit.append(session.audit, "policy_result", result.model_dump())
     if not result.allowed or p is None:
@@ -82,9 +144,12 @@ def _demo_sign(session: Session, payload: str) -> tuple[str, dict[str, str]]:
 
 
 def _payload_hash_ok(staged: StagedCart) -> bool:
-    body = json.loads(staged.cart_payload)
-    claimed = body.pop("cart_hash", None)
-    return claimed == staged.cart_hash == _sha256(audit.canonical(body))
+    try:
+        body = json.loads(staged.cart_payload)
+        claimed = body.pop("cart_hash", None)
+        return claimed == staged.cart_hash == _sha256(audit.canonical(body))
+    except (TypeError, ValueError, AttributeError):
+        return False
 
 
 @dataclass
@@ -130,20 +195,36 @@ def authorize(session: Session, cart_hash: str, signature: str | None) -> Paymen
         raise CheckoutError(401, "Signature does not match the staged cart.")
     audit.append(session.audit, "cart_signed", {"cart_hash": cart_hash, "signature": signature})
 
-    # Re-check policy at payment time: spend may have changed since staging.
+    # Compare the exact signed line to the current listing before policy or payment.
+    # In particular, do not compare the current price against itself here.
+    body = json.loads(staged.cart_payload, parse_float=Decimal)
+    if body.get("session_id") != session.id or body.get("mandate_id") != session.mandate_id or body.get("currency") != "usd":
+        raise CheckoutError(409, "Staged cart no longer matches this session's signed rules or currency.")
+    items = body.get("items", [])
+    if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict) or items[0].get("product_id") != staged.product_id:
+        raise CheckoutError(409, "Staged cart no longer matches its signed product.")
+    signed_item = items[0]
+    signed_price = _amount(signed_item.get("unit_price"), "Signed unit price")
+    qty = _quantity(signed_item.get("quantity"))
+    signed_total = signed_price * qty
+    if signed_total != _amount(body.get("total"), "Signed total") or signed_total != _amount(staged.total, "Staged total"):
+        raise CheckoutError(409, "Staged total does not match the signed cart.")
     p = store.product(staged.product_id)
-    qty = json.loads(staged.cart_payload)["items"][0]["quantity"]
-    recheck: PolicyResult = policy.evaluate(
-        [policy.ProposedLine(staged.product_id, p.price if p else 0.0, qty)],
-        store.products, store.merchants, _limits(session), session.spent,
-    )
+    if p is not None and (
+        _amount(p.price, "Catalog unit price") != signed_price
+        or p.merchant_id != signed_item.get("merchant_id")
+    ):
+        audit.append(session.audit, "stale_cart_rejected", {"cart_hash": cart_hash})
+        raise CheckoutError(409, "Catalog price or merchant changed; review and sign a new cart.")
+    # Re-check policy at payment time: spend or signed restrictions may have changed.
+    recheck = _evaluate(session, [policy.ProposedLine(staged.product_id, float(signed_price), qty)])
     if not recheck.allowed:
         audit.append(session.audit, "policy_result", recheck.model_dump())
         raise CheckoutError(403, "Cart no longer passes policy: " + "; ".join(c.reason for c in recheck.checks if not c.passed))
 
     result = create_payment_intent(session, staged)
     staged.paid = True
-    session.spent = round(session.spent + staged.total, 2)
+    session.spent = float(_amount(session.spent, "Session spend") + signed_total)
     audit.append(session.audit, "payment_intent_created", {
         "cart_hash": cart_hash, "payment_intent_id": result.payment_intent_id, "amount": result.amount, "mock": result.mock,
     })
@@ -151,7 +232,7 @@ def authorize(session: Session, cart_hash: str, signature: str | None) -> Paymen
 
 
 def create_payment_intent(session: Session, staged: StagedCart) -> PaymentIntentResult:
-    amount = round(staged.total * 100)
+    amount = int(_amount(staged.total, "Staged total") * 100)
     # Phase 3: Stripe test mode. For now, a clearly labeled mock.
     pid = "pi_mock_" + staged.cart_hash[:16]
     return PaymentIntentResult(

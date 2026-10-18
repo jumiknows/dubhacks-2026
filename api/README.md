@@ -7,7 +7,7 @@ npm run api:setup                     # once: creates api/.venv and installs req
 cp api/.env.example api/.env          # optional, every key is optional
 npm run dev                           # API on :8000 plus the rest of the app
 npm run api                           # or: just the API
-api/.venv/bin/python -m pytest api/tests      # includes tests that regenerate mock data
+npm run test:api                      # offline tests; verifies shared fixtures unchanged
 api/.venv/bin/python -m api.trust.make_mock   # regenerate mock catalog + trust reports
 ```
 
@@ -74,6 +74,10 @@ Integration boundary for Ernest:
 - Source fields `shipping_price`/`shippingPrice`, `tax`, and
   `shipping_days`/`shippingDays` are supported. No arrival date is inferred from
   duration alone: there is no agreed reference date or shipping calendar yet.
+  Explicit `estimated_arrival`/`estimatedArrival` and
+  `estimate_reference_date`/`estimateReferenceDate` are copied only as valid
+  `YYYY-MM-DD` source dates. Relative phrases, conflicting aliases and an arrival
+  before the source reference date are rejected; missing dates stay null.
 - Required/avoided attributes use exact scalar values. Missing required values
   exclude a product. Explicit avoided matches exclude a product; unknown values
   remain eligible with a warning. Booleans never equal numbers. Known boolean
@@ -87,16 +91,69 @@ Integration boundary for Ernest:
 
 The current React/Vite frontend still calls Express `/api/plans`; it does not call
 this endpoint. Ernest can invoke the same pure `recommend_products()` function
-after fetching, or a frontend can adopt the new documented endpoint. Neither
-transport was changed here. Existing payment calculations are outside this slice.
+after fetching, or the frontend can use `/api/conjure/products/recommend` through
+the new Express gateway. Node fixtures still need an agreed approved-merchant mapping
+before that handoff; the gateway does not silently create one.
 
-Safe tests for this milestone (no model download or shared fixture generation):
+### Local AI integration and team merge boundaries
+
+The fetched `origin/backend` at `0bacbe7` already includes `feat/AI` at `b271ab5`.
+Its LLM tool loop, filter traces, voice proxies, and fallback tests have been
+incorporated as local source edits, with Gemini compatibility and safety fixes.
+No Git merge, commit, push, or branch switch was performed.
+
+`Ranker.search_with_stats()` now supports the catalog agent's expected interface
+while `score()` and `with_catalog()` still support sparse normalized products.
+All wrappers share one scoring pass and the same weights. Statistics count each
+excluded product once, under its first filter reason; top-N truncation is not a
+filter rejection. The additional `missing_price` reason covers sparse records.
+
+During the team's eventual Git integration, preserve both interfaces in
+`api/search.py`, both the LLM lifecycle and recommendation router in `api/main.py`,
+and both the new vocabulary and structural type annotations in `api/nlu.py`.
+Replacing any of these whole files with one branch's copy can discard the other
+branch's behavior. The LLM's catalog tools still need an explicit raw-fetch
+handoff; adding this compatibility interface does not connect that flow by itself.
+
+Safe tests (no real credentials, outbound API calls, or embedding-model downloads):
 
 ```bash
-api/.venv/bin/python -m pytest -q api/tests/test_normalization.py api/tests/test_recommendations.py
+npm run test:api
 ```
 
-On Windows use `api/.venv/Scripts/python.exe`. The tests use local synthetic
-records, an in-memory catalog, hashed vectors, and a small FastAPI test app. Avoid
-running the entire trust suite against shared data: its `mock_reports` fixture
-calls the mock generator and overwrites catalog/review/report/image fixtures.
+The complete suite now generates trust-test data only in pytest temporary directories.
+The runner additionally hashes the shared demo data before and after testing and fails
+if it changes. Mock provider requests may appear in test logs; they use explicit
+`httpx.MockTransport`, not the real provider.
+
+### Gemini configuration
+
+Save these settings in the ignored `api/.env`, keeping the actual key local:
+
+```dotenv
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-3.8-flash
+LLM_API_KEY=YOUR_LOCAL_REPLACEMENT_KEY
+LLM_REASONING_EFFORT=low
+LLM_TIMEOUT_S=60
+LLM_TURN_BUDGET_S=120
+LLM_MAX_TOKENS=2048
+```
+
+These are configurable time limits, not promised response times. The local provider
+smoke test took about 35 seconds. Gemini 3 tool-call thought signatures are preserved
+between requests. Provider failure or a bounded turn timeout selects deterministic
+fallback. `/health` says **configured**, which is not proof that a provider request
+succeeded. Restart the backend after changing environment settings.
+
+The LLM chooses among the allowed tools. Spoken product statements are rendered by
+the server from structured tool results; arbitrary model prose is not presented as
+verified product evidence. This prevents a numerical whitelist from incorrectly
+validating an invented ingredient, shipping claim, or a price assigned to the wrong
+product. A `done.source` of `llm` identifies the tool planner; `grounded` describes
+the server-rendered response, not a general fact-checking guarantee for LLM prose.
+
+Voice is optional: without `ELEVENLABS_API_KEY`, STT/TTS return 503 with browser fallback
+hints. Payment intents remain explicitly mocked even when a Stripe key exists. No
+agent tool can authorize payment; staging still requires consent and payment requires
+the user's signed cart. No real shipping retrieval or FX conversion has been added.

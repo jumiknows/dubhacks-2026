@@ -55,8 +55,16 @@ const TITLES = {
 };
 
 export function generatePlan({ prompt, category }) {
+  const error = validatePlanRequest({ prompt, category });
+  if (error) throw new TypeError(error);
+  prompt = prompt.trim();
+  category = category?.trim() || "";
   const resolved = resolveCategory(prompt, category);
   const source = itemsForPrompt(prompt, resolved);
+  if (!Array.isArray(source) || source.length === 0 || source.length > 100 || source.some((item) =>
+    typeof item.name !== "string" || !item.name.trim() || !Number.isSafeInteger(item.quantity) || item.quantity <= 0)) {
+    throw new TypeError("Plan items require names and positive safe integer quantities, with at most 100 items");
+  }
 
   return {
     id: randomUUID(),
@@ -64,6 +72,9 @@ export function generatePlan({ prompt, category }) {
     prompt,
     title: TITLES[resolved] || clip(prompt),
     createdAt: new Date().toISOString(),
+    source: "keyword_templates",
+    isMock: true,
+    warnings: ["Demo checklist uses fixed templates, not an AI model or live trip facts."],
     items: source.map((item) => ({
       id: randomUUID(),
       name: item.name,
@@ -75,6 +86,16 @@ export function generatePlan({ prompt, category }) {
       synthesis: null,
     })),
   };
+}
+
+export function validatePlanRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return "Expected a JSON object";
+  if (Object.keys(body).some((key) => !["prompt", "category"].includes(key))) return "Only prompt and category are accepted";
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) return "prompt is required";
+  if (body.prompt.length > 2000) return "prompt must be at most 2000 characters";
+  if (body.category !== undefined && typeof body.category !== "string") return "category must be a string";
+  if (body.category && !["", "groceries", "wedding", "camping", "custom", "electronics"].includes(body.category.trim())) return "Unsupported category";
+  return null;
 }
 
 function itemsForPrompt(prompt, category) {

@@ -125,6 +125,18 @@ def _integer(value: Any, field: str) -> int | None:
     return value
 
 
+def _source_date(value: Any, field: str) -> date | None:
+    """Copy a source's explicit calendar date; never derive one from shipping duration."""
+    if value is None or type(value) is date:
+        return value
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise NormalizationError(field, "Expected an explicit ISO calendar date (YYYY-MM-DD).")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise NormalizationError(field, "Source calendar date is invalid.") from exc
+
+
 def _url(value: Any, field: str, *, relative_image: bool = False) -> str | None:
     value = _text(value, field)
     if value is None:
@@ -206,7 +218,14 @@ def normalize_product(
         shipping_price=_amount(raw, currency, "shipping_price", "shippingPrice"),
         tax=_amount(raw, currency, "tax"),
         shipping_days=_integer(_alias(raw, "shipping_days", "shippingDays"), "shipping_days"),
+        estimated_arrival=_source_date(_alias(raw, "estimated_arrival", "estimatedArrival"), "estimated_arrival"),
+        estimate_reference_date=_source_date(
+            _alias(raw, "estimate_reference_date", "estimateReferenceDate"), "estimate_reference_date",
+        ),
     )
+    if (delivery.estimated_arrival is not None and delivery.estimate_reference_date is not None
+            and delivery.estimated_arrival < delivery.estimate_reference_date):
+        raise NormalizationError("estimated_arrival", "Arrival precedes the source's estimate reference date.")
     # A duration without an agreed reference date/calendar is not an arrival date.
     return NormalizedProduct(
         id=_text(_alias(raw, "id", "product_id"), "id", required=True),

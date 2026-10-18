@@ -3,7 +3,7 @@
 fit = 0.45 * semantic + 0.25 * attribute_match + 0.20 * trust + 0.10 * feedback
 
 Hard filters (budget, avoid attributes, unverified merchants under a verified-only
-mandate, requested subcategory, dismissed items) remove products before scoring.
+mandate, requested/signed categories, dismissed items) remove products before scoring.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from typing import Callable, Protocol
 import numpy as np
 
 from api import nlu
-from api.schemas import FitTerms, IntentMandate, PreferenceProfile, RankedProduct, TrustReport
+from api.schemas import AttrValue, FitTerms, IntentMandate, PreferenceProfile, RankedProduct, TrustReport
 from api.store import Store
 from api.textvec import hashed_matrix
 
@@ -37,7 +37,8 @@ def _make_embedder() -> tuple[str, Callable[[list[str]], np.ndarray]]:
         return "hashed-ngrams", hashed_matrix
 
 
-class SearchProduct(nlu.AttributedProduct, Protocol):
+class SearchProduct(Protocol):
+    attributes: dict[str, AttrValue]
     id: str
     title: str
     brand: str | None
@@ -108,15 +109,32 @@ class Ranker:
         self, p: SearchProduct, budget: float | None, profile: PreferenceProfile,
         mandate: IntentMandate | None, subcategory: str | None,
     ) -> bool:
-        if p.price is None or (budget is not None and p.price > budget):
-            return False
-        if any(nlu.violates_avoid(p, a) for a in profile.avoid):
-            return False
-        if mandate and mandate.verified_only and not self.store.merchant_verified(p.merchant_id):
-            return False
+        return self._filter_reason(p, budget, profile, mandate, subcategory) is None
+
+    def _filter_reason(
+        self, p: SearchProduct, budget: float | None, profile: PreferenceProfile,
+        mandate: IntentMandate | None, subcategory: str | None,
+    ) -> str | None:
+        """First exclusion reason, using the ordering expected by agent filter traces."""
         if subcategory and p.subcategory != subcategory:
-            return False
-        return p.id not in {d.id for d in profile.dismissed}
+            return "subcategory"
+        # Use the existing category reason so agent traces keep their contract.
+        # Empty signed categories mean any category, matching checkout policy.
+        if mandate and mandate.categories and (p.subcategory or "").lower() not in {
+            category.lower() for category in mandate.categories
+        }:
+            return "subcategory"
+        if p.price is None:
+            return "missing_price"
+        if budget is not None and p.price > budget:
+            return "budget"
+        if any(nlu.violates_avoid(p, a) for a in profile.avoid):
+            return "avoid"
+        if mandate and mandate.verified_only and not self.store.merchant_verified(p.merchant_id):
+            return "unverified"
+        if p.id in {d.id for d in profile.dismissed}:
+            return "dismissed"
+        return None
 
     # --- terms ------------------------------------------------------------
 
@@ -183,28 +201,51 @@ class Ranker:
         mandate: IntentMandate | None = None,
     ) -> list[RankedProduct]:
         """Keep the existing catalog API contract; sparse inputs use score() instead."""
-        return [
+        return self.search_with_stats(req, profile, mandate)[0]
+
+    def search_with_stats(
+        self, req: SearchRequest, profile: PreferenceProfile | None = None,
+        mandate: IntentMandate | None = None,
+    ) -> tuple[list[RankedProduct], dict[str, int]]:
+        """Catalog results plus first-exclusion counts, compatible with the LLM agent."""
+        scores, removed = self._score_with_stats(req, profile, mandate)
+        results = [
             RankedProduct(
                 **self.store.products[r.product_id].model_dump(),
                 fit_percent=r.fit_percent, reasons=r.reasons, fit_terms=r.fit_terms,
             )
-            for r in self.score(req, profile, mandate)
+            for r in scores
         ]
+        return results, removed
 
     def score(
         self, req: SearchRequest, profile: PreferenceProfile | None = None,
         mandate: IntentMandate | None = None,
     ) -> list[ProductScore]:
         """The existing scoring algorithm, independent of the public Product response schema."""
+        return self._score_with_stats(req, profile, mandate)[0]
+
+    def _score_with_stats(
+        self, req: SearchRequest, profile: PreferenceProfile | None = None,
+        mandate: IntentMandate | None = None,
+    ) -> tuple[list[ProductScore], dict[str, int]]:
+        """One filter/scoring pass shared by catalog responses and raw-product scoring."""
         profile = profile or PreferenceProfile()
-        budget_opts = [b for b in (req.max_price, profile.budget_max) if b is not None]
-        budget = min(budget_opts) if budget_opts else None
-        cands = [
-            pid for pid in self.ids
-            if self._passes_filters(self.store.products[pid], budget, profile, mandate, req.subcategory)
+        budget_opts = [
+            b for b in (req.max_price, profile.budget_max, mandate.budget_max if mandate else None)
+            if b is not None
         ]
+        budget = min(budget_opts) if budget_opts else None
+        removed: dict[str, int] = {}
+        cands = []
+        for pid in self.ids:
+            why = self._filter_reason(self.store.products[pid], budget, profile, mandate, req.subcategory)
+            if why:
+                removed[why] = removed.get(why, 0) + 1
+            else:
+                cands.append(pid)
         if not cands:
-            return []
+            return [], removed
         cand_idx = [self._index[pid] for pid in cands]
         semantic_q = " ".join([req.query, *profile.needs, (profile.skin_type or "").replace(",", " ")])
         sem = self._semantic(semantic_q, cand_idx)
@@ -222,7 +263,7 @@ class Ranker:
                 ProductScore(product_id=pid, fit_percent=round(100 * fit), reasons=self._reasons(pid, terms, matched), fit_terms=terms)
             )
         results.sort(key=lambda r: (-r.fit_percent, self.store.products[r.product_id].price))
-        return results[: max(1, min(req.limit, 50))]
+        return results[: max(1, min(req.limit, 50))], removed
 
 
 _ranker: Ranker | None = None

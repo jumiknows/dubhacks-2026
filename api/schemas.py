@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -79,7 +79,7 @@ class Dismissal(BaseModel):
 class PreferenceProfile(BaseModel):
     needs: list[str] = []
     avoid: list[str] = []
-    budget_max: float | None = None
+    budget_max: float | None = Field(default=None, ge=0, le=10_000, allow_inf_nan=False)
     skin_type: str | None = None
     liked_ids: list[str] = []
     dismissed: list[Dismissal] = []
@@ -253,3 +253,27 @@ class CheckoutIntentRequest(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=600)
+
+
+# Additive SSE events from Ernest's AI branch. Existing Product/payment contracts stay intact.
+class ToolTrace(BaseModel):
+    kind: Literal["tool"] = "tool"
+    name: str
+    args: dict[str, Any]
+    ms: int
+
+
+class PolicyTrace(BaseModel):
+    kind: Literal["policy"] = "policy"
+    rule: str
+    passed: bool
+    reason: str
+
+
+class FilterTrace(BaseModel):
+    kind: Literal["filter"] = "filter"
+    removed: int
+    why: str
+
+
+TraceEvent = Annotated[Union[ToolTrace, PolicyTrace, FilterTrace], Field(discriminator="kind")]

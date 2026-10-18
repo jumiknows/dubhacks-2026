@@ -5,11 +5,43 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 
 import pytest
+import httpx
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
 from api.guard.mandates import jwk_from_public_key, sign_raw
 from api.main import app
+
+
+@pytest.fixture(scope="session", autouse=True)
+def offline_integrations():
+    """Tests never use real API keys, spend API credits, or download embedding models.
+
+    MockTransport and TestClient still work; the default network transports fail closed.
+    Environment overrides keep api/.env credentials out of test settings.
+    """
+    from api import search
+    from api.config import get_settings
+    from api.textvec import hashed_matrix
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("Tests must use an explicit mock transport")
+
+    async def no_async_network(*args, **kwargs):
+        raise AssertionError("Tests must use an explicit mock transport")
+
+    with pytest.MonkeyPatch.context() as patch:
+        for name in ("LLM_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY"):
+            patch.setenv(name, "")
+        patch.setenv("DEMO_SERVER_SIGNING", "false")
+        get_settings.cache_clear()
+        patch.setattr(search, "_make_embedder", lambda: ("hashed-ngrams", hashed_matrix))
+        patch.setattr(httpx.HTTPTransport, "handle_request", no_network)
+        patch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", no_async_network)
+        try:
+            yield
+        finally:
+            get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session")

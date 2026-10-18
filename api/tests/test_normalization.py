@@ -1,6 +1,7 @@
 """Local synthetic input examples; these do not represent fetched offers."""
 
 from decimal import Decimal
+from datetime import date
 
 import pytest
 
@@ -146,3 +147,26 @@ def test_relative_images_reject_unsafe_path_characters(raw_product, merchants, i
 def test_money_serializes_as_decimal_strings(raw_product, merchants):
     p = normalize_product(raw_product, merchants)
     assert p.model_dump(mode="json")["price"] == "12.34"
+
+
+def test_explicit_source_arrival_is_preserved_without_inference(raw_product, merchants):
+    raw = {**raw_product, "estimatedArrival": "2026-11-04", "estimateReferenceDate": "2026-11-01"}
+    p = normalize_product(raw, merchants)
+    assert p.delivery.estimated_arrival == date(2026, 11, 4)
+    assert p.delivery.estimate_reference_date == date(2026, 11, 1)
+    assert p.model_dump(mode="json")["delivery"]["estimated_arrival"] == "2026-11-04"
+    assert normalize_product(raw_product, merchants).delivery.estimated_arrival is None
+
+
+@pytest.mark.parametrize("value", ["tomorrow", "11/04/2026", "2026-02-30", "2026-11-04T12:00:00Z", 3, True])
+def test_ambiguous_arrival_dates_are_rejected(raw_product, merchants, value):
+    with pytest.raises(NormalizationError) as exc:
+        normalize_product({**raw_product, "estimated_arrival": value}, merchants)
+    assert exc.value.field == "estimated_arrival"
+
+
+def test_conflicting_or_reversed_source_dates_are_rejected(raw_product, merchants):
+    with pytest.raises(NormalizationError):
+        normalize_product({**raw_product, "estimated_arrival": "2026-11-04", "estimatedArrival": "2026-11-05"}, merchants)
+    with pytest.raises(NormalizationError):
+        normalize_product({**raw_product, "estimated_arrival": "2026-11-04", "estimate_reference_date": "2026-11-05"}, merchants)

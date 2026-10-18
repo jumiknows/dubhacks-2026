@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_DIR = Path(__file__).resolve().parent
@@ -16,16 +17,22 @@ class Settings(BaseSettings):
 
     # LLM (any OpenAI-compatible Chat Completions endpoint)
     llm_base_url: str = "https://api.openai.com/v1"
-    llm_api_key: str = ""
+    llm_api_key: str = Field(default="", repr=False)
     llm_model: str = "gpt-4o-mini"
-    llm_timeout_s: float = 4.0
+    # Gemini can spend time reasoning before replying. Bound both each call and the full turn.
+    llm_timeout_s: float = Field(default=60.0, gt=0, le=180)
+    llm_turn_budget_s: float = Field(default=120.0, gt=0, le=300)
+    llm_reasoning_effort: str = ""
+    llm_max_tokens: int = Field(default=2048, ge=128, le=8192)
 
     # ElevenLabs
-    elevenlabs_api_key: str = ""
+    elevenlabs_api_key: str = Field(default="", repr=False)
     elevenlabs_voice_id: str = "JBFqnCBsd6RMkjVDRZzb"
+    elevenlabs_model_id: str = "eleven_flash_v2_5"
+    elevenlabs_timeout_s: float = Field(default=8.0, gt=0, le=30)
 
     # Stripe (test mode only)
-    stripe_secret_key: str = ""
+    stripe_secret_key: str = Field(default="", repr=False)
 
     # Dev escape hatch: server signs carts for the client. Never in a real deployment.
     demo_server_signing: bool = False
@@ -37,7 +44,11 @@ class Settings(BaseSettings):
 
     @property
     def llm_enabled(self) -> bool:
-        return bool(self.llm_api_key)
+        return bool(self.llm_api_key.strip())
+
+    @property
+    def voice_enabled(self) -> bool:
+        return bool(self.elevenlabs_api_key.strip())
 
 
 @lru_cache

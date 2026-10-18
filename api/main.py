@@ -14,14 +14,14 @@ from fastapi.staticfiles import StaticFiles
 from api import checkout, recommendations, search
 from api import store as store_mod
 from api import voice
-from api.agent import orchestrator, tools
+from api.agent import llm, orchestrator, tools
 from api.config import DATA_DIR, get_settings
 from api.guard import audit, mandates
 from api.schemas import (
     ChatRequest, CheckoutIntentRequest, CompareRequest, FeedbackRequest, IntentMandateRequest,
     PreferenceProfile, Product, RankedProduct, StageRequest, TrustReport,
 )
-from api.sessions import sessions
+from api.sessions import breaker, sessions, tts_cache
 from api.store import store
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -32,8 +32,13 @@ log = logging.getLogger("conjure")
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     store_mod.init()
     ranker = search.init(store)
-    log.info("Loaded %d products; search backend: %s", len(store.products), ranker.backend)
-    yield
+    client = llm.init()
+    log.info("Loaded %d demo products; search backend: %s; agent: %s", len(store.products), ranker.backend,
+             "LLM configured" if client else "deterministic fallback")
+    try:
+        yield
+    finally:
+        await llm.close()
 
 
 app = FastAPI(title="Conjure API", version="0.1.0", lifespan=lifespan)
@@ -141,6 +146,10 @@ def wipe_profile(session_id: str) -> dict[str, Any]:
     session.intent_mandate = session.public_key_jwk = session.mandate_id = None
     session.staged.clear()
     session.last_results, session.last_query, session.focused_id = [], "", None
+    session.last_subcategory = None
+    session.chat_history.clear()
+    session.greeted = False
+    session.demo_private_key = None
     audit.append(session.audit, "wiped", {"deleted": {k: v for k, v in deleted.items() if k != "profile"}})
     return {"wiped": True, "deleted": deleted}
 
@@ -151,7 +160,7 @@ def wipe_profile(session_id: str) -> dict[str, Any]:
 @app.get("/products/search")
 def products_search(
     q: str = Query(default="", max_length=300),
-    max_price: float | None = Query(default=None, ge=0),
+    max_price: float | None = Query(default=None, ge=0, le=10_000, allow_inf_nan=False),
     limit: int = Query(default=6, ge=1, le=50),
     session_id: str | None = None,
 ) -> list[RankedProduct]:
@@ -217,8 +226,9 @@ def get_audit(session_id: str) -> dict[str, Any]:
 def health() -> dict[str, Any]:
     s = get_settings()
 
-    def status(live: bool) -> str:
-        return "live" if live else "mocked"
+    b = breaker.status()
+    configured = llm.client() is not None
+    agent = "llm" if configured and b["state"] == "closed" else "fallback"
 
     return {
         "ok": True,
@@ -226,10 +236,18 @@ def health() -> dict[str, Any]:
         "sessions": sessions.count(),
         "search_backend": search.ranker().backend,
         "integrations": {
-            "llm": "mocked (fallback agent only)",
-            "elevenlabs": status(False),
-            "stripe": status(False),
+            "llm": f"configured ({s.llm_model})" if configured else "not configured (fallback agent)",
+            "elevenlabs": "configured; browser fallback on failure" if s.voice_enabled else "not configured",
+            "stripe": "mocked (no real payment processing)",
         },
-        "agent_source": "fallback",
+        "agent_source": agent,
+        "llm_breaker": b,
+        "tts_cache": tts_cache.stats(),
+        "data_sources": {
+            "catalog": "fictional demo products",
+            "reviews": "synthetic demo reviews",
+            "merchants": "local policy flags; no domain verification",
+            "shipping": "not provided by the catalog",
+        },
         "demo_server_signing": s.demo_server_signing,
     }

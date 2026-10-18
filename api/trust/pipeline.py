@@ -306,8 +306,8 @@ def _top_reasons(signals: list[TrustSignal], flagged: bool) -> list[str]:
     if flagged:
         reasons.insert(
             0,
-            "A review contains text aimed at AI assistants; it was ignored and this "
-            "product is capped at caution.",
+            "A review contains text aimed at AI assistants; its instructions are not followed, "
+            "but it still contributes to review statistics. This product is capped at caution.",
         )
     return reasons[:3]
 
@@ -376,7 +376,8 @@ def compute_report(product_id: str, reviews: list[Review], seeded: bool = False)
             product_id=product_id, score=None, tier="insufficient", rating_listed=listed,
             rating_adjusted=adjusted, signals=signals,
             top_reasons=[f"Only {n} reviews, fewer than the {MIN_REVIEWS} needed for a Trust Score."]
-            + (["A review contains text aimed at AI assistants; it was ignored."] if flags else []),
+            + (["A review contains text aimed at AI assistants; its instructions are not followed, "
+                "but it still contributes to review statistics."] if flags else []),
             evidence_review_ids=evidence, security_flags=flags, seeded_for_demo=seeded,
         )
 

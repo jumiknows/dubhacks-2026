@@ -46,6 +46,9 @@ function unlisted(query) {
     dimensions: null,
     shippingDays: null,
     inStock: false,
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["No demo listing matches this query; no live store lookup was performed."],
   };
 }
 
@@ -71,6 +74,9 @@ function listing({
     dimensions: dimensions ? { label: dimensions } : null,
     shippingDays,
     inStock,
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["Sample listing; price, stock, dimensions and shipping duration are not live merchant data."],
   };
 }
 
