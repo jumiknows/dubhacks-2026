@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Protocol
 
-from api.schemas import Product
+from api.schemas import AttrValue
+
+
+class AttributedProduct(Protocol):
+    attributes: dict[str, AttrValue]
+
 
 SKIN_TYPES = ("dry", "oily", "combination", "sensitive", "normal")
 
@@ -70,11 +76,11 @@ def need_label(need: str) -> str:
     return _NEEDS[need][1] if need in _NEEDS else need.replace("_", " ")
 
 
-def product_skin_types(p: Product) -> list[str]:
+def product_skin_types(p: AttributedProduct) -> list[str]:
     return [s.strip() for s in str(p.attributes.get("skin_type", "")).split(",") if s.strip()]
 
 
-def meets_need(p: Product, need: str) -> bool:
+def meets_need(p: AttributedProduct, need: str) -> bool:
     a = p.attributes
     if need == "hydrating":
         return bool(a.get("hydrating"))
@@ -89,7 +95,7 @@ def meets_need(p: Product, need: str) -> bool:
     return False
 
 
-def violates_avoid(p: Product, avoid: str) -> bool:
+def violates_avoid(p: AttributedProduct, avoid: str) -> bool:
     if avoid == "fragrance":
         return not bool(p.attributes.get("fragrance_free"))
     return avoid.lower() in str(p.attributes.get("key_ingredient", "")).lower()

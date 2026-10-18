@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from api import checkout, search
+from api import checkout, recommendations, search
 from api import store as store_mod
 from api import voice
 from api.agent import orchestrator, tools
@@ -46,6 +46,7 @@ app.add_middleware(
 (DATA_DIR / "images").mkdir(parents=True, exist_ok=True)
 app.mount("/static/products", StaticFiles(directory=DATA_DIR / "images"), name="product-images")
 app.include_router(voice.router)
+app.include_router(recommendations.router)
 
 
 @app.exception_handler(checkout.CheckoutError)

@@ -9,13 +9,15 @@ mandate, requested subcategory, dismissed items) remove products before scoring.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Callable
+from decimal import Decimal
+from typing import Callable, Protocol
 
 import numpy as np
 
 from api import nlu
-from api.schemas import FitTerms, IntentMandate, PreferenceProfile, Product, RankedProduct
+from api.schemas import FitTerms, IntentMandate, PreferenceProfile, RankedProduct, TrustReport
 from api.store import Store
 from api.textvec import hashed_matrix
 
@@ -35,7 +37,28 @@ def _make_embedder() -> tuple[str, Callable[[list[str]], np.ndarray]]:
         return "hashed-ngrams", hashed_matrix
 
 
-def product_text(p: Product) -> str:
+class SearchProduct(nlu.AttributedProduct, Protocol):
+    id: str
+    title: str
+    brand: str | None
+    summary: str | None
+    subcategory: str | None
+    merchant_id: str | None
+    price: float | Decimal | None
+
+    def model_dump(self) -> dict[str, object]: ...
+
+
+class SearchCatalog(Protocol):
+    @property
+    def products(self) -> Mapping[str, SearchProduct]: ...
+
+    def trust_report(self, product_id: str) -> TrustReport | None: ...
+
+    def merchant_verified(self, merchant_id: str | None) -> bool: ...
+
+
+def product_text(p: SearchProduct) -> str:
     a = p.attributes
     bits = [p.title, p.brand, p.subcategory, p.summary, f"for {str(a.get('skin_type', '')).replace(',', ' ')} skin"]
     if a.get("fragrance_free"):
@@ -46,7 +69,7 @@ def product_text(p: Product) -> str:
         bits.append(f"spf {a['spf']} sun protection")
     if a.get("key_ingredient"):
         bits.append(str(a["key_ingredient"]))
-    return ". ".join(bits)
+    return ". ".join(bit for bit in bits if bit)
 
 
 @dataclass
@@ -57,21 +80,35 @@ class SearchRequest:
     subcategory: str | None = None
 
 
+@dataclass
+class ProductScore:
+    product_id: str
+    fit_percent: int
+    reasons: list[str]
+    fit_terms: FitTerms
+
+
 class Ranker:
-    def __init__(self, store: Store) -> None:
+    def __init__(
+        self, store: SearchCatalog, *, embedder: tuple[str, Callable[[list[str]], np.ndarray]] | None = None,
+    ) -> None:
         self.store = store
-        self.backend, self._embed = _make_embedder()
+        self.backend, self._embed = embedder if embedder is not None else _make_embedder()
         self.ids = list(store.products)
         self._index = {pid: i for i, pid in enumerate(self.ids)}
         self.vectors = self._embed([product_text(store.products[pid]) for pid in self.ids]) if self.ids else None
 
+    def with_catalog(self, store: SearchCatalog) -> Ranker:
+        """Reuse the loaded embedder for request-local products, without changing the global catalog."""
+        return Ranker(store, embedder=(self.backend, self._embed))
+
     # --- filters ----------------------------------------------------------
 
     def _passes_filters(
-        self, p: Product, budget: float | None, profile: PreferenceProfile,
+        self, p: SearchProduct, budget: float | None, profile: PreferenceProfile,
         mandate: IntentMandate | None, subcategory: str | None,
     ) -> bool:
-        if budget is not None and p.price > budget:
+        if p.price is None or (budget is not None and p.price > budget):
             return False
         if any(nlu.violates_avoid(p, a) for a in profile.avoid):
             return False
@@ -91,7 +128,7 @@ class Ranker:
         top = sims.max() if len(sims) else 0
         return sims / top if top > 0 else np.full(len(cand_idx), 0.5)
 
-    def _attribute(self, p: Product, profile: PreferenceProfile) -> tuple[float, list[str]]:
+    def _attribute(self, p: SearchProduct, profile: PreferenceProfile) -> tuple[float, list[str]]:
         wanted_skin = [s for s in (profile.skin_type or "").split(",") if s]
         checks: list[tuple[str, bool]] = [(f"{s} skin", s in nlu.product_skin_types(p)) for s in wanted_skin]
         checks += [(nlu.need_label(n), nlu.meets_need(p, n)) for n in profile.needs]
@@ -124,7 +161,9 @@ class Ranker:
 
     def _reasons(self, pid: str, terms: FitTerms, matched: list[str]) -> list[str]:
         r = self.store.trust_report(pid)
-        if r is None or r.score is None:
+        if r is None:
+            trust_reason = "Trust evidence unavailable"
+        elif r.score is None:
             trust_reason = "Too few reviews for a Trust Score yet"
         else:
             trust_reason = f"Trust Score {r.score} ({r.tier})"
@@ -143,6 +182,20 @@ class Ranker:
         self, req: SearchRequest, profile: PreferenceProfile | None = None,
         mandate: IntentMandate | None = None,
     ) -> list[RankedProduct]:
+        """Keep the existing catalog API contract; sparse inputs use score() instead."""
+        return [
+            RankedProduct(
+                **self.store.products[r.product_id].model_dump(),
+                fit_percent=r.fit_percent, reasons=r.reasons, fit_terms=r.fit_terms,
+            )
+            for r in self.score(req, profile, mandate)
+        ]
+
+    def score(
+        self, req: SearchRequest, profile: PreferenceProfile | None = None,
+        mandate: IntentMandate | None = None,
+    ) -> list[ProductScore]:
+        """The existing scoring algorithm, independent of the public Product response schema."""
         profile = profile or PreferenceProfile()
         budget_opts = [b for b in (req.max_price, profile.budget_max) if b is not None]
         budget = min(budget_opts) if budget_opts else None
@@ -156,7 +209,7 @@ class Ranker:
         semantic_q = " ".join([req.query, *profile.needs, (profile.skin_type or "").replace(",", " ")])
         sem = self._semantic(semantic_q, cand_idx)
 
-        results: list[RankedProduct] = []
+        results: list[ProductScore] = []
         for j, pid in enumerate(cands):
             p = self.store.products[pid]
             attr, matched = self._attribute(p, profile)
@@ -166,9 +219,9 @@ class Ranker:
             )
             fit = W_SEMANTIC * terms.semantic + W_ATTR * terms.attribute_match + W_TRUST * terms.trust + W_FEEDBACK * terms.feedback
             results.append(
-                RankedProduct(**p.model_dump(), fit_percent=round(100 * fit), reasons=self._reasons(pid, terms, matched), fit_terms=terms)
+                ProductScore(product_id=pid, fit_percent=round(100 * fit), reasons=self._reasons(pid, terms, matched), fit_terms=terms)
             )
-        results.sort(key=lambda r: (-r.fit_percent, r.price))
+        results.sort(key=lambda r: (-r.fit_percent, self.store.products[r.product_id].price))
         return results[: max(1, min(req.limit, 50))]
 
 
