@@ -26,3 +26,29 @@ export function setPurchased(planId, itemId, purchased) {
     body: JSON.stringify({ purchased }),
   });
 }
+
+export function getMe() {
+  return request("/api/me");
+}
+
+export function saveProfile(profile) {
+  return request("/api/me/profile", {
+    method: "PUT",
+    body: JSON.stringify(profile),
+  });
+}
+
+export function getCalendarSuggestions() {
+  return request("/api/calendar/suggestions");
+}
+
+export function signOut() {
+  return request("/api/auth/logout", { method: "POST", body: "{}" });
+}
+
+/** Full-page redirect: Google's consent screen, then back to the app. */
+export const GOOGLE_SIGN_IN_URL = "/api/auth/google/start";
+
+export function deleteAccount() {
+  return request("/api/me", { method: "DELETE" });
+}

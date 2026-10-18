@@ -6,7 +6,7 @@ import { synthesize } from "./synthesizeBot.js";
  * synthesis-bot promise (image, dimensions, ship date, total).
  * Neither bot is implemented here.
  */
-export async function attachOffers(items) {
+export async function attachOffers(items, prefs = {}) {
   return Promise.all(
     items.map(async (item) => {
       if (item.purchased || item.synthesis) return item;
@@ -14,7 +14,7 @@ export async function attachOffers(items) {
       const productsPromise = fetchProducts(item.name);
       const products = await productsPromise;
 
-      const synthesisPromise = synthesize(item, products);
+      const synthesisPromise = synthesize(item, products, prefs);
       const synthesis = await synthesisPromise;
 
       return { ...item, products, synthesis };
@@ -22,7 +22,7 @@ export async function attachOffers(items) {
   );
 }
 
-export function quotePlan(items) {
+export function quotePlan(items, { budgetMax = null } = {}) {
   const open = items.filter((item) => !item.purchased);
   const prices = open
     .map((item) => item.synthesis?.totalPrice)
@@ -40,5 +40,7 @@ export function quotePlan(items) {
     totalPrice: Math.round(total * 100) / 100,
     currency: "USD",
     readyBy: dates.at(-1) || null,
+    budgetMax,
+    overBudget: budgetMax != null && total > budgetMax,
   };
 }

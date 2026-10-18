@@ -1164,3 +1164,5 @@ img.thumb { object-fit: cover; }
   .sheet-bar,
   .sheet-body { padding-right: 5.8rem; }
 }
+
+.onb-boot { min-height: 100vh; background: #07080c; }

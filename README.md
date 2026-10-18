@@ -30,10 +30,29 @@ copy server\.env.example server\.env
 4. `server/services/pipeline.js` awaits those two promises and attaches them to the plan.
 5. `client/src/ui/` renders the plan. **UI stub** — replace the layout. Keep the props on `PlannerUI`. HTTP stays in `client/src/App.jsx`.
 
+## First-run setup (onboarding)
+
+New users see a short setup before the planner: **Continue with Google** (calendar access), three questions answered by hand gesture, key or tap, then suggested lists for upcoming calendar events such as "Camping at Rainier". Answers set how offers are picked (lowest price, fast shipping or major retailers) and the plan budget. Add `?onboarding` to the URL to replay it.
+
+Google sign-in needs a one-time setup. Without it, setup skips the Google step and still runs the questions.
+
+1. In Google Cloud Console, create an OAuth client of type **Web application**.
+2. Add the redirect URI `http://localhost:5173/api/auth/google/callback`.
+3. On the OAuth consent screen, add the scope `calendar.readonly` and, while the app is in testing, each tester's Google account as a test user.
+4. Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `server/.env` and restart.
+
+Signing in with Google creates the user's Planboard account; there are no passwords. Only event titles and dates are read. Accounts and sessions are saved in `server/data/accounts.json` (gitignored), with session ids hashed and Google tokens encrypted. Users can sign out, redo setup, or delete their account from the account button in the top-left corner.
+
 ## API
 
 - `POST /api/plans` `{ prompt, category }` → plan, including `items[].products`, `items[].synthesis`, and `quote`
 - `GET /api/plans/:id`
+- `GET /api/me` → signed-in user, saved setup answers, Google status
+- `PUT /api/me/profile` `{ focus, priority, budget }` → saves setup answers
+- `GET /api/auth/google/start` → Google consent screen; returns to `/?google=connected`
+- `GET /api/calendar/suggestions` → upcoming events that need a list
+- `POST /api/auth/logout` `{ revoke?: boolean }`
+- `DELETE /api/me` → deletes the account and revokes Google access
 - `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
 
 `category` is `groceries`, `wedding`, `camping`, or `custom`. If the prompt mentions one of those occasions, that list wins over the selected tab.
