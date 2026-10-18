@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-18T11:30:26.221710+00:00",
+  "origin": "https://emberready.jumiknows.chatgpt.site",
+  "applicationSource": "a3a41ebc128a636d59302eb52ecd46f95a1c0a8a",
+  "hostingSource": "c26d3a870690a0a69dafe33dc97440c4915a5c5f",
+  "deploymentId": "appgdep_6ad4ad9b08d081919c468a6bed3ff5c7",
+  "versionId": "appgprj_6ad45848b77c81919e1c3cf32056e374~appgver_2d6eff53c3bc8191a00bbfa5ee5c0739",
+  "environmentRevision": 4,
+  "audience": "owner-private",
+  "results": [
+    {
+      "route": "/",
+      "status": 200
+    },
+    {
+      "route": "/api/voice/session",
+      "status": 200,
+      "errorCode": null,
+      "check": "removed temporary access code"
+    },
+    {
+      "route": "/api/voice/briefing",
+      "status": 403,
+      "errorCode": "forbidden"
+    }
+  ],
+  "note": "The first post-deploy check still accepted the former verification code even though desired environment revision 4 omitted it. A follow-up check is required before claiming revocation."
+}

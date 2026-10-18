@@ -10,9 +10,10 @@ export function voiceAccess(request: Request, kind: "speech" | "session"): Respo
   if (!process.env.XAI_API_KEY) return deny(503, "missing-credential", "XAI_API_KEY is not configured. The readable briefing remains available.");
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) return deny(403, "forbidden", "Use Voice from this application.");
-  const privateSite = process.env.VOICE_ACCESS_MODE === "private-site" && !!request.headers.get("oai-authenticated-user-id");
+  const privateMode = process.env.VOICE_ACCESS_MODE === "private-site";
+  const privateSite = privateMode && !!request.headers.get("oai-authenticated-user-id");
   const token = process.env.VOICE_ACCESS_TOKEN;
-  const authorized = privateSite || !!token && sameSecret(request.headers.get("authorization") ?? "", `Bearer ${token}`);
+  const authorized = privateMode ? privateSite : !!token && sameSecret(request.headers.get("authorization") ?? "", `Bearer ${token}`);
   if (!authorized) return deny(403, "forbidden", "Voice requires an authorized demo session. Enter the demo access code or use the private hosted app.");
   const now = Date.now();
   let window = windows.get(kind);

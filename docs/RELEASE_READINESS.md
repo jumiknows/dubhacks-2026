@@ -19,6 +19,14 @@ Local typecheck, lint, 46 Vitest tests, 17 repository tests and repository check
 
 The live adapter validates Washington bounds, product and one-to-five-day windows before network access. Concurrent requests share one fetch. One retry for 429 or server errors shares the total timeout. A provider wait above one second is not shortened. Tests cover coalescing, rate limits, retry exhaustion, deadline and stale cache behavior.
 
+## Playback and prompt deployment
+
+Application source `a3a41ebc128a636d59302eb52ecd46f95a1c0a8a` passed [CI 39123374220](https://github.com/jumiknows/spacex2026Hacks/actions/runs/39123374220), including 48 Vitest tests, nine browser tests, the production build and repository gates. The separate Sites build also passed.
+
+The updated [private demo](https://emberready.jumiknows.chatgpt.site) deployed successfully at 2026-10-18T11:29:39Z with hosting source `c26d3a870690a0a69dafe33dc97440c4915a5c5f`, deployment `appgdep_6ad4ad9b08d081919c468a6bed3ff5c7`, saved version `appgprj_6ad45848b77c81919e1c3cf32056e374~appgver_2d6eff53c3bc8191a00bbfa5ee5c0739` and environment revision 4. The xAI key is a server secret. The desired configuration removed the temporary code, but [runtime checks](evidence/voice-deployment.json) still accepted it. Private-mode authorization was therefore tightened to require site identity even if a code remains in the runtime. A subsequent deployment records the corrected behavior.
+
+The earlier saved version below is available for source rollback. Keep the current private runtime secrets when rolling back source. Provider evidence used that earlier application source, while the offline revised-prompt run and playback regression tests cover the current changes. Human hosted-browser verification remains open.
+
 ## Initial deployment record
 
 The [private demo](https://emberready.jumiknows.chatgpt.site) is deployed for the site owner. The Sites Vinext build passed with all application server routes. `tools/prepare_site.py` copies the application and domain source into an initialized Sites checkout while preserving hosting integration. It bundles the verified immutable replay.
@@ -39,7 +47,7 @@ Deployment is available for review. Promotion to the verified `main` release rem
 
 ## Voice verification and correction
 
-Runtime xAI access was configured as a secret, and deployment `appgdep_6ad4aa90df0c8191a5c323b19f4cc901` verified speech and conversation at environment revision 3. A temporary verification access code was removed in revision 4. The private site continues to authorize its signed-in owner.
+Runtime xAI access was configured as a secret, and deployment `appgdep_6ad4aa90df0c8191a5c323b19f4cc901` verified speech and conversation at environment revision 3. The desired configuration removed a temporary verification code in revision 4. A follow-up request still accepted it, so private mode now rejects code-only authorization and requires site identity.
 
 Real provider delivery exposed the 20-second playback cap: the first run accumulated up to 77 seconds of audio ahead of playback. The client now bounds the queue to 120 seconds, with incoming chunks counted. Two tests cover an 80-second burst, immediate stop, late-frame discard and excessive-queue cleanup. Local typecheck, lint and 48 tests passed after the playback fix.
 
@@ -60,6 +68,6 @@ Reopen Replay after a live provider failure. It uses the same bundled snapshot a
 
 Publication is single-writer. Staging directories are siblings of the final snapshot directory. Atomic renames protect readers from partial publication and preserve the last good pointer on a failed run. This is tested for process interruption, not machine power loss or network filesystems. A valid empty dataset needs an explicit time window and product revision.
 
-Only an authorized private-site visitor or holder of the configured demo access code can request paid Voice. An ephemeral token expires after 60 seconds. The browser ends a session after two minutes. Token expiry and browser timers are not provider-enforced spending limits. Keep the site private and configure provider budget controls before broader access.
+Private-site mode requires the signed-in site owner and ignores access codes. Other hosts can use the configured demo access code. An ephemeral token expires after 60 seconds. The browser ends a session after two minutes. Token expiry and browser timers are not provider-enforced spending limits. Keep the site private and configure provider budget controls before broader access.
 
 Rollback the hosted build by redeploying saved Sites version `appgprj_6ad45848b77c81919e1c3cf32056e374~appgver_4ea77469d69c8191bfc0e30a98847f33`, the earlier verified deployment of application source `8d0a583ad851b5090d50107efdc5c820720d567b`. Restore a local data pointer only through `data:publish` after validating its immutable manifest. Never edit bytes behind a published snapshot ID.
