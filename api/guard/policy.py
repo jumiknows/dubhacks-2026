@@ -91,8 +91,8 @@ def evaluate(
             check(
                 "merchant_verified",
                 m.verified,
-                f"{m.name} is a verified merchant." if m.verified
-                else f"{m.name} is not verified, and {_source(limits)} require verified sellers.",
+                f"{m.name} has local catalog approval; this is not independent website verification." if m.verified
+                else f"{m.name} lacks local catalog approval, and {_source(limits)} require approved sellers.",
             )
         else:
             check("merchant_known", True, f"{m.name} is a known merchant (verified-only is off).")

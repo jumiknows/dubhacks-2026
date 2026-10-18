@@ -3,12 +3,19 @@
   "private": true,
   "workspaces": [
     "client",
-    "server"
+    "server",
+    "gesture_pipeline"
   ],
   "scripts": {
     "dev": "concurrently -n api,server,client -c magenta,blue,green \"npm run api\" \"npm run dev -w server\" \"npm run dev -w client\"",
     "api": "node scripts/run-api.mjs",
     "api:setup": "node scripts/setup-api.mjs",
+    "test:api": "node scripts/test-api.mjs",
+    "test:server": "npm run test -w server",
+    "test:gesture-engine": "npm run test -w conjure-gestures",
+    "typecheck:gestures": "npm run typecheck -w conjure-gestures",
+    "smoke:backend": "node scripts/smoke-backend.mjs",
+    "test": "npm run test:server && npm run test:api",
     "build": "npm run build -w client",
     "start": "npm run start -w server"
   },

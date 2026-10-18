@@ -1,4 +1,4 @@
-// Starts the Conjure API from the repo root using the system Python.
+// Starts the Conjure API from the repo root using the project Python environment.
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

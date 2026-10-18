@@ -6,7 +6,7 @@
  * TODO: drive the sku "relevant items" reel from this list instead of raw search hits.
  */
 
-const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
+import { marketPost } from "./marketClient.js";
 
 export function topItems(items, {
   limit = 10,
@@ -28,14 +28,5 @@ export function topItems(items, {
 }
 
 async function post(path, body) {
-  const response = await fetch(`${PYTHON_API}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error || data.detail || `Top list failed (${response.status})`);
-  }
-  return data;
+  return marketPost(path, body);
 }

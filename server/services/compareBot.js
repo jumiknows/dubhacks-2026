@@ -4,7 +4,7 @@
  * Python applies score = initial_value × trust_multiplier.
  */
 
-const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
+import { marketPost } from "./marketClient.js";
 
 export async function compareItems(left, right, trustFloor = 0.5) {
   try {
@@ -71,14 +71,5 @@ function round4(value) {
 }
 
 async function post(path, body) {
-  const response = await fetch(`${PYTHON_API}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error || data.detail || `Compare failed (${response.status})`);
-  }
-  return data;
+  return marketPost(path, body);
 }

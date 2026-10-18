@@ -6,7 +6,7 @@
  *   { query, marketplaces, limit: 50, details: false }
  */
 
-const PYTHON_API = process.env.PYTHON_API_URL || "http://localhost:8000";
+import { marketPost } from "./marketClient.js";
 const MARKETS = (process.env.MARKETPLACES || "amazon,ebay,walmart")
   .split(",")
   .map((name) => name.trim())
@@ -20,37 +20,37 @@ export async function fetchProducts(query, options = {}) {
 
 async function searchPython(query, options) {
   try {
-    const response = await fetch(`${PYTHON_API}/market/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query,
-        marketplaces: options.marketplaces || MARKETS,
-        limit: options.limit ?? 50,
-        details: options.details === true,
-        min_price: options.minPrice ?? options.min_price,
-        max_price: options.maxPrice ?? options.max_price,
-        brands_include: options.brandsInclude || options.brands_include || [],
-        brands_exclude: options.brandsExclude || options.brands_exclude || [],
-      }),
+    const body = await marketPost("/market/search", {
+      query,
+      marketplaces: options.marketplaces || MARKETS,
+      limit: options.limit ?? 50,
+      details: options.details === true,
+      min_price: options.minPrice ?? options.min_price,
+      max_price: options.maxPrice ?? options.max_price,
+      brands_include: options.brandsInclude || options.brands_include || [],
+      brands_exclude: options.brandsExclude || options.brands_exclude || [],
     });
-    if (!response.ok) return null;
-    const body = await response.json();
-    return (body.products || []).map(toRaw);
+    if (!Array.isArray(body.products)) return null;
+    return body.products.map((product) => toRaw({
+      ...product,
+      source: body.source === "fixture" ? "demo_catalog" : body.source === "selenium" ? "selenium" : "unverified_source",
+      isMock: body.source === "fixture",
+      warnings: body.errors || [],
+    }));
   } catch {
     return null;
   }
 }
 
 export function toRaw(product) {
-  const inStock = product.in_stock ?? product.inStock ?? true;
+  const inStock = product.in_stock ?? product.inStock ?? null;
   const shippingDays = product.shipping_days ?? product.shippingDays ?? null;
   return {
     id: product.id,
     store: product.store,
     title: product.title,
     price: product.price,
-    currency: product.currency || "USD",
+    currency: product.currency ?? null,
     image: product.image,
     url: product.url,
     dimensions: product.dimensions,
@@ -82,6 +82,15 @@ export function toRaw(product) {
     trust_multiplier: product.trust_multiplier ?? null,
     score: product.score ?? null,
     flags: product.flags || [],
+    source: product.source || "unverified_source",
+    isMock: product.isMock === true,
+    warnings: Array.isArray(product.warnings) ? product.warnings : [],
+    shippingDate: product.shippingDate ?? product.shipping_date ?? null,
+    estimatedArrival: product.estimatedArrival ?? product.estimated_arrival ?? null,
+    shippingPrice: product.shippingPrice ?? null,
+    shippingCurrency: product.shippingCurrency ?? null,
+    tax: product.tax ?? null,
+    taxCurrency: product.taxCurrency ?? null,
   };
 }
 
@@ -140,6 +149,10 @@ function unlisted(query) {
     store: "No listing",
     title: name,
     price: null,
+    currency: "USD",
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["No demo listing matches this query; no live store lookup was performed."],
     in_stock: false,
     bang_per_buck: 0.35,
     relevancy: 0.4,
@@ -171,6 +184,9 @@ function listing({
     dimensions: dimensions ? { label: dimensions } : null,
     shipping_days: shippingDays,
     in_stock: inStock,
+    source: "demo_catalog",
+    isMock: true,
+    warnings: ["Sample listing; price, stock, dimensions and shipping duration are not live merchant data."],
     bang_per_buck: 0.55,
     relevancy: 0.8,
     trust: 0.7,
