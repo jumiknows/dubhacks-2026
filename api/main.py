@@ -14,6 +14,13 @@ from fastapi.staticfiles import StaticFiles
 from api import checkout, search
 from api import store as store_mod
 from api import voice
+from api.market import browser as market_browser
+from api.market import service as market_service
+from api.market.models import DetailsRequest, SearchRequest, SynthesizeRequest
+from api.market.synthesize import synthesize as synthesize_offer
+from api.market.compare_service import CompareRequest as ItemCompareRequest
+from api.market.compare_service import compare_items
+from api.market.top_service import TopRequest, top_items
 from api.agent import llm, orchestrator, tools
 from api.config import DATA_DIR, get_settings
 from api.guard import audit, mandates
@@ -33,9 +40,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     store_mod.init()
     ranker = search.init(store)
     client = llm.init()
-    log.info("Loaded %d products; search backend: %s; agent: %s", len(store.products), ranker.backend,
-             f"LLM ({get_settings().llm_model})" if client else "fallback only (no LLM_API_KEY)")
+    log.info("Loaded %d products; search backend: %s; agent: %s; selenium: %s", len(store.products), ranker.backend,
+             f"LLM ({get_settings().llm_model})" if client else "fallback only (no LLM_API_KEY)",
+             "on" if get_settings().selenium_enabled else "off")
     yield
+    market_browser.close_driver()
     await llm.close()
 
 
@@ -215,6 +224,44 @@ def get_audit(session_id: str) -> dict[str, Any]:
 # --- health ---------------------------------------------------------------
 
 
+# --- marketplace fetch (planner) -----------------------------------------
+
+
+@app.post("/market/search")
+def market_search(req: SearchRequest):
+    return market_service.search_products(req)
+
+
+@app.post("/market/details")
+def market_details(req: DetailsRequest):
+    if not get_settings().selenium_enabled:
+        raise HTTPException(503, "Selenium is disabled; set SELENIUM_ENABLED=true")
+    return {"products": market_service.fetch_details(req.urls, req.query)}
+
+
+@app.post("/market/synthesize")
+def market_synthesize(req: SynthesizeRequest):
+    return synthesize_offer(req.item, req.products, req.weights)
+
+
+@app.post("/market/compare")
+def market_compare(req: ItemCompareRequest):
+    return compare_items(req.left, req.right, req.trust_floor)
+
+
+@app.post("/market/top")
+def market_top(req: TopRequest):
+    return top_items(
+        req.items,
+        req.limit,
+        req.trust_floor,
+        req.min_price,
+        req.max_price,
+        req.brands_include,
+        req.brands_exclude,
+    )
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     s = get_settings()
@@ -239,6 +286,7 @@ def health() -> dict[str, Any]:
             "llm": f"live ({s.llm_model})" if llm_live else "mocked (fallback agent only)",
             "elevenlabs": status(s.voice_enabled),
             "stripe": status(False),
+            "selenium": "live" if s.selenium_enabled else "mocked (fixture listings)",
         },
         "agent_source": agent,
         "llm_breaker": b,

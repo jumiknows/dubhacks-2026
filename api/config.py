@@ -36,9 +36,16 @@ class Settings(BaseSettings):
     demo_server_signing: bool = False
 
     public_base_url: str = "http://localhost:8000"
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:3001"]
     session_ttl_s: int = 3600
     session_spend_cap: float = 150.0
+
+    # Marketplace fetch (Selenium). Off by default so the API still runs without Chrome.
+    selenium_enabled: bool = False
+    selenium_headless: bool = True
+    scrape_delay_s: float = 1.2
+    scrape_timeout_s: float = 25.0
+    scrape_limit: int = 50
 
     @property
     def llm_enabled(self) -> bool:

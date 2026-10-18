@@ -8,7 +8,7 @@ React (Vite) frontend + Express backend. The list, the store lookup, and the off
 
 ```bash
 npm install
-npm run api:setup   # once: creates api/.venv and installs the Python API (needs Python 3.11+)
+npm run api:setup   # optional: pip-installs api/requirements.txt into this Python (needs Python 3.11+ on PATH)
 npm run dev         # starts the Conjure API, the Express server, and the client
 ```
 
@@ -25,10 +25,10 @@ copy server\.env.example server\.env
 ## How a plan is built
 
 1. `server/services/planner.js` turns the prompt into items. **Stub** — templates stand in for a model.
-2. `server/services/fetchBot.js` returns a **Promise** of products for one query. **Stub** — mock catalog. Replace `searchCatalog()` with trusted-store APIs.
-3. `server/services/synthesizeBot.js` returns a **Promise** of one offer: image, dimensions, ship date, total price. **Stub** — cheapest in-stock listing.
+2. `server/services/fetchBot.js` posts each item name to Python `POST /market/search` (Amazon, eBay, Walmart). Selenium is off by default (fixtures). Set `SELENIUM_ENABLED=true` in `api/.env` to open search pages, then each product page.
+3. `server/services/synthesizeBot.js` posts listings to `POST /market/synthesize` and ranks value, trust, shipping, availability, fit, condition, and completeness. Ideas for more axes: [docs/product-compare.md](docs/product-compare.md).
 4. `server/services/pipeline.js` awaits those two promises and attaches them to the plan.
-5. `client/src/ui/` renders the plan. **UI stub** — replace the layout. Keep the props on `PlannerUI`. HTTP stays in `client/src/App.jsx`.
+5. `client/src/ui/` renders the plan. HTTP stays in `client/src/App.jsx`.
 
 ## API
 

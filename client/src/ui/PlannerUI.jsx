@@ -1,19 +1,6 @@
 import { useState } from "react";
 import { formatDate, money, quantityLabel } from "./format.js";
 
-/**
- * OWNER: UI
- * STATUS: Basic layout. Replace this folder to implement the real interface.
- *
- * Props are the contract. HTTP stays in App.jsx and api.js.
- *   tabs, category, prompt, plan, status, error
- *   onSelectCategory(id), onPromptChange(text), onPlan(event), onToggle(item)
- *
- * plan.items[]: { id, name, quantity, unit, reason, purchased, products, synthesis }
- * synthesis: { summary, image, dimensions, shippingDate, totalPrice, currency, best, alternatives }
- * plan.quote: { toBuyCount, purchasedCount, totalPrice, currency, readyBy }
- */
-
 export default function PlannerUI({
   tabs,
   category,
@@ -21,10 +8,16 @@ export default function PlannerUI({
   plan,
   status,
   error,
+  trustFloor,
+  compare,
+  selected,
   onSelectCategory,
   onPromptChange,
   onPlan,
   onToggle,
+  onTrustFloor,
+  onToggleListing,
+  onConfirmPick,
 }) {
   const loading = status === "loading";
 
@@ -35,7 +28,7 @@ export default function PlannerUI({
           <p className="eyebrow">Planboard</p>
           <h1>What do you need to get ready?</h1>
           <p className="lede">
-            A prompt becomes a checklist. Anything still unchecked is what to buy.
+            Search ~50 listings per store, score bang-per-buck × relevancy × trust, then compare the top ten.
           </p>
         </div>
       </header>
@@ -76,7 +69,16 @@ export default function PlannerUI({
       ) : null}
 
       {plan ? (
-        <PlanBody plan={plan} onToggle={onToggle} />
+        <PlanBody
+          plan={plan}
+          trustFloor={trustFloor}
+          compare={compare}
+          selected={selected}
+          onToggle={onToggle}
+          onTrustFloor={onTrustFloor}
+          onToggleListing={onToggleListing}
+          onConfirmPick={onConfirmPick}
+        />
       ) : (
         <p className="empty">
           {loading
@@ -88,7 +90,16 @@ export default function PlannerUI({
   );
 }
 
-function PlanBody({ plan, onToggle }) {
+function PlanBody({
+  plan,
+  onToggle,
+  trustFloor,
+  compare,
+  selected,
+  onTrustFloor,
+  onToggleListing,
+  onConfirmPick,
+}) {
   const toBuy = plan.items.filter((item) => !item.purchased);
 
   return (
@@ -96,6 +107,17 @@ function PlanBody({ plan, onToggle }) {
       <div className="plan-head">
         <h2>{plan.title}</h2>
         <p>{plan.prompt}</p>
+        <label className="trust-floor">
+          Trust floor {Math.round((trustFloor ?? 0.5) * 100)}%
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={trustFloor ?? 0.5}
+            onChange={(event) => onTrustFloor(Number(event.target.value))}
+          />
+        </label>
       </div>
       <div className="layout">
         <section className="panel" aria-label="Checklist">
@@ -132,20 +154,27 @@ function PlanBody({ plan, onToggle }) {
           ) : (
             <ul className="cards">
               {toBuy.map((item) => (
-                <ProductCard key={item.id} item={item} />
+                <ProductCard
+                  key={item.id}
+                  item={item}
+                  picked={selected?.[item.id] || []}
+                  onToggleListing={(product) => onToggleListing(item, product)}
+                />
               ))}
             </ul>
           )}
           <Quote quote={plan.quote} />
         </section>
       </div>
+      {compare ? <CompareSheet compare={compare} onConfirmPick={onConfirmPick} /> : null}
     </>
   );
 }
 
-function ProductCard({ item }) {
+function ProductCard({ item, picked, onToggleListing }) {
   const offer = item.synthesis;
   const best = offer?.best;
+  const listings = (item.products || []).slice(0, 10);
 
   return (
     <li className="card">
@@ -174,19 +203,94 @@ function ProductCard({ item }) {
             <dt>Ships</dt>
             <dd>{formatDate(offer?.shippingDate)}</dd>
           </div>
+          {best?.score != null || best?.scores ? (
+            <div>
+              <dt>Score</dt>
+              <dd>
+                {Math.round(((best.score ?? best.scores?.total) || 0) * 100)}
+                {best.relevancy != null ? ` · rel ${Math.round(best.relevancy * 100)}` : ""}
+              </dd>
+            </div>
+          ) : null}
         </dl>
-        {offer?.alternatives?.length ? (
+        {listings.length ? (
           <ul className="alts">
-            {offer.alternatives.map((alt) => (
-              <li key={alt.id}>
-                {alt.store} · {money(alt.price, alt.currency)}
-                {alt.inStock ? "" : " · out of stock"}
-              </li>
-            ))}
+            {listings.map((alt) => {
+              const on = picked.includes(alt.id);
+              return (
+                <li key={alt.id}>
+                  <button
+                    type="button"
+                    className={on ? "pick is-on" : "pick"}
+                    onClick={() => onToggleListing(alt)}
+                  >
+                    {on ? "Selected" : "Compare"} · {alt.store} · {money(alt.price, alt.currency)}
+                    {alt.score != null ? ` · ${Math.round(alt.score * 100)}` : ""}
+                    {alt.inStock === false || alt.in_stock === false ? " · out" : ""}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </div>
     </li>
+  );
+}
+
+function CompareSheet({ compare, onConfirmPick }) {
+  const left = compare.left;
+  const right = compare.right;
+  return (
+    <section className="panel compare-sheet" aria-label="Item comparison">
+      <h3>
+        {compare.pick === "left"
+          ? `Pick ${left.title}`
+          : compare.pick === "right"
+            ? `Pick ${right.title}`
+            : "Too close to call"}
+      </h3>
+      <p className="quiet">{compare.reasons?.[0]}</p>
+      <div className="compare-grid">
+        <ListingPeek side="A" item={left} winner={compare.pick === "left"} />
+        <ListingPeek side="B" item={right} winner={compare.pick === "right"} />
+      </div>
+      <table className="axes">
+        <thead>
+          <tr>
+            <th>Axis</th>
+            <th>A</th>
+            <th>B</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(compare.axes || []).map((axis) => (
+            <tr key={axis.name}>
+              <td>{axis.name}</td>
+              <td className={axis.winner === "left" ? "win" : ""}>{axis.left}</td>
+              <td className={axis.winner === "right" ? "win" : ""}>{axis.right}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {compare.pick && onConfirmPick ? (
+        <button type="button" className="confirm" onClick={() => onConfirmPick(compare.pick === "left" ? left : right)}>
+          Use this listing
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
+function ListingPeek({ side, item, winner }) {
+  return (
+    <div className={winner ? "peek is-win" : "peek"}>
+      <p className="card-name">
+        {side} · {item.store}
+      </p>
+      <p className="summary">{item.title}</p>
+      <p className="summary">{money(item.price, item.currency)}</p>
+    </div>
   );
 }
 

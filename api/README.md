@@ -3,13 +3,15 @@
 FastAPI backend for Conjure. Runs fully on mock data with an empty `.env`.
 
 ```bash
-npm run api:setup                     # once: creates api/.venv and installs requirements
+npm run api:setup                     # optional: pip-installs requirements into this Python
 cp api/.env.example api/.env          # optional, every key is optional
 npm run dev                           # API on :8000 plus the rest of the app
 npm run api                           # or: just the API
-api/.venv/bin/python -m pytest api/tests      # tests
-api/.venv/bin/python -m api.trust.make_mock   # regenerate mock catalog + trust reports
+python -m pytest api/tests            # tests
+python -m api.trust.make_mock         # regenerate mock catalog + trust reports
 ```
+
+Uses the Python on your PATH (or `PYTHON` if set). No virtualenv.
 
 Interactive docs: http://localhost:8000/docs · Status: http://localhost:8000/health
 
@@ -49,7 +51,7 @@ LLM_MODEL=gemini-2.5-flash
 ```
 
 **Check it works:** `/health` should say `"llm": "live (...)"`. Then run
-`api/.venv/bin/python -m api.scripts.smoke --verbose` (with the API running). If the output shows
+`python -m api.scripts.smoke --verbose` (with the API running). If the output shows
 `source: fallback`, LLM calls are taking longer than 4 s: switch to a faster model or raise `LLM_TIMEOUT_S`.
 
 The LLM never pays and never sees raw review text. Each turn allows at most 4 tool calls and 1 cart
@@ -63,7 +65,21 @@ the fallback agent for good (kill switch).
 - **`localhost:8000` hangs or won't load.** The API's auto-reloader can crash if it reloads while a
   file is half-saved, and it doesn't always recover. Stop `npm run dev` (Ctrl-C) and start it again.
 - **"address already in use" on port 8000.** Another copy of the API is still running. Stop the
-  other `npm run dev`, or run this one on another port: `api/.venv/bin/uvicorn api.main:app --port 8010`.
+  other `npm run dev`, or run this one on another port: `python -m uvicorn api.main:app --port 8010`.
+
+## Marketplace fetch (planner)
+
+Express `fetchBot.js` calls these:
+
+- `POST /market/search` `{ query, marketplaces, limit, details }`
+- `POST /market/details` `{ urls, query }` (live Selenium only)
+- `POST /market/synthesize` `{ item, products, weights? }`
+- `POST /market/compare` `{ left, right, trust_floor? }` — pairwise. Each side already has `bang_per_buck`, `relevancy`, `trust`.
+- `POST /market/top` `{ items, limit?, trust_floor? }` — about ten best, same fields. Default `limit` 10, `trust_floor` 0.5.
+
+Express proxies those as `POST /api/compare` and `POST /api/top`.
+
+`SELENIUM_ENABLED=false` (default) returns fixture listings. Chrome must be installed for live mode. Comparison ideas live in `docs/product-compare.md`.
 
 ## For the frontend
 
@@ -97,5 +113,5 @@ The contract is in [`shared/types.ts`](../shared/types.ts). Try any endpoint in 
 - **Circuit breaker state** for `/security`: `breaker.status()` in `api/sessions.py`.
 - **Policy checks already stream as `trace` events** whenever a cart is staged (`stage_checkout`
   in `api/agent/tools.py`).
-- **Before merging:** `api/.venv/bin/python -m pytest api/tests` passes and the smoke test shows
+- **Before merging:** `python -m pytest api/tests` passes and the smoke test shows
   ALL PASSED.
