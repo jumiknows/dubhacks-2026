@@ -10,9 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
-for name in ("LLM_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY"):
+for name in ("LLM_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY", "WEBSITE_WEBRISK_API_KEY", "WEBSITE_PHISHTANK_API_KEY"):
     os.environ[name] = ""
 os.environ["DEMO_SERVER_SIGNING"] = "false"
+os.environ["WEBSITE_PHISHTANK_ENABLED"] = "false"
+os.environ["WEBSITE_MERCHANTS"] = "{}"
+os.environ["WEBSITE_BLOCKED_HOSTS"] = "[]"
 os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
 
 

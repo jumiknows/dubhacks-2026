@@ -81,6 +81,24 @@ test("review routes forward only their fixed methods and query fields", async (t
   assert.equal((await fetch(`${url}/reviews/products?url=http://127.0.0.1`)).status, 400);
 });
 
+test("website safety routes use fixed methods without accepting proxy query targets", async (t) => {
+  const upstream = await listen(t, (req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ path: req.url, method: req.method }));
+  });
+  const url = await gateway(t, upstream);
+  for (const name of ["assess", "checkout-check", "demo"]) {
+    const response = await fetch(`${url}/websites/${name}`, { method: "POST", body: "{}" });
+    assert.deepEqual(await response.json(), { path: `/websites/${name}`, method: "POST" });
+    assert.equal((await fetch(`${url}/websites/${name}`)).status, 405);
+  }
+  for (const name of ["config", "workbench"]) {
+    assert.equal((await fetch(`${url}/websites/${name}`)).status, 200);
+    assert.equal((await fetch(`${url}/websites/${name}`, { method: "POST" })).status, 405);
+  }
+  assert.equal((await fetch(`${url}/websites/assess?url=https://example.com`, { method: "POST" })).status, 400);
+});
+
 test("fixed target and route/method/query restrictions block proxy abuse", async (t) => {
   let calls = 0;
   const upstream = await listen(t, (_req, res) => { calls++; res.end("ok"); });

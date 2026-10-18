@@ -8,9 +8,15 @@ supplied-review analysis, evidence-checked AI interpretation and a browser workb
 See [review insights](docs/review-insights.md) for configuration, API contracts,
 live-check results and merge boundaries. Existing product rankers are unchanged.
 
+Website safety adds exact merchant-origin policy, optional HTTPS PhishTank/Web Risk
+lookups, explicit hold/block decisions, gated review requests and expiry checks for
+configured checkout destinations. See [website safety](docs/website-safety.md) for
+setup, signed-cart integration, verified live results and remaining limitations.
+Missing provider evidence holds live website actions; existing payments remain mock.
+
 ## Validation on this branch
 
-- Regression suites: 22 Node tests and 539 Python tests passed (561 total).
+- Regression suites: 23 Node tests and 647 Python tests passed (670 total).
 - `npm run build`: current frontend production build passed.
 - `npm run smoke:backend`: real local HTTP gateway, plan updates, raw recommendations,
   constrained catalog search and fallback SSE passed.
@@ -144,8 +150,9 @@ integration remain separate tasks requiring real source data and agreed contract
 
 Sessions, plans, caches and audit logs are in memory and are lost on restart.
 ElevenLabs is optional; browser fallback is expected without its key. Live written
-reviews require a configured WooCommerce store. Live retailer product search, FX,
-domain verification and real charges remain outside this branch's implementation.
+reviews require a configured WooCommerce store and the website gate. Live retailer
+product search, FX, independent business/domain ownership verification and real
+charges remain outside this branch's implementation.
 
 ## Eventual manual Git integration
 
@@ -166,11 +173,11 @@ Preserve both sides' behavior when reviewing these overlapping files:
 Review `git status`, `git diff --stat`, and the full diff before manually staging,
 committing and pushing. Run `npm test` and `npm run build` after team integration too.
 
-## Working-tree change summary
+## Earlier AI-integration change summary (historical)
 
-Relative to the existing local commit `4c2aff5`: 28 tracked files are modified
-(`git diff --stat`: 1,754 insertions, 335 deletions), with 18 additional new files.
-The ordinary Git diff summary excludes those new, untracked files until staging.
+At the earlier AI-integration milestone, relative to local commit `4c2aff5`, the
+recorded diff was 28 tracked files (1,754 insertions, 335 deletions) and 18 new files.
+These are historical counts, not the current website-safety working-tree summary.
 No frontend source file or shared demo data file was changed.
 
 - Python runtime: `api/agent/fallback.py`, `orchestrator.py`, `tools.py`, new

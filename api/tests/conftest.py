@@ -31,9 +31,12 @@ def offline_integrations():
         raise AssertionError("Tests must use an explicit mock transport")
 
     with pytest.MonkeyPatch.context() as patch:
-        for name in ("LLM_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY"):
+        for name in ("LLM_API_KEY", "ELEVENLABS_API_KEY", "STRIPE_SECRET_KEY", "WEBSITE_WEBRISK_API_KEY", "WEBSITE_PHISHTANK_API_KEY"):
             patch.setenv(name, "")
         patch.setenv("DEMO_SERVER_SIGNING", "false")
+        patch.setenv("WEBSITE_PHISHTANK_ENABLED", "false")
+        patch.setenv("WEBSITE_MERCHANTS", "{}")
+        patch.setenv("WEBSITE_BLOCKED_HOSTS", "[]")
         get_settings.cache_clear()
         patch.setattr(search, "_make_embedder", lambda: ("hashed-ngrams", hashed_matrix))
         patch.setattr(httpx.HTTPTransport, "handle_request", no_network)

@@ -20,6 +20,7 @@ from api.guard import audit, mandates, policy
 from api.schemas import Cart, CartItem, PolicyCheck, PolicyRefusal, PolicyResult, StageCheckout
 from api.sessions import Session, StagedCart
 from api.store import store
+from api.websites.checkout import destination_check, destination_map
 
 
 class CheckoutError(Exception):
@@ -86,6 +87,8 @@ def _evaluate(session: Session, lines: list[policy.ProposedLine]) -> PolicyResul
         ),
     }
     checks = [replacements.get(check.rule, check) for check in result.checks]
+    for merchant_id in sorted({p.merchant_id for line in lines if (p := store.product(line.product_id)) is not None}):
+        checks.append(destination_check(merchant_id))
     return PolicyResult(allowed=all(check.passed for check in checks), checks=checks)
 
 
@@ -111,6 +114,9 @@ def build_cart_payload(session: Session, items: list[CartItem]) -> tuple[Cart, s
         "issued_at": datetime.now(timezone.utc).isoformat(),
         "nonce": secrets.token_hex(8),
     }
+    destinations = destination_map(item.merchant_id for item in items)
+    if destinations:
+        body["merchant_destinations"] = destinations
     cart_hash = _sha256(audit.canonical(body))
     payload = audit.canonical({**body, "cart_hash": cart_hash})
     return Cart(items=items, total=total, cart_hash=cart_hash), payload
@@ -204,6 +210,10 @@ def authorize(session: Session, cart_hash: str, signature: str | None) -> Paymen
     if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict) or items[0].get("product_id") != staged.product_id:
         raise CheckoutError(409, "Staged cart no longer matches its signed product.")
     signed_item = items[0]
+    expected_destinations = destination_map([signed_item.get("merchant_id", "")])
+    if body.get("merchant_destinations", {}) != expected_destinations:
+        audit.append(session.audit, "checkout_destination_changed", {"cart_hash": cart_hash})
+        raise CheckoutError(409, "Checkout destination changed; review and sign a new cart.")
     signed_price = _amount(signed_item.get("unit_price"), "Signed unit price")
     qty = _quantity(signed_item.get("quantity"))
     signed_total = signed_price * qty

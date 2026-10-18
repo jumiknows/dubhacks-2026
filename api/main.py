@@ -25,6 +25,8 @@ from api.sessions import breaker, sessions, tts_cache
 from api.store import store
 from api.reviews.routes import router as reviews_router
 from api.reviews.body_limit import ReviewBodyLimitMiddleware
+from api.websites.routes import router as websites_router
+from api.websites.service import safety_service
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("conjure")
@@ -56,6 +58,7 @@ app.mount("/static/products", StaticFiles(directory=DATA_DIR / "images"), name="
 app.include_router(voice.router)
 app.include_router(recommendations.router)
 app.include_router(reviews_router)
+app.include_router(websites_router)
 
 
 @app.exception_handler(checkout.CheckoutError)
@@ -205,9 +208,14 @@ def register_intent(req: IntentMandateRequest) -> dict[str, Any]:
 
 
 @app.post("/checkout/stage")
-def checkout_stage(req: StageRequest) -> dict[str, Any]:
+async def checkout_stage(req: StageRequest) -> dict[str, Any]:
     session = sessions.get(req.session_id)
     tools.require_product(req.product_id)
+    product = store.product(req.product_id)
+    if product.merchant_id in safety_service().registrations:
+        assessment = await safety_service().assess_checkout(product.merchant_id)
+        audit.append(session.audit, "website_checkout_check", {"merchant_id": product.merchant_id,
+            "decision": assessment.decision, "origin": assessment.origin, "url_sha256": assessment.url_sha256})
     return orchestrator.validate_action(checkout.stage(session, req.product_id, req.quantity))
 
 

@@ -4,6 +4,10 @@ Review insights interprets written reviews and reports evidence. It does not add
 another product-ranking formula, replace `TrustReport`, approve merchants, or
 authorize purchases. Positive sentiment is not proof of authenticity.
 
+Live retrieval now also requires the [website safety gate](website-safety.md): exact
+operator-registered origins plus completed reputation checks. The source workbench
+offers assessments of review source addresses without automatically opening them.
+
 ## Try the feature
 
 Start with `npm run dev`, then open:
@@ -36,7 +40,7 @@ Express adds `/api/conjure` to these FastAPI paths:
   select the exact returned product reference. This is discovery, not a new ranker.
 - `POST /reviews/fetch`: retrieve up to 100 newest available reviews (default 50).
   Source status is `ok`, `partial`, `empty`, `not_configured`, `unsupported_source`,
-  `rate_limited`, `invalid_request`, or `unavailable`. Unavailable evidence has
+  `rate_limited`, `invalid_request`, `unavailable`, `safety_hold`, or `blocked`. Unavailable evidence has
   `analysis: null`. An empty public response does not prove no reviews exist.
 - `POST /reviews/analyze`: supplied records, always `uploaded`. Clients cannot
   provide live provenance, model classifications, or trust scores.
@@ -78,10 +82,15 @@ does. Nothing is configured automatically.
 Add a map to the ignored **api/.env**, then restart Python:
 
 ```dotenv
-REVIEW_WOOCOMMERCE_STORES='{"shop":"https://your-merchant.example"}'
+REVIEW_WOOCOMMERCE_STORES='{"shop":"https://shop.example.com"}'
+WEBSITE_MERCHANTS='{"shop":{"origins":["https://shop.example.com"]}}'
+WEBSITE_PHISHTANK_ENABLED=true
 ```
 
-The example domain is a placeholder. Search `/reviews/products`, then use the
+Replace both placeholder origins with the same established official HTTPS origin.
+Read the website safety guide
+before configuring providers; failures hold fetching and never certify a merchant.
+Search `/reviews/products`, then use the
 returned exact reference with `/reviews/fetch`:
 
 ```json

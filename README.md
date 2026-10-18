@@ -4,6 +4,11 @@ A shopping planner and Conjure shopping-assistant backend. A prompt becomes a ch
 
 React/Vite talks to Express for plans. Express also exposes the Python/FastAPI assistant through `/api/conjure/*`. The assistant supports a configured Gemini/OpenAI-compatible provider, deterministic fallback, search, trust reports, feedback, and signed mock checkout. See [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md) for integration boundaries and remaining frontend work.
 
+Review evidence and website safety have standalone workbenches at
+`/api/conjure/reviews/workbench` and `/api/conjure/websites/workbench` on the Express
+server. See [website setup](docs/website-safety.md): live fetching now holds without
+registered merchant origins and completed reputation checks. Offline demos stay explicit.
+
 ## Setup
 
 ```bash

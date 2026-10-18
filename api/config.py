@@ -52,6 +52,16 @@ class Settings(BaseSettings):
     review_llm_requests_per_minute: int = Field(default=6, ge=1, le=30)
     review_llm_requests_per_day: int = Field(default=100, ge=1, le=1000)
 
+    # Server-maintained domain identity and separate opt-in threat APIs.
+    website_merchants: dict[str, dict] = Field(default_factory=dict)
+    website_blocked_hosts: list[str] = Field(default_factory=list)
+    website_webrisk_api_key: str = Field(default="", repr=False)
+    website_phishtank_enabled: bool = False
+    website_phishtank_api_key: str = Field(default="", repr=False)
+    website_lookup_timeout_s: float = Field(default=5.0, gt=0, le=10)
+    website_cache_ttl_s: int = Field(default=300, ge=1, le=300)
+    website_lookup_requests_per_minute: int = Field(default=30, ge=1, le=100)
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.llm_api_key.strip())

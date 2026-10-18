@@ -14,6 +14,8 @@ const ROUTES = [
   { path: /^\/reviews\/(?:analyze|fetch|demo)$/, methods: ["POST"] },
   { path: /^\/reviews\/(?:sources|workbench)$/, methods: ["GET"] },
   { path: /^\/reviews\/products$/, methods: ["GET"], query: ["merchant", "q", "limit"] },
+  { path: /^\/websites\/(?:assess|checkout-check|demo)$/, methods: ["POST"] },
+  { path: /^\/websites\/(?:config|workbench)$/, methods: ["GET"] },
   { path: new RegExp(`^/products/${ID}$`), methods: ["GET"] },
   { path: new RegExp(`^/trust/${ID}$`), methods: ["GET"] },
   { path: new RegExp(`^/profile/${ID}$`), methods: ["GET", "PUT", "DELETE"] },

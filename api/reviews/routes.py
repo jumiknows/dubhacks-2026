@@ -20,6 +20,7 @@ from api.reviews.classifier import ReviewClassificationError, classify_reviews
 from api.reviews.demo import demo_request
 from api.reviews.models import ProductReference, ReviewAnalysisRequest
 from api.reviews.sources import ReviewSourceService
+from api.websites.service import safety_service
 
 router = APIRouter(prefix="/reviews", tags=["review insights"])
 _model_slots = asyncio.Semaphore(2)
@@ -68,6 +69,7 @@ def source_service() -> ReviewSourceService:
         settings.review_woocommerce_stores,
         timeout_s=settings.review_source_timeout_s,
         cache_ttl_s=settings.review_source_cache_ttl_s,
+        url_gate=lambda url, merchant, purpose: safety_service().assess(url, merchant, purpose),
     )
 
 
@@ -145,7 +147,7 @@ def sources() -> dict:
     return {
         "sources": configured,
         "configured": bool(configured),
-        "note": "Configure REVIEW_WOOCOMMERCE_STORES to fetch written reviews from specific public stores. Store configuration is not merchant verification. Amazon, Walmart, and Target review retrieval is not implemented.",
+        "note": "Live reviews require configured stores, matching WEBSITE_MERCHANTS identities, and completed reputation checks. Missing website evidence holds requests. Store configuration is not merchant verification. Amazon, Walmart, and Target review retrieval is not implemented.",
     }
 
 

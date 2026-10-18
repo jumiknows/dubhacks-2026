@@ -1,6 +1,9 @@
 # Conjure API
 
 Review analysis and the evidence workbench: [review insights handoff](../docs/review-insights.md).
+Website reputation, merchant identity and the external-destination gate:
+[website safety handoff](../docs/website-safety.md). Live review fetching now requires
+matching origin registrations and completed reputation checks; missing evidence holds.
 
 FastAPI backend for Conjure. Runs fully on mock data with an empty `.env`.
 

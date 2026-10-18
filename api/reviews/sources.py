@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -40,9 +40,10 @@ _MAX_OPERATIONS_PER_MINUTE = 10
 class _SourceError(Exception):
     """Only fixed, credential-free messages may cross the adapter boundary."""
 
-    def __init__(self, message: str, *, rate_limited: bool = False):
+    def __init__(self, message: str, *, rate_limited: bool = False, website_safety: dict | None = None):
         super().__init__(message)
         self.rate_limited = rate_limited
+        self.website_safety = website_safety
 
 
 class _PlainText(HTMLParser):
@@ -187,6 +188,7 @@ class ReviewSourceService:
         transport: httpx.AsyncBaseTransport | None = None,
         resolver: Callable[[str], Awaitable[list[str]]] | None = None,
         clock: Callable[[], float] = time.monotonic,
+        url_gate: Callable | None = None,
     ):
         self._stores = {}
         for merchant, value in (merchants or {}).items():
@@ -198,6 +200,7 @@ class ReviewSourceService:
         self._transport = transport
         self._resolver = resolver or _resolve_public
         self._clock = clock
+        self._url_gate = url_gate
         self._cache: OrderedDict[tuple, tuple[float, dict]] = OrderedDict()
         self._requests: dict[str, deque] = {}
         self._cooldown: dict[str, float] = {}
@@ -253,6 +256,10 @@ class ReviewSourceService:
 
     async def _json(self, client, base, address, path, params, merchant):
         origin = urlsplit(base)
+        logical = f"{base}/wp-json/wc/store/v1/{path}"
+        if params:
+            logical += "?" + urlencode(params)
+        await self._authorize_url(logical, merchant, "fetch")
         # Numeric connection target prevents DNS rebinding after address checks.
         # Host and TLS SNI retain the configured hostname, including certificate checks.
         target_host = f"[{address}]" if ":" in address else address
@@ -298,6 +305,33 @@ class ReviewSourceService:
             limits=httpx.Limits(max_connections=2, max_keepalive_connections=0),
         )
 
+    async def _authorize_url(self, url: str, merchant: str, purpose: str):
+        if self._url_gate is None:
+            # Low-level transport tests can inject their own policy. Public API
+            # construction always supplies the website gate.
+            return
+        result = await self._url_gate(url, merchant, purpose)
+        if not result.allowed:
+            raise _SourceError("Website identity/reputation policy did not allow this action.",
+                website_safety=result.model_dump(mode="json"))
+        return result.model_dump(mode="json")
+
+    async def _cached_gate(self, result: dict, merchant: str) -> dict:
+        """Recheck links even when the product/review cache is still fresh."""
+        try:
+            for row in result.get("products", []):
+                if row.get("url") and (assessment := await self._authorize_url(row["url"], merchant, "link")):
+                    row["website_safety"] = assessment
+            if result.get("product_url") and (assessment := await self._authorize_url(result["product_url"], merchant, "link")):
+                result["website_safety"] = assessment
+        except _SourceError as exc:
+            result.update(status="blocked" if exc.website_safety and exc.website_safety["decision"] == "blocked" else "safety_hold",
+                products=[], analysis_request=None, warnings=[str(exc)], website_safety=exc.website_safety)
+            if "product_url" in result:
+                result.update(product_url=None, returned_count=0)
+                result["product"].pop("url", None)
+        return result
+
     async def search_products(self, merchant: str, query: str, limit: int = 5) -> dict:
         result = {"status": "not_configured", "source": _SOURCE, "merchant": merchant,
                   "products": [], "retrieved_at": None, "cache_hit": False, "warnings": []}
@@ -310,7 +344,7 @@ class ReviewSourceService:
         query = query.strip()
         key = ("search", merchant, query.casefold(), limit)
         if cached := self._cached(key):
-            return cached
+            return await self._cached_gate(cached, merchant)
         lock = self._locks.setdefault(merchant, asyncio.Lock())
         if lock.locked() or not self._budget(merchant):
             result.update(status="rate_limited", warnings=["Merchant request budget is temporarily exhausted."])
@@ -329,13 +363,18 @@ class ReviewSourceService:
                     name, url = _plain(item.get("name"), 300), _public_link(item.get("permalink"), base)
                     if not name or not url:
                         continue
+                    assessment = await self._authorize_url(url, merchant, "link")
                     product = {"source": _SOURCE, "external_id": str(item["id"]), "merchant": merchant, "url": url}
                     result["products"].append({"product": product, "name": name, "url": url,
                         "review_count": _nonnegative_int(item.get("review_count")),
                         "average_rating": _rating(item.get("average_rating"))})
+                    if assessment:
+                        result["products"][-1]["website_safety"] = assessment
                 result.update(status="ok" if result["products"] else "empty", retrieved_at=_timestamp())
             except _SourceError as exc:
                 result.update(status="rate_limited" if exc.rate_limited else "unavailable", warnings=[str(exc)])
+                if exc.website_safety is not None:
+                    result.update(status="blocked" if exc.website_safety["decision"] == "blocked" else "safety_hold", products=[], website_safety=exc.website_safety)
         return self._remember(key, result)
 
     async def fetch_reviews(self, source: str, external_id: str, merchant: str | None = None, limit: int = 50) -> dict:
@@ -356,7 +395,7 @@ class ReviewSourceService:
             return result
         key = ("reviews", merchant, external_id, limit)
         if cached := self._cached(key):
-            return cached
+            return await self._cached_gate(cached, merchant)
         lock = self._locks.setdefault(merchant, asyncio.Lock())
         if lock.locked() or not self._budget(merchant):
             result.update(status="rate_limited", warnings=["Merchant request budget is temporarily exhausted."])
@@ -376,8 +415,11 @@ class ReviewSourceService:
                     product_url = _public_link(item.get("permalink"), base)
                     if not product_url:
                         raise _SourceError("Merchant returned no valid same-store product link.")
+                    assessment = await self._authorize_url(product_url, merchant, "link")
                     product["url"] = product_url
                     result.update(product_name=_plain(item.get("name"), 300) or None, product_url=product_url)
+                    if assessment:
+                        result["website_safety"] = assessment
                     page_size = min(_PAGE_SIZE, limit)
                     for page in range(1, _MAX_PAGES + 1):
                         rows, headers = await self._json(client, base, address, "products/reviews", {
@@ -430,6 +472,11 @@ class ReviewSourceService:
                 result.update(status="partial" if reviews else ("rate_limited" if exc.rate_limited else "unavailable"),
                               retrieved_at=_timestamp() if reviews else None)
                 result["warnings"].append(str(exc))
+                if exc.website_safety is not None:
+                    result.update(status="blocked" if exc.website_safety["decision"] == "blocked" else "safety_hold",
+                        website_safety=exc.website_safety, product_url=None)
+                    product.pop("url", None)
+                    reviews = []
             if skipped:
                 result["warnings"].append(f"Excluded {skipped} duplicate, mismatched, or unusable review records.")
             if truncated_text:

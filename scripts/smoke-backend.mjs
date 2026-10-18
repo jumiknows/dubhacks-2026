@@ -27,7 +27,9 @@ for (const name of ["catalog.json", "merchants.json", "trust_reports.json"]) {
 }
 const before = hashes();
 const env = { ...process.env, PYTHONDONTWRITEBYTECODE: "1", DEMO_SERVER_SIGNING: "false",
-  ELEVENLABS_API_KEY: "", STRIPE_SECRET_KEY: "" };
+  ELEVENLABS_API_KEY: "", STRIPE_SECRET_KEY: "",
+  WEBSITE_WEBRISK_API_KEY: "", WEBSITE_PHISHTANK_API_KEY: "", WEBSITE_PHISHTANK_ENABLED: "false",
+  WEBSITE_MERCHANTS: "{}", WEBSITE_BLOCKED_HOSTS: "[]" };
 if (!live) env.LLM_API_KEY = "";
 let python;
 let server;
@@ -95,6 +97,22 @@ try {
   const workbench = await fetch(base + "/api/conjure/reviews/workbench");
   assert(workbench.ok && workbench.headers.get("content-type").includes("text/html"));
   console.log("PASS: review gateway, synthetic demo, supplied-review analysis, honest unavailable source and workbench");
+
+  const websiteConfig = await json(base, "/api/conjure/websites/config");
+  assert(websiteConfig.unknown_policy === "hold" && websiteConfig.safety_guaranteed === false);
+  assert(websiteConfig.reputation_providers.every(provider => !provider.configured));
+  const unknownWebsite = await json(base, "/api/conjure/websites/assess", "POST", { url: "https://example.com/" });
+  assert(unknownWebsite.decision === "hold" && !unknownWebsite.allowed && !unknownWebsite.safety_guaranteed);
+  const deceptiveWebsite = await json(base, "/api/conjure/websites/assess", "POST", { url: "https://merchant.example.com@attacker.example.org/" });
+  assert(deceptiveWebsite.decision === "blocked" && deceptiveWebsite.origin === null);
+  const websiteDemo = await json(base, "/api/conjure/websites/demo", "POST", {});
+  assert(websiteDemo.is_mock && websiteDemo.provenance === "synthetic_demo");
+  assert.deepEqual([...new Set(websiteDemo.cases.map(item => item.assessment.decision))].sort(), ["allowed", "blocked", "hold"]);
+  const noCheckout = await json(base, "/api/conjure/websites/checkout-check", "POST", { merchant_id: "shop" });
+  assert(noCheckout.decision === "hold", "Synthetic checks must not authorize real checkout");
+  const websiteWorkbench = await fetch(base + "/api/conjure/websites/workbench");
+  assert(websiteWorkbench.ok && websiteWorkbench.headers.get("content-type").includes("text/html"));
+  console.log("PASS: website gate, unknown holds, credential rejection, isolated synthetic demo and workbench");
 
   const { session_id } = await json(base, "/api/conjure/session", "POST", {});
   console.log(live ? "Checking one live Gemini tool-planning turn; key and provider messages withheld..." : "Checking offline fallback SSE...");
