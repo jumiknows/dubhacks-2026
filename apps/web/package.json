@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "node ../../scripts/run-web.mjs --dev",
     "build": "next build",
-    "start": "next start --hostname 127.0.0.1"
+    "start": "node ../../scripts/run-web.mjs"
   },
   "dependencies": {
     "@emberready/data": "*",
@@ -13,7 +13,8 @@
     "maplibre-gl": "^5.6.1",
     "next": "^15.5.4",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "conjure-gestures": "*"
   },
   "devDependencies": {
     "@types/react": "^19.1.13",

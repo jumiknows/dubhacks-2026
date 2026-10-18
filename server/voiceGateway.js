@@ -14,6 +14,7 @@ export function attachVoiceGateway(server, {
   const sockets = new Set();
   const transport = origin.protocol === "https:" ? https : http;
   function onUpgrade(req, client, head) {
+    if (req.url.startsWith("/_next/")) return;
     if (req.url !== "/ws-live") {
       client.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
       return;

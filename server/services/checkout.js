@@ -16,7 +16,7 @@ import { MAX_MONEY_CENTS, normalizeCurrency, parseCents, validQuantity } from ".
  * from the success redirect (confirmCheckout) or the webhook (handleWebhook).
  */
 
-const CLIENT_URL = (process.env.CLIENT_URL || process.env.APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+const CLIENT_URL = (process.env.CLIENT_URL || process.env.APP_ORIGIN || "http://localhost:3001").replace(/\/$/, "");
 // Stripe caps each metadata value at 500 characters; item ids are UUIDs.
 const METADATA_MAX = 500;
 
@@ -103,6 +103,34 @@ export function assertItemUnlocked(planId, itemId) {
   if (pending) throw new CheckoutError(409, "This item has a pending checkout. Finish or cancel it before changing the cart.");
 }
 
+function committedTripCents(plan) {
+  let total = 0n;
+  const paidSessions = new Set();
+  const amountFor = (amount, currency) => {
+    if (!Number.isSafeInteger(amount) || amount < 0 || String(currency).toLowerCase() !== "usd") {
+      throw new CheckoutError(409, "The trip's previous payment or pending amount cannot be compared with its USD budget.");
+    }
+    return BigInt(amount);
+  };
+  // Session id and local cancellation token point to the same object. Count it once.
+  for (const entry of new Set(checkoutSessions.values())) {
+    if (entry.planId !== plan.id) continue;
+    if (entry.state === "paid") {
+      total += amountFor(entry.completedReceipt.amount, entry.completedReceipt.currency);
+      paidSessions.add(entry.id);
+    } else if (["creating", "open", "confirming"].includes(entry.state)) {
+      total += amountFor(entry.amount, entry.currency);
+    }
+  }
+  // Retain paid-order accounting if a snapshot was restored without its session map.
+  for (const item of plan.items) {
+    if (item.order && !paidSessions.has(item.order.checkoutSessionId)) {
+      total += amountFor(item.order.amount, item.order.currency);
+    }
+  }
+  return total;
+}
+
 export async function createCheckout(planId, itemIds) {
   const plan = getPlan(planId);
   if (!plan) throw new CheckoutError(404, "plan not found");
@@ -110,6 +138,12 @@ export async function createCheckout(planId, itemIds) {
   for (const id of itemIds) assertItemUnlocked(planId, id);
   const amount = lines.reduce((sum, line) => sum + line.amount, 0);
   const currency = lines[0].currency;
+  if (plan.source === "orbicart_catalog" && plan.preferences?.budgetMax !== null && plan.preferences?.budgetMax !== undefined) {
+    const budgetCents = parseCents(plan.preferences.budgetMax, "USD");
+    if (budgetCents === null || currency !== "usd" || committedTripCents(plan) + BigInt(amount) > BigInt(budgetCents)) {
+      throw new CheckoutError(409, "Paid, pending and selected camping items exceed the trip budget. Cancel another checkout, choose a smaller cart or update the trip budget.");
+    }
+  }
   const mock = !stripe;
   const reference = `co_${randomUUID()}`;
   const pending = {
@@ -263,6 +297,8 @@ function settlePaid(pending, session, receipt) {
   pending.state = "paid";
   const paidAt = new Date().toISOString();
   pending.completedReceipt = receipt || {
+    orderId: session?.id ?? pending.id,
+    placedAt: paidAt,
     amount: session?.amount_total ?? pending.amount,
     currency: session?.currency ?? pending.currency,
     lines: structuredClone(pending.lines),
@@ -282,7 +318,7 @@ function settlePaid(pending, session, receipt) {
         purchased: true,
         order: {
           checkoutSessionId: pending.id,
-          orderId: receipt?.orderId ?? null,
+          orderId: pending.completedReceipt.orderId,
           paidAt,
           amount: line.amount,
           currency: line.currency,

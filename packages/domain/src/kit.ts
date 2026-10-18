@@ -152,7 +152,7 @@ const RULES: Rule[] = [
   { id: "boot-care", name: "Boot waterproofing", search: "boot waterproofing spray", owned: [],
     when: (e) => { const recent = e.get("recent.rain7d"); return recent !== null && recent >= THRESHOLDS.soakedRecentMm ? { reason: `${Math.round(recent)} mm of rain in the last 7 days means muddy trails, so protect the boots you already own.`, evidence: ["recent.rain7d"] } : null; } },
   { id: "gaiters", name: "Gaiters", search: "hiking gaiters", perPerson: true, owned: ["gaiters"],
-    when: (e) => { const recent = e.get("recent.rain7d"); const snow = e.get("typical.snow"); if (recent !== null && recent >= THRESHOLDS.soakedRecentMm) return { reason: "Recent heavy rain means mud on the trail.", evidence: ["recent.rain7d"] }; return snowLikely(e); } },
+    when: (e) => { const recent = e.get("recent.rain7d"); if (recent !== null && recent >= THRESHOLDS.soakedRecentMm) return { reason: "Recent heavy rain means mud on the trail.", evidence: ["recent.rain7d"] }; return snowLikely(e); } },
   { id: "warm-layer", name: "Insulated jacket", search: "insulated puffy jacket", perPerson: true, owned: ["puffy", "insulated jacket", "down jacket", "fleece"],
     when: (e) => { const low = coldestNight(e); return low && low.value <= THRESHOLDS.coldNightC ? { reason: `Nights can drop to about ${Math.round(low.value)}°C.`, evidence: low.evidence } : null; } },
   { id: "beanie", name: "Warm hat", search: "beanie", perPerson: true, owned: ["beanie", "hat"],

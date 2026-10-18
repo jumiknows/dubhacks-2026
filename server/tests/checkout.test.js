@@ -167,6 +167,13 @@ describe("Stripe checkout", () => {
     session.payment_status = "paid";
     const paid = await confirmCheckout("cs_test_123");
     assert.equal(paid.plan.items.find((i) => i.id === "stove").purchased, true);
+    assert.equal(paid.receipt.orderId, "cs_test_123");
+    assert.equal(new Date(paid.receipt.placedAt).toISOString(), paid.receipt.placedAt);
+    assert.equal(paid.receipt.amount, 4550);
+    assert.equal(paid.receipt.currency, "usd");
+    assert.equal(paid.receipt.mock, false);
+    assert.equal(paid.plan.items.find((i) => i.id === "stove").order.orderId, paid.receipt.orderId);
+    assert.deepEqual((await confirmCheckout("cs_test_123")).receipt, paid.receipt);
   });
 });
 
@@ -297,5 +304,60 @@ describe("pending checkout and captured paid offers", () => {
     assert.equal(paid.receipt.amount, 12999);
     assert.equal(paid.plan.items[0].order.amount, 12999);
     await rejects(createCheckout(p.id, ["tent"]), 409);
+  });
+});
+
+describe("cumulative OrbiCart trip budget", () => {
+  function trip(budget) {
+    const p = plan();
+    p.source = "orbicart_catalog";
+    p.preferences = { budgetMax: budget };
+    return p;
+  }
+
+  it("includes prior paid snapshots when checking a later subset", async () => {
+    const p = trip(150);
+    const first = await createCheckout(p.id, ["tent"]);
+    await confirmCheckout(first.id);
+    await rejects(createCheckout(p.id, ["stove"]), 409);
+    assert.equal(p.items[0].order.amount, 12999);
+    assert.equal(p.items[1].purchased, false);
+  });
+
+  it("reserves budget across disjoint pending carts and cancellation releases it", async () => {
+    const p = trip(150);
+    const first = await createCheckout(p.id, ["tent"]);
+    await rejects(createCheckout(p.id, ["stove"]), 409);
+    assert.equal((await cancelCheckout(first.id)).status, "cancelled");
+    const second = await createCheckout(p.id, ["stove"]);
+    assert.equal(second.amount, 4550);
+    await rejects(createCheckout(p.id, ["tent"]), 409);
+  });
+
+  it("counts a pending session once despite its cancellation alias", async () => {
+    const p = trip(200);
+    p.items.push(item("filter", 30));
+    const first = await createCheckout(p.id, ["tent"]);
+    const second = await createCheckout(p.id, ["stove"]);
+    assert.equal(first.amount + second.amount, 17549);
+    await rejects(createCheckout(p.id, ["filter"]), 409);
+    await confirmCheckout(first.id);
+    await rejects(createCheckout(p.id, ["filter"]), 409);
+    await cancelCheckout(second.id);
+    assert.equal((await createCheckout(p.id, ["filter"])).amount, 3000);
+  });
+
+  it("reserves budget while a disjoint Stripe session is still being created", async () => {
+    const p = trip(150);
+    const client = fakeStripe();
+    let release;
+    const blocked = new Promise((resolve) => { release = resolve; });
+    const create = client.checkout.sessions.create;
+    client.checkout.sessions.create = async (...args) => { await blocked; return create(...args); };
+    configureStripe({ client });
+    const first = createCheckout(p.id, ["tent"]);
+    await rejects(createCheckout(p.id, ["stove"]), 409);
+    release();
+    assert.ok((await first).id);
   });
 });

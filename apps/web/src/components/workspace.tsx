@@ -1,5 +1,6 @@
 "use client";
 
+import { AppLinks } from "./esper/gestures";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPlaceContext, changeSummary, distanceKm, formatKm, formatPacific, formatUtc, MONITOR_KM, REVIEW_KM,
@@ -129,6 +130,7 @@ export function Workspace({ demo }: { demo: DemoProps }) {
       <div className="sat mono" aria-label="Data source">
         <span className="sat-dot" aria-hidden="true" />NASA FIRMS · NOAA-20 VIIRS 375 m · Washington
       </div>
+      <AppLinks />
       <div className="mode-switch" role="group" aria-label="Data mode">
         <button type="button" aria-pressed={mode === "replay"} onClick={replay}>Replay</button>
         <button type="button" aria-pressed={mode === "live"} onClick={tryLive}><span className="live-dot" aria-hidden="true" />Live</button>

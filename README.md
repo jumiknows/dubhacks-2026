@@ -1,73 +1,83 @@
-# EmberReady
+# OrbiCart and EmberReady with DubHacks services
 
-Community wildfire briefings from satellite observations.
+The primary application uses the SpaceX 2026 frontend and features, integrated with the DubHacks shopping backend and gesture system. Original SpaceX commits are preserved, with their original IDs, in the history of `integration/spacex-frontend`.
 
-**Status:** real NASA replay and public-feed live observations, the accessible map and list, deterministic briefings, and a verified data pipeline are implemented. Actual Grok speech and a grounded conversation have succeeded through the private deployment. Twelve evaluation scenarios now have provider evidence, including eleven completed answers and one deliberate cancellation. [Human review](data/evaluation/REVIEW_PACKET.md) and hosted browser checks remain open. No wildfire model has been trained.
+## Start
 
-[Open the private demo](https://emberready.jumiknows.chatgpt.site). Access is limited to the site owner. [Test and deployment evidence](docs/RELEASE_READINESS.md) records what works and the remaining release gates.
-
-EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
-
-Start with the [implementation epic](https://github.com/jumiknows/spacex2026Hacks/issues/10), [product brief](docs/PRODUCT_BRIEF.md), and [Grok handoff](docs/GROK_HANDOFF.md).
-
-The heatmap represents observed thermal activity. The MVP does not claim ignition prediction, fire spread forecasts, or evacuation guidance.
-
-## Start here
-
-You need Git, Python 3.12 or newer, and Node.js 24.
+Use Node.js 24 (see `.nvmrc`) and Python 3.12.
 
 ```bash
-git clone https://github.com/jumiknows/spacex2026Hacks.git
-cd spacex2026Hacks
-git switch dev
-python3 tools/check_repo.py
-python3 -m unittest discover -s tests -v
 npm ci
-npm run typecheck
-npm test
-npm run build
+npm run api:setup
 npm run dev
 ```
 
-On Windows, use `py -3` instead of `python3`.
+Open **http://localhost:3001**. The public Express server serves the Next application and both sets of APIs on the same origin. Next runs internally on port 3000 and the preserved Python API on port 8000. Stop the development command to stop all three processes.
 
-Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assign yourself, and follow [CONTRIBUTING.md](CONTRIBUTING.md). `npm run dev` starts the replay workspace. Live observations use the public NASA NOAA-20 24-hour CSV by default. `FIRMS_MAP_KEY` selects the bounded SNPP Area API. Spoken briefing and conversation need private `XAI_API_KEY` and access configuration. See [release evidence](docs/RELEASE_READINESS.md).
+For a production build:
 
-## Repository map
+```bash
+npm run build
+npm start
+```
 
-| Path | Purpose |
+`NEXT_PORT`, `PORT`, and `API_PORT` can change the process ports. When changing them, set `ORBICART_WEB_URL`, `CONJURE_API_URL`, `PYTHON_API_URL`, `CLIENT_URL`, and `APP_ORIGIN` to the matching origins. The web launcher keeps Next's port separate from Express's `PORT`.
+
+## Application
+
+| Route | Features |
 | --- | --- |
-| [apps/](apps/README.md) | Deployable applications and services |
-| [packages/](packages/README.md) | Code shared by applications |
-| `tools/` | Repository checks and development scripts |
-| `tests/` | Tests for repository tooling |
-| [research/](research/README.md) | Wildfire discovery research pipeline and danger-zone scoring |
-| [docs/](docs/WORKFLOW.md) | Workflow, engineering decisions, and demo guidance |
-| `.github/` | Issue forms, pull request template, ownership, and CI |
+| `/` | OrbiCart camping trips, NASA and weather evidence, map, condition-based kits, product recommendations, budget planning, Grok conversation, and integrated checkout |
+| `/fires` | EmberReady wildfire observations, live/replay modes, accessible community list, timeline, research danger zones, provenance, briefing, printing, and Grok Voice |
+| `/shop` | DubHacks generic shopping plans, saved lists, account onboarding, calendar suggestions, comparisons, assistant, review evidence, website checks, and checkout |
+| `/gesture-lab` | Preserved gesture replay, camera trials, tuning, and assessment export |
 
-## Team workflow
+The shared hand-control layer operates the new frontend. Point and pinch to select controls and use gestures on registered shopping targets. Mouse and keyboard controls remain available. Gesture diagnostics are available with `?gdebug`.
 
-Create a focused branch from `dev`, open a pull request into `dev`, and record the checks you ran. Promote a verified demo from `dev` into `main` through a release pull request.
+OrbiCart product retrieval uses `POST /api/orbicart/plans`. The server fetches and stores source catalog offers, then uses the DubHacks selection, quote, and checkout contracts. The browser submits item and listing IDs. Prices come from server-owned offers. Checkout captures the reviewed offer, reserves its items, and supports cancellation and return recovery. The original SpaceX `/api/recommend` route remains available.
 
-Use real GitHub issue numbers in branches and pull requests. Example: `feat/12-demo-flow` with the title `feat(app): add demo flow` and `Refs #12` in the description.
+NASA thermal observations, research rankings, weather evidence, sample catalog offers, and provider failures retain their source labels. Research rankings preserve their documented limitations and do not replace observation-based attention bands. See [research](research/README.md), [data contracts](docs/CONTRACTS.md), and [release evidence](docs/RELEASE_READINESS.md) for the original SpaceX feature boundaries.
 
-## Working guides
+## Configuration
 
-- [Product scope and demo goals](docs/PRODUCT_BRIEF.md)
-- [Architecture and component boundaries](docs/ARCHITECTURE.md)
-- [Data and API contracts](docs/CONTRACTS.md)
-- [Data backend, cleaning, quality gates and storage](docs/DATA_BACKEND.md)
-- [Labeling, baseline experiments and Hugging Face readiness](docs/LABELING_AND_ML.md)
-- [Data registry and artifact schemas](data/README.md)
-- [Interactive mockup and implementation notes](docs/prototype/README.md)
-- [Verified data sources](docs/DATA_SOURCES.md)
-- [Grok Bot and Cursor implementation handoff](docs/GROK_HANDOFF.md)
-- [Three-minute demo script](docs/DEMO_SCRIPT.md)
-- [Build and sponsor evidence](docs/BUILD_EVIDENCE.md)
-- [Contribution steps](CONTRIBUTING.md)
-- [Branches, issues, and work queue](docs/WORKFLOW.md)
-- [Engineering review standard](docs/ENGINEERING_STANDARD.md)
-- [CI and repository settings](docs/CI_CD.md)
-- [Demo checklist](docs/DEMO_CHECKLIST.md)
-- [Repository architecture decision](docs/adr/0001-repository-workflow.md)
-- [Data foundation architecture decision](docs/adr/0003-data-foundation.md)
+Keep provider credentials in ignored files:
+
+- `apps/web/.env.local` for the SpaceX Next application, based on `apps/web/.env.example`.
+- `server/.env` for DubHacks Express, based on `server/.env.example`.
+- `api/.env` for the Python assistant, based on `api/.env.example`.
+
+Express configuration precedence is process environment, then `server/.env`, then private web defaults. Credentials stay on the server. Existing private configuration was copied locally without adding it to Git.
+
+Grok Voice uses the original access controls. Local or public hosts need the configured voice access code. Authenticated private hosting may use the owner header only when the upstream host overwrites it and `TRUST_PRIVATE_SITE_HEADERS=true` is explicitly configured.
+
+Without a Stripe test key, checkout uses an explicitly labelled mock order. `MOCK_ORDER_SANDBOX=off` disables sample-store network submission. Account preferences persist in ignored `server/data/`. Plan and checkout state currently live in Express memory and expire on restart.
+
+The checked-in replay and seven days of research rankings are bundled by `npm ci` and `npm run build`. Gesture model and runtime assets are copied from the tracked gesture module into both web hosts during installation. Research downloads and trained runtime artifacts remain local as documented in [research setup](research/README.md).
+
+## Verification
+
+```bash
+python3 tools/check_repo.py
+python3 tools/check_imported_history.py
+python3 -m unittest discover -s tests -v
+npm run typecheck
+npm run typecheck:gestures
+npm run lint
+npm test
+npm run build
+npm run smoke:backend
+npm run test:browser
+npm run smoke:app
+```
+
+The browser suite uses isolated ports 3081, 3080, and 8080 and disables paid providers. Install its browser with `npx playwright install chromium` when needed. Tests distinguish controlled fixtures from live provider checks. The research tests use their separate environment, described in [research](research/README.md).
+
+## History and layout
+
+[The import record](docs/integration/spacex-history.md) and [source manifest](docs/integration/source-history.json) record every original SpaceX commit and explain equivalent historical branches. `tools/check_imported_history.py` verifies that every original commit object remains an ancestor without replacement objects. CI fetches full history for that check.
+
+- `apps/web`, `apps/pipeline`, `packages/domain`, `packages/data`, `research`, and `data` preserve the SpaceX application and research tooling.
+- `server`, `api`, and `gesture_pipeline` preserve the integrated DubHacks services and hand controls.
+- `client` retains the earlier ESPER frontend for reference and optional standalone development with `npm run dev:legacy`. The public application uses Next.
+
+Both repositories' authorship and commit history are retained. The original SpaceX working tree is unchanged. No deployment or live provider verification is implied by this local integration.

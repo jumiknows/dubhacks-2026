@@ -1,4 +1,3 @@
-/* global AudioWorkletProcessor, registerProcessor */
 class PcmCapture extends AudioWorkletProcessor {
   process(inputs) {
     const channel = inputs[0]?.[0];

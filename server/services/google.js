@@ -7,7 +7,7 @@ import { createHash, randomBytes } from "node:crypto";
  *
  * server/.env:
  *   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET   OAuth "Web application" client
- *   APP_ORIGIN                               where the app is served (default http://localhost:5173)
+ *   APP_ORIGIN                               where the app is served (default http://localhost:3001)
  *   GOOGLE_REDIRECT_URI                      default `${APP_ORIGIN}/api/auth/google/callback`
  */
 
@@ -25,7 +25,7 @@ export class GoogleError extends Error {
 }
 
 export function googleConfig(env = process.env) {
-  const appOrigin = (env.APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+  const appOrigin = (env.APP_ORIGIN || "http://localhost:3001").replace(/\/$/, "");
   return {
     enabled: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
     clientId: env.GOOGLE_CLIENT_ID || "",

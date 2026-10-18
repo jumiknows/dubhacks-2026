@@ -1,24 +1,27 @@
 import "./env.js";
 import express from "express";
 import cors from "cors";
-import { existsSync } from "node:fs";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { getPlan, listPlans, savePlan } from "./store.js";
 import { generatePlan, validatePlanRequest } from "./services/planner.js";
 import { attachOffers, pickListing, quotePlan } from "./services/pipeline.js";
 import { createPythonGateway } from "./pythonGateway.js";
 import { attachVoiceGateway } from "./voiceGateway.js";
+import { attachFrontendGateway, createFrontendGateway, isBackendPath } from "./frontendGateway.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
 import { assertItemUnlocked, cancelCheckout, CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { storesRouter } from "./routes/stores.js";
 import { accountRouter } from "./routes/account.js";
 import { budgetMax, currentSession, ensureSession, profileFor } from "./services/accounts.js";
+import { createOrbiCartPlan, OrbiCartError } from "./services/orbicart.js";
 
-export function createApp(gatewayOptions, { selectListing = pickListing } = {}) {
+export function createApp(gatewayOptions, { selectListing = pickListing, frontendOptions, orbicartOptions } = {}) {
   const app = express();
 
   app.use(cors());
+  const frontend = createFrontendGateway(frontendOptions);
+  app.use((req, res, next) => isBackendPath(req.path) ? next() : frontend(req, res));
   app.use("/api/conjure", createPythonGateway(gatewayOptions));
   app.post("/api/stripe/webhook", express.raw({ type: "application/json", limit: "1mb" }), (req, res) => {
     try { res.json(handleWebhook(req.body, req.headers["stripe-signature"])); }
@@ -45,6 +48,19 @@ export function createApp(gatewayOptions, { selectListing = pickListing } = {}) 
 
   app.get("/api/plans", (req, res) => {
     res.json({ plans: listPlans(currentSession(req)) });
+  });
+
+  app.post("/api/orbicart/plans", async (req, res) => {
+    const started = Date.now();
+    try {
+      const result = await createOrbiCartPlan(req.body, orbicartOptions);
+      const session = ensureSession(req, res);
+      savePlan(result.plan, session);
+      res.status(201).json({ ...result, tookMs: Date.now() - started });
+    } catch (err) {
+      if (err instanceof OrbiCartError) return res.status(400).json({ error: err.message });
+      sendError(res, err, "Could not retrieve camping products");
+    }
   });
 
   app.post("/api/plans", async (req, res) => {
@@ -184,17 +200,6 @@ export function createApp(gatewayOptions, { selectListing = pickListing } = {}) 
     catch (err) { sendError(res, err, "Could not cancel checkout"); }
   });
 
-  // Serve the built application from the same origin as its API.
-  const dist = fileURLToPath(new URL("../client/dist/", import.meta.url));
-  if (existsSync(new URL("../client/dist/index.html", import.meta.url))) {
-    app.use(express.static(dist));
-    app.get("*", (req, res, next) => {
-      if (req.path === "/api" || req.path.startsWith("/api/")) return next();
-      res.sendFile(`${dist}index.html`);
-    });
-  }
-
-
   app.use((err, req, res, next) => {
     if (err.type === "entity.too.large") return res.status(413).json({ error: "Request body is too large" });
     if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Malformed JSON request" });
@@ -243,4 +248,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const PORT = process.env.PORT || 3001;
   const server = createApp().listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
   attachVoiceGateway(server);
+  attachFrontendGateway(server);
 }

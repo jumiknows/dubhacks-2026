@@ -24,11 +24,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Check repository
         run: python tools/check_repo.py
+      - name: Verify imported SpaceX history
+        run: python tools/check_imported_history.py
       - name: Compile repository tools
         run: python -m compileall -q tools tests
       - name: Test repository tools
@@ -48,10 +51,17 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
       - name: Install
         run: npm ci
+      - name: Install preserved Python backend
+        run: npm run api:setup
       - name: Typecheck
         run: npm run typecheck
+      - name: Typecheck gestures
+        run: npm run typecheck:gestures
       - name: Lint
         run: npm run lint
       - name: Test
@@ -60,6 +70,8 @@ jobs:
         run: npm run build
       - name: Browser smoke
         run: npx playwright install --with-deps chromium && npm run test:browser
+      - name: Full-stack browser smoke
+        run: npm run smoke:app
       - name: Browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

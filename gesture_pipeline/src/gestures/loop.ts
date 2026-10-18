@@ -521,4 +521,5 @@ function cameraMessage(s: GestureStatus['camera']): string {
 }
 
 export const gestures = new GestureController();
-if (import.meta.hot) import.meta.hot.dispose(() => gestures.dispose());
+const hot = (import.meta as ImportMeta & { hot?: { dispose(callback: () => void): void } }).hot;
+if (hot) hot.dispose(() => gestures.dispose());

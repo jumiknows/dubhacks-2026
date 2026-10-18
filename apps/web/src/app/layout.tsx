@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "../components/esper/esper.css";
+import { AppGestures } from "../components/esper/gestures";
 
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -17,7 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <a className="skip" href="#main-content">Skip to main content</a>
-        {children}
+        <AppGestures>{children}</AppGestures>
       </body>
     </html>
   );

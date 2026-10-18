@@ -17,18 +17,18 @@
   ],
   "scripts": {
     "dev": "concurrently -k -n api,server,web -c magenta,blue,green \"npm run api\" \"npm run dev -w server\" \"npm run dev -w @emberready/web\"",
-    "lint": "eslint apps packages tools/*.ts *.ts *.js",
+    "lint": "eslint apps packages *.ts *.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run test:domain && npm run test:server && npm run test:api && npm run test:gesture-engine && npm run test:client",
     "test:browser": "playwright test",
     "build": "npm run build -w @emberready/web",
-    "start": "node scripts/start-app.mjs",
+    "start": "concurrently -k -n api,server,web -c magenta,blue,green \"npm run api:start\" \"npm run start -w server\" \"npm run start -w @emberready/web\"",
     "data:ingest": "node --import tsx apps/pipeline/src/cli.ts ingest",
     "data:replay": "node --import tsx apps/pipeline/src/cli.ts replay",
     "data:validate": "node --import tsx apps/pipeline/src/cli.ts validate",
     "data:publish": "node --import tsx apps/pipeline/src/cli.ts publish",
     "data:bundle": "node --import tsx apps/pipeline/src/bundle.ts",
-    "postinstall": "npm run data:bundle && npm run assets -w conjure-gestures",
+    "postinstall": "npm run data:bundle && npm run gestures:assets",
     "prebuild": "npm run data:bundle",
     "verify:data": "node --import tsx apps/pipeline/src/verify-rebuild.ts",
     "verify:evaluation": "vitest run packages/data/src/evaluation.test.ts",
@@ -48,7 +48,8 @@
     "test:e2e": "playwright test",
     "build:legacy": "npm run build -w client",
     "smoke:backend": "node scripts/smoke-backend.mjs",
-    "smoke:legacy": "node scripts/smoke-backend.mjs --browser"
+    "gestures:assets": "npm run assets -w conjure-gestures -- --public-dir ../client/public && npm run assets -w conjure-gestures -- --public-dir ../apps/web/public",
+    "smoke:app": "node scripts/smoke-backend.mjs --browser"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -59,6 +60,7 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.0",
     "vitest": "^3.2.4",
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "globals": "14.0.0"
   }
 }

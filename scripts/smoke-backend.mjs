@@ -7,12 +7,14 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import http from "node:http";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const live = process.argv.includes("--live-ai");
 const browser = process.argv.includes("--browser");
 if (process.argv.slice(2).some(arg => !["--live-ai", "--browser"].includes(arg))) throw new Error("Unknown smoke-check option");
-if (browser && !existsSync(join(root, "client", "dist", "index.html"))) throw new Error("Run npm run build before the browser smoke check");
+if (browser && !existsSync(join(root, "apps", "web", ".next", "BUILD_ID"))) throw new Error("Run npm run build before the browser smoke check");
 // Set deterministic modes before importing services that load server/.env.
 process.env.STRIPE_SECRET_KEY = "";
 process.env.STORES_LIVE = "false";
@@ -43,6 +45,7 @@ const env = { ...process.env, PYTHONDONTWRITEBYTECODE: "1", DEMO_SERVER_SIGNING:
 if (!live) env.LLM_API_KEY = "";
 let python;
 let server;
+let next;
 let cookie = "";
 
 async function json(base, path, method = "GET", body) {
@@ -56,6 +59,29 @@ async function json(base, path, method = "GET", body) {
 }
 
 try {
+  let frontendOptions;
+  if (browser) {
+    const temporary = http.createServer().listen(0, "127.0.0.1");
+    await once(temporary, "listening");
+    const port = temporary.address().port;
+    await new Promise(resolve => temporary.close(resolve));
+    const webOrigin = `http://127.0.0.1:${port}`;
+    const require = createRequire(join(root, "apps", "web", "package.json"));
+    next = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
+      cwd: join(root, "apps", "web"),
+      env: { ...env, XAI_API_KEY: "", NEXT_TELEMETRY_DISABLED: "1" },
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    let ready = false;
+    for (let attempt = 0; attempt < 200; attempt++) {
+      if (next.exitCode !== null) throw new Error("Next exited during the browser smoke check; details withheld");
+      try { ready = (await fetch(webOrigin + "/api/places", { signal: AbortSignal.timeout(1000) })).ok; } catch { /* Wait for startup. */ }
+      if (ready) break;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!ready) throw new Error("Next startup timed out");
+    frontendOptions = { baseUrl: webOrigin };
+  }
   python = spawn(pythonPath, ["-B", "-m", "uvicorn", "api.main:app", "--host", "127.0.0.1", "--port", "0", "--no-access-log", "--no-use-colors"],
     { cwd: root, env, windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
   const pythonOrigin = await new Promise((resolve, reject) => {
@@ -71,7 +97,7 @@ try {
     python.once("exit", () => { clearTimeout(timer); reject(new Error("Python exited during the smoke check; details withheld")); });
   });
   process.env.PYTHON_API_URL = pythonOrigin;
-  server = createApp({ baseUrl: pythonOrigin }).listen(0, "127.0.0.1");
+  server = createApp({ baseUrl: pythonOrigin }, { frontendOptions }).listen(0, "127.0.0.1");
   await once(server, "listening");
   const base = `http://127.0.0.1:${server.address().port}`;
   assert((await json(base, "/api/health")).ok);
@@ -179,7 +205,7 @@ try {
   assert(source === (live ? "llm" : "fallback"), "Agent only completed a partial turn; provider details withheld");
   console.log(`PASS: ${done.source} SSE actions, factual response, constraints and valid audit (${((Date.now() - started) / 1000).toFixed(1)}s)`);
   if (browser) {
-    const { smokeBrowser } = await import("./smoke-browser.mjs");
+    const { smokeBrowser } = await import("./smoke-next-browser.mjs");
     await smokeBrowser(base, cookie);
   }
 } finally {
@@ -189,6 +215,12 @@ try {
     python.kill("SIGTERM");
     await Promise.race([exited, new Promise(resolve => { const timer = setTimeout(resolve, 5000); timer.unref(); })]);
     if (python.exitCode === null && python.signalCode === null) python.kill("SIGKILL");
+  }
+  if (next && next.exitCode === null && next.signalCode === null) {
+    const exited = once(next, "exit").catch(() => {});
+    next.kill("SIGTERM");
+    await Promise.race([exited, new Promise(resolve => { const timer = setTimeout(resolve, 5000); timer.unref(); })]);
+    if (next.exitCode === null && next.signalCode === null) next.kill("SIGKILL");
   }
   assert.deepEqual(hashes(), before, "Shared demo fixtures changed");
   console.log("Shared demo fixtures unchanged; temporary local servers stopped.");

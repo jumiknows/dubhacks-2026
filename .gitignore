@@ -36,6 +36,11 @@ apps/web/src/lib/server/replay.generated.json
 research/artifacts/
 apps/web/src/lib/server/risk.generated.json
 
+# Gesture assets are copied from the tracked module by npm install.
+apps/web/public/mediapipe/
+apps/web/public/models/
+*.tsbuildinfo
+
 # Preserved DubHacks runtime and reports
 node_modules/
 dist/

@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository_url": "https://github.com/jumiknows/spacex2026Hacks.git",
+    "primary_ref": "refs/remotes/origin/main",
+    "primary_tip": "a0d685c77b39b921a1f958ed6daca4c746bb8381",
+    "application_tip": "9b07a58e340c988221925d6bef3f3e7b99b450d5",
+    "voice_tip": "9e8214b83908ef0e9316d0bd332436c8c6d17bd5"
+  },
+  "commit_count": 36,
+  "original_commits": [
+    "6303bca6e282052ee03c1aa98c0c47070eacc632",
+    "592dfe0455b39884ed833a98dfe55bb3d6554399",
+    "247d2f0fe42ba65c5f13c4222e79906143ba1f54",
+    "46801c0e498bdbefda90782e31c8ed535fa93501",
+    "df3abe2e9c461ba12601aa8fda2be39316f2637a",
+    "905d98f9e7139382711980c2b9b21599ab726178",
+    "0b2c55c43a359c81d4b83d7cfdf531e086523f84",
+    "6b75e159e1e3cd55058ab8bbf530b316b48a171c",
+    "894ec0f293b02cc58698c2616f504f42d9bbb784",
+    "23b7f4f8d726a83cfb3109604aa870c52a34cc2e",
+    "30a3f8eb4b9a50e8daec7427c501ea179aa0ed96",
+    "a9aa99e5eb44e863bad62ac06d89ae0d8d531f6f",
+    "447f9477cfa587bcb04aad8c33d237f8c51a473e",
+    "ec175606a47a778ce46fc25d29866c965e3d5ac6",
+    "f87b441cba35e0d8e87515960799199d26cc9ea4",
+    "a5754a1a1e266c5cf59c0bb38b40f33dc72f10ce",
+    "fc15749fcc8e97c639b1e195c16f3b24a3f8324d",
+    "e8a49f575fa2c1abca1b68cb901a29815a6cffa7",
+    "84b3f7c21a1f749b4eda46b93f16e7a509b9d41e",
+    "38d003d86b526e4f5270e0508ee29b08bfd9bd69",
+    "fc13cac8feda21d89efc3636cadc7cffe34c55d4",
+    "8d0a583ad851b5090d50107efdc5c820720d567b",
+    "8d4ef4e94f1823d5d854a4925b5a8aaf33663a7a",
+    "99a9e24ce3ba7c8cc9cf78d9fa53ac64f24ca719",
+    "40ec7b95694160bf7bdb34575e3ce8bfba9b2ece",
+    "a3a41ebc128a636d59302eb52ecd46f95a1c0a8a",
+    "9e8214b83908ef0e9316d0bd332436c8c6d17bd5",
+    "72031a64317c7d007a7ea2575d06a6e8e6c45f28",
+    "7eada84afbc373b0422511eb384614f02c1b84e3",
+    "17427cfd537b53814c4a83bc531ceff39187b311",
+    "d4cdac5d7cd6d5d185ee15c1c71e35502f20b516",
+    "569581a2426a5ac5e54fd214ac095dff71c38c58",
+    "ff0531d191a6995078c496e9cd1c806b18920a47",
+    "18a9ef941bf5663de95c69873f1ee2b6400aaba3",
+    "9b07a58e340c988221925d6bef3f3e7b99b450d5",
+    "a0d685c77b39b921a1f958ed6daca4c746bb8381"
+  ],
+  "original_refs": {
+    "refs/heads/feat/29-wildfire-research": "569581a2426a5ac5e54fd214ac095dff71c38c58",
+    "refs/heads/feat/orbicart": "9b07a58e340c988221925d6bef3f3e7b99b450d5",
+    "refs/heads/feat/ui-mission-control": "7eada84afbc373b0422511eb384614f02c1b84e3",
+    "refs/heads/main": "18a9ef941bf5663de95c69873f1ee2b6400aaba3",
+    "refs/heads/test/19-live-voice-verification": "a3a41ebc128a636d59302eb52ecd46f95a1c0a8a",
+    "refs/remotes/origin/chore/1-repository-foundation": "592dfe0455b39884ed833a98dfe55bb3d6554399",
+    "refs/remotes/origin/chore/39-cleanup": "a9aa99e5eb44e863bad62ac06d89ae0d8d531f6f",
+    "refs/remotes/origin/dependabot/github_actions/dev/actions/checkout-7.0.1": "fc13cac8feda21d89efc3636cadc7cffe34c55d4",
+    "refs/remotes/origin/dependabot/github_actions/dev/actions/github-script-9.0.0": "46801c0e498bdbefda90782e31c8ed535fa93501",
+    "refs/remotes/origin/dependabot/github_actions/dev/actions/setup-python-7.0.0": "df3abe2e9c461ba12601aa8fda2be39316f2637a",
+    "refs/remotes/origin/dev": "17427cfd537b53814c4a83bc531ceff39187b311",
+    "refs/remotes/origin/docs/10-emberready-plan": "905d98f9e7139382711980c2b9b21599ab726178",
+    "refs/remotes/origin/docs/29-data-foundation": "894ec0f293b02cc58698c2616f504f42d9bbb784",
+    "refs/remotes/origin/feat/29-wildfire-research": "569581a2426a5ac5e54fd214ac095dff71c38c58",
+    "refs/remotes/origin/feat/orbicart": "9b07a58e340c988221925d6bef3f3e7b99b450d5",
+    "refs/remotes/origin/feat/ui-mission-control": "7eada84afbc373b0422511eb384614f02c1b84e3",
+    "refs/remotes/origin/fix/23-demo-readiness": "99a9e24ce3ba7c8cc9cf78d9fa53ac64f24ca719",
+    "refs/remotes/origin/main": "a0d685c77b39b921a1f958ed6daca4c746bb8381",
+    "refs/remotes/origin/test/19-live-voice-verification": "9e8214b83908ef0e9316d0bd332436c8c6d17bd5"
+  },
+  "integration_merges": {
+    "primary": "07ff80f8aee910e1181c0ba7e63b285d76b33219",
+    "voice": "db62a7b20665d31ac698e427fd158e5ed065659f",
+    "archive": "355090d0c5b30f9ebc7325e77ae9a52db6f2b0be",
+    "checkout_ci": "bc32502f12d30019565583cec057bab62049694e",
+    "python_ci": "66c4c16629f97dc7bb5545122badfe587bca8641",
+    "github_script_ci": "8c09727f863f07a584e55094d42c2d7bf206d5a0"
+  },
+  "archived_tips": [
+    {
+      "original_tip": "592dfe0455b39884ed833a98dfe55bb3d6554399",
+      "already_integrated_as": "247d2f0fe42ba65c5f13c4222e79906143ba1f54",
+      "equivalence": "patch-equivalent"
+    },
+    {
+      "original_tip": "a9aa99e5eb44e863bad62ac06d89ae0d8d531f6f",
+      "already_integrated_as": "447f9477cfa587bcb04aad8c33d237f8c51a473e",
+      "equivalence": "patch-equivalent"
+    },
+    {
+      "original_tip": "905d98f9e7139382711980c2b9b21599ab726178",
+      "already_integrated_as": "0b2c55c43a359c81d4b83d7cfdf531e086523f84",
+      "equivalence": "patch-equivalent"
+    },
+    {
+      "original_tip": "894ec0f293b02cc58698c2616f504f42d9bbb784",
+      "already_integrated_as": "23b7f4f8d726a83cfb3109604aa870c52a34cc2e",
+      "equivalence": "patch-equivalent"
+    },
+    {
+      "original_tip": "99a9e24ce3ba7c8cc9cf78d9fa53ac64f24ca719",
+      "already_integrated_as": "40ec7b95694160bf7bdb34575e3ce8bfba9b2ece",
+      "equivalence": "identical-tree"
+    }
+  ],
+  "ci_updates": [
+    {
+      "source_tip": "fc13cac8feda21d89efc3636cadc7cffe34c55d4",
+      "action": "actions/checkout",
+      "version": "7.0.1",
+      "pin": "3d3c42e5aac5ba805825da76410c181273ba90b1"
+    },
+    {
+      "source_tip": "df3abe2e9c461ba12601aa8fda2be39316f2637a",
+      "action": "actions/setup-python",
+      "version": "7.0.0",
+      "pin": "5fda3b95a4ea91299a34e894583c3862153e4b97"
+    },
+    {
+      "source_tip": "46801c0e498bdbefda90782e31c8ed535fa93501",
+      "action": "actions/github-script",
+      "version": "9.0.0",
+      "pin": "3a2844b7e9c422d3c10d287c895573f7108da1b3"
+    }
+  ],
+  "feature_inventory": {
+    "orbicart": [
+      "Trip and camping-kit planning",
+      "NASA environmental evidence and map layers",
+      "Outdoor-store product discovery and budget allocation",
+      "Ownership choices and Grok shopping tools"
+    ],
+    "emberready": [
+      "Satellite replay and public live observations",
+      "Community map, list, and grounded voice briefings",
+      "Research acquisition, modeling, evaluation, and risk-layer implementation"
+    ],
+    "retained_dubhacks": [
+      "Server-owned shopping plans and offers",
+      "Mock and Stripe test checkout",
+      "Accounts, onboarding, and calendar suggestions",
+      "AI assistant and signed demo carts",
+      "Review and website evidence services",
+      "Gesture engine and assessment lab",
+      "Legacy shopping frontend"
+    ]
+  }
+}

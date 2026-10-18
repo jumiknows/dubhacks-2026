@@ -4,7 +4,6 @@ import { planBudget, type Pick } from "./budget";
 const pick = (itemId: string, unitPrice: number, priority: Pick["priority"] = "essential", quantity = 1): Pick => ({ itemId, name: itemId, unitPrice, quantity, priority });
 
 describe("planBudget", () => {
-  const picks = [pick("tent", 150), pick("sleeping-bag", 60), pick("headlamp", 24), pick("first-aid", 23), pick("water-filter", 18), pick("rain-jacket", 104, "conditions"), pick("dry-bags", 16, "conditions")];
 
   it("buys destination items in kit order, then safety essentials, and defers shelter and sleep gear", () => {
     const plan = planBudget([pick("tent", 150), pick("sleeping-bag", 60), pick("headlamp", 24), pick("first-aid", 23), pick("water-filter", 18), pick("rain-jacket", 104, "conditions"), pick("dry-bags", 16, "conditions")], 200);

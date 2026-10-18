@@ -7,6 +7,11 @@ import {
 } from "@emberready/domain";
 import { VoiceConnection, type ToolHandler } from "../voice/realtime";
 import { TripMap, type LayerId, type Layers } from "./trip-map";
+import { scrollElement, useGestureEvents } from "conjure-gestures";
+import { api, type ShoppingPlan, type Listing } from "../esper/api";
+import { AppLinks } from "../esper/gestures";
+import { CheckoutControls, EvidenceTools, OfferDialog } from "../esper/shopping";
+import { remainingTripBudget } from "../../lib/trip-budget";
 
 interface Place { name: string; region: string | null; country: string | null; latitude: number; longitude: number }
 interface ForecastDay { date: string; high: number | null; low: number | null; rainChance: number | null; summary: string }
@@ -30,6 +35,14 @@ function display(e: Evidence) {
 }
 
 export function OrbiCart({ today }: { today: string }) {
+  const [backendPlan, setBackendPlan] = useState<ShoppingPlan | null>(null);
+  const [inspect, setInspect] = useState<string | null>(null);
+  const [showEvidence, setShowEvidence] = useState(false);
+  const restored = useRef(false);
+  const generation = useRef(0);
+  const productGeneration = useRef(0);
+  const tripGenerations = useRef(new WeakMap<TripResult, number>());
+  const rail = useRef<HTMLUListElement | null>(null);
   const [result, setResult] = useState<TripResult | null>(null);
   const [changes, setChanges] = useState<{ from: string; list: KitChange[] } | null>(null);
   const [recs, setRecs] = useState<Recommendation[] | null>(null);
@@ -48,8 +61,26 @@ export function OrbiCart({ today }: { today: string }) {
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
   const connection = useRef<VoiceConnection | null>(null);
-  const state = useRef({ result, recs, choice, inCart });
-  state.current = { result, recs, choice, inCart };
+  const state = useRef({ result, recs, choice, inCart, backendPlan });
+  state.current = { result, recs, choice, inCart, backendPlan };
+
+  useEffect(() => {
+    try { const saved = JSON.parse(sessionStorage.getItem("orbicart.trip") || "null"); if (saved?.result?.trip && Array.isArray(saved.recs)) { tripGenerations.current.set(saved.result, generation.current); setResult(saved.result); setRecs(saved.recs); setChoice(saved.choice || {}); setInCart(saved.inCart || {}); if (saved.backendPlan?.id) { setBackendPlan(saved.backendPlan); const token = generation.current; void api<ShoppingPlan>(`/api/plans/${encodeURIComponent(saved.backendPlan.id)}`).then((next) => { if (generation.current === token && (!state.current.backendPlan || state.current.backendPlan.id === saved.backendPlan.id)) setBackendPlan(next); }).catch(() => undefined); } } } catch { /* Start a new trip if storage is unavailable. */ }
+    restored.current = true;
+  }, []);
+  useEffect(() => { if (!restored.current || !result) return; try { sessionStorage.setItem("orbicart.trip", JSON.stringify({ result, recs, choice, inCart, backendPlan })); } catch { /* The trip remains usable without storage. */ } }, [result, recs, choice, inCart, backendPlan]);
+  useGestureEvents("expand", (event) => { const match = state.current.recs?.find((rec) => event.group_id === `kit:${rec.itemId}`); if (match) setInspect(match.itemId); });
+  useGestureEvents("scroll", (event) => { if (!inspect && scrollElement(event.target_id) === rail.current) rail.current?.scrollBy({ left: (event.delta_y || 0) * rail.current.clientWidth, behavior: "smooth" }); });
+
+  const selectProduct = async (itemId: string, index: number) => {
+    const current = state.current; const token = generation.current;
+    if (current.result && (tripGenerations.current.get(current.result) ?? token) !== token) throw new DOMException("A newer trip replaced this selection.", "AbortError");
+    const product = current.recs?.find((rec) => rec.itemId === itemId)?.products[index];
+    if (!current.backendPlan || !product) throw new Error("Refresh product offers before choosing a listing.");
+    const next = await api<ShoppingPlan>(`/api/plans/${encodeURIComponent(current.backendPlan.id)}/items/${encodeURIComponent(itemId)}/listing`, "PUT", { listingId: product.id });
+    if (generation.current !== token || state.current.backendPlan?.id !== current.backendPlan.id) throw new DOMException("A newer trip replaced this selection.", "AbortError");
+    setBackendPlan(next); setChoice((value) => ({ ...value, [itemId]: index })); setInCart((value) => ({ ...value, [itemId]: true }));
+  };
 
   useEffect(() => { try { setCode(sessionStorage.getItem("orbicart.voiceCode") ?? ""); } catch { /* storage blocked */ } }, []);
   useEffect(() => () => connection.current?.stop(), []);
@@ -57,6 +88,7 @@ export function OrbiCart({ today }: { today: string }) {
   // --- actions shared by the page and Grok's tools ------------------------------------------
 
   const planTrip = useCallback(async (input: Partial<Trip> & { destination: string }) => {
+    const token = ++generation.current;
     const previous = state.current.result;
     const base = previous?.trip;
     const body: Trip = {
@@ -73,27 +105,34 @@ export function OrbiCart({ today }: { today: string }) {
       const response = await fetch("/api/trip", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message ?? "Could not plan that trip.");
-      const next = data as TripResult;
+      if (generation.current !== token) throw new DOMException("A newer trip replaced this request.", "AbortError");
+      const next = data as TripResult; tripGenerations.current.set(next, token);
       setChanges(previous && placeName(previous.place) !== placeName(next.place) ? { from: placeName(previous.place), list: compareKits(previous.kit, next.kit) } : null);
-      setResult(next); setRecs(null); setChoice({}); setInCart({});
-      fetch(`/api/fires?lat=${next.place.latitude}&lon=${next.place.longitude}&km=250`).then((r) => r.ok ? r.json() : { fires: [] }).then((f) => setFires(f.fires ?? [])).catch(() => setFires([]));
+      setResult(next); setRecs(null); setChoice({}); setInCart({}); setBackendPlan(null); setInspect(null);
+      state.current = { ...state.current, result: next, recs: null, choice: {}, inCart: {}, backendPlan: null };
+      fetch(`/api/fires?lat=${next.place.latitude}&lon=${next.place.longitude}&km=250`).then((r) => r.ok ? r.json() : { fires: [] }).then((f) => { if (generation.current === token) setFires(f.fires ?? []); }).catch(() => { if (generation.current === token) setFires([]); });
       return next;
-    } finally { setBusy(null); }
+    } catch (error) { if (generation.current !== token) throw new DOMException("A newer trip replaced this request.", "AbortError"); throw error; } finally { if (generation.current === token) setBusy(null); }
   }, [today]);
 
-  const findProducts = useCallback(async (kit: Kit) => {
+  const findProducts = useCallback(async (kit: Kit, tripContext = state.current.result) => {
+    const token = tripContext ? tripGenerations.current.get(tripContext) ?? generation.current : generation.current;
+    if (token !== generation.current) throw new DOMException("A newer trip replaced these offers.", "AbortError");
+    const requestId = ++productGeneration.current;
     setBusy("Finding real products at outdoor stores…");
     try {
-      const response = await fetch("/api/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: kit.items.map(({ id, name, spec, quantity }) => ({ id, name, spec, quantity })) }) });
+      const response = await fetch("/api/orbicart/plans", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: kit.items.map(({ id, name, spec, quantity }) => ({ id, name, spec, quantity })), title: tripContext ? `Kit for ${placeName(tripContext.place)}` : "Camping kit", budget: tripContext?.trip.budget ?? null }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message ?? "Stores did not respond.");
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : data.error?.message ?? "Stores did not respond.");
+      if (generation.current !== token || productGeneration.current !== requestId) throw new DOMException("A newer request replaced these offers.", "AbortError");
       const list = data.recommendations as Recommendation[];
-      setRecs(list);
+      setRecs(list); setBackendPlan(data.plan as ShoppingPlan);
+      state.current = { ...state.current, recs: list, backendPlan: data.plan as ShoppingPlan };
       const first: Record<string, number> = {}, cart: Record<string, boolean> = {};
       for (const rec of list) if (rec.products.length) { first[rec.itemId] = 0; cart[rec.itemId] = true; }
       setChoice(first); setInCart(cart);
       return list;
-    } finally { setBusy(null); }
+    } catch (error) { if (generation.current !== token || productGeneration.current !== requestId) throw new DOMException("A newer request replaced these offers.", "AbortError"); throw error; } finally { if (generation.current === token && productGeneration.current === requestId) setBusy(null); }
   }, []);
 
   const picks = useMemo<Pick[]>(() => {
@@ -101,10 +140,12 @@ export function OrbiCart({ today }: { today: string }) {
     return recs.flatMap((rec) => {
       const product = rec.products[choice[rec.itemId] ?? 0];
       const item = result.kit.items.find((i) => i.id === rec.itemId);
-      return product && item && inCart[rec.itemId] !== false ? [{ itemId: rec.itemId, name: rec.name, unitPrice: product.price, quantity: rec.quantity, priority: item.priority }] : [];
+      const saved = backendPlan?.items.find((row) => row.id === rec.itemId);
+      return product && item && !saved?.owned && !saved?.purchased && inCart[rec.itemId] !== false ? [{ itemId: rec.itemId, name: rec.name, unitPrice: product.price, quantity: rec.quantity, priority: item.priority }] : [];
     });
-  }, [result, recs, choice, inCart]);
-  const plan = useMemo(() => planBudget(picks, result?.trip.budget ?? null), [picks, result]);
+  }, [result, recs, choice, inCart, backendPlan]);
+  const budget = useMemo(() => remainingTripBudget(result?.trip.budget ?? null, (backendPlan?.items || []).flatMap((item) => item.order ? [item.order] : [])), [backendPlan, result]);
+  const plan = useMemo(() => planBudget(picks, budget.available), [picks, budget.available]);
   // Slider order: what the budget buys (in plan order), then what to rent or borrow, then items without products.
   const cardRank = (rec: Recommendation) => {
     const bought = plan.buy.findIndex((p) => p.itemId === rec.itemId);
@@ -130,7 +171,7 @@ export function OrbiCart({ today }: { today: string }) {
   }));
 
   const toolHandler: ToolHandler = async (name, args) => {
-    const s = state.current;
+    const s = state.current; const requestAtStart = generation.current;
     if (name === "plan_trip") {
       const t = await planTrip({
         destination: String(args.destination ?? ""), startDate: typeof args.start_date === "string" ? args.start_date : undefined,
@@ -142,7 +183,7 @@ export function OrbiCart({ today }: { today: string }) {
     }
     if (name === "find_products") {
       if (!s.result) return { error: "Call plan_trip first." };
-      const list = await findProducts(s.result.kit);
+      const list = await findProducts(s.result.kit, s.result);
       const first = Object.fromEntries(list.map((r) => [r.itemId, 0]));
       const p = planBudget(list.flatMap((rec) => { const prod = rec.products[0]; const item = s.result!.kit.items.find((i) => i.id === rec.itemId); return prod && item ? [{ itemId: rec.itemId, name: rec.name, unitPrice: prod.price, quantity: rec.quantity, priority: item.priority }] : []; }), s.result.trip.budget);
       return { items: summarizeProducts(list, first), budget_plan: { budget: p.budget, buy_now: p.buy.map((b) => b.name), rent_or_borrow: p.later.map((b) => b.name), total: p.total, full_kit_total: p.fullKitTotal, remaining: p.remaining } };
@@ -151,15 +192,17 @@ export function OrbiCart({ today }: { today: string }) {
       const rec = s.recs?.find((r) => r.itemId === args.item_id);
       const index = rec?.products.findIndex((p) => p.id === args.product_id) ?? -1;
       if (!rec || index < 0) return { error: "That product is not in the current options." };
-      setChoice((c) => ({ ...c, [rec.itemId]: index })); setInCart((c) => ({ ...c, [rec.itemId]: true }));
+      await selectProduct(rec.itemId, index);
       return { ok: true, selected: rec.products[index].title, price: rec.products[index].price };
     }
     if (name === "mark_owned") {
       if (!s.result) return { error: "No trip yet." };
       const item = s.result.kit.items.find((i) => i.id === args.item_id);
       if (!item) return { error: "Unknown kit item." };
+      if (s.backendPlan && !s.backendPlan.items.find((row) => row.id === item.id)?.order) setBackendPlan(await api<ShoppingPlan>(`/api/plans/${encodeURIComponent(s.backendPlan.id)}/items/${encodeURIComponent(item.id)}`, "PATCH", { owned: true }));
+      if (generation.current !== requestAtStart) throw new DOMException("A newer trip replaced this ownership request.", "AbortError");
       const t = await planTrip({ ...s.result.trip, owned: [...s.result.trip.owned, item.name.toLowerCase()] });
-      await findProducts(t.kit);
+      await findProducts(t.kit, t);
       return summarizeTrip(t, null);
     }
     if (name === "set_map_layer") {
@@ -202,6 +245,7 @@ export function OrbiCart({ today }: { today: string }) {
 
   async function send(text: string) {
     const trimmed = text.trim();
+    if (busy) return;
     if (!trimmed) return;
     setInput("");
     if (voice.status === "on" && connection.current) { connection.current.ask(trimmed); return; }
@@ -213,8 +257,8 @@ export function OrbiCart({ today }: { today: string }) {
     try {
       const t = await planTrip({ destination, startDate: parsed.startDate ?? undefined, nights: parsed.nights ?? undefined, people: parsed.people ?? undefined, budget: parsed.budget ?? undefined, owned: parsed.owned.length ? parsed.owned : undefined });
       setLog((l) => [...l, { who: "system", text: `Kit ready for ${placeName(t.place)}: ${t.kit.items.length} items from NASA evidence. Finding products…` }]);
-      await findProducts(t.kit);
-    } catch (err) { setError(err instanceof Error ? err.message : "Something went wrong."); }
+      await findProducts(t.kit, t);
+    } catch (err) { if (!(err instanceof DOMException && err.name === "AbortError")) setError(err instanceof Error ? err.message : "Something went wrong."); }
   }
 
   const transcript = useRef<HTMLDivElement | null>(null);
@@ -223,11 +267,11 @@ export function OrbiCart({ today }: { today: string }) {
   const pastDays = Array.from({ length: 7 }, (_, i) => addDays(today, i - 8));
   const tripDays = result ? new Set(Array.from({ length: result.trip.nights + 1 }, (_, i) => addDays(result.trip.startDate, i))) : new Set<string>();
 
-  return <div className="oc" data-ready={!!result}>
+  return <div className="oc" id="main-content" data-ready={!!result}>
     <header className="oc-top">
       <div className="brand"><span className="oc-mark" aria-hidden="true" />OrbiCart</div>
       <div className="sat mono"><span className="sat-dot" aria-hidden="true" />NASA POWER · GPM IMERG · SRTM · FIRMS · Grok Voice</div>
-      <a className="oc-firemap" href="/fires">Fire map</a>
+      <AppLinks />
     </header>
 
     <section className="oc-stage" aria-label="Map">
@@ -279,7 +323,7 @@ export function OrbiCart({ today }: { today: string }) {
         <form className="oc-ask" onSubmit={(e) => { e.preventDefault(); void send(input); }}>
           <label className="sr-only" htmlFor="oc-input">Message Grok</label>
           <input id="oc-input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={result ? "What if I go to Moab instead?" : "I'm camping near Seattle this weekend with $200, I own boots"} />
-          <button type="submit" className="btn primary" disabled={!input.trim()}>Send</button>
+          <button type="submit" className="btn primary" disabled={!input.trim() || Boolean(busy)}>Send</button>
         </form>
         {error ? <p className="oc-error" role="alert">{error}</p> : null}
       </div>
@@ -303,37 +347,40 @@ export function OrbiCart({ today }: { today: string }) {
     {result && recs ? <section className="oc-shelf" aria-label="Recommended products">
       <div className="oc-shelf-head">
         <h2>Your kit for {placeName(result.place)}</h2>
-        {plan.budget !== null ? <div className="oc-meter" aria-label={`${money(plan.total)} of ${money(plan.budget)} budget`}>
-          <span className="mono">{money(plan.total)} <i>of {money(plan.budget)}</i></span>
-          <div className="oc-meter-bar"><span style={{ width: `${Math.min(100, (plan.total / plan.budget) * 100)}%` }} /></div>
+        {plan.budget !== null ? <div className="oc-meter" aria-label={`${money(budget.spent ?? 0)} spent, ${money(plan.total)} selected, ${money(plan.budget)} available from ${money(budget.original ?? 0)} budget`}>
+          <span className="mono">{budget.known ? <>{money(budget.spent ?? 0)} spent · {money(plan.total)} selected <i>of {money(budget.original ?? 0)} total</i> · {money(plan.budget)} available</> : "Budget evidence unavailable"}</span>
+          <div className="oc-meter-bar"><span style={{ width: `${budget.original ? Math.min(100, ((plan.total + (budget.spent ?? 0)) / budget.original) * 100) : 0}%` }} /></div>
           {plan.later.length ? <span className="oc-later">Rent or borrow: {plan.later.map((p) => p.name).join(", ")} ({money(Math.round((plan.fullKitTotal - plan.total) * 100) / 100)} more to buy)</span> : <span className="oc-later">Whole kit fits</span>}
         </div> : <span className="mono subtle">Kit total {money(plan.fullKitTotal)}</span>}
       </div>
-      <ul className="oc-rail">
+      <ul className="oc-rail" ref={rail} data-gesture-step data-gesture-scroll="kit-rail" data-gesture-id="kit-rail">
         {[...recs].sort((a, b) => cardRank(a) - cardRank(b)).map((rec) => {
           const item = result.kit.items.find((i) => i.id === rec.itemId);
           const index = choice[rec.itemId] ?? 0;
           const product = rec.products[index];
           const later = plan.later.some((p) => p.itemId === rec.itemId);
-          return <li key={rec.itemId} className="oc-card" data-in={inCart[rec.itemId] !== false && !!product} data-later={later} data-priority={item?.priority}>
+          const saved = backendPlan?.items.find((row) => row.id === rec.itemId);
+          return <li key={rec.itemId} className="oc-card" data-gesture-object={`kit:${rec.itemId}`} data-gesture-group={`kit:${rec.itemId}`} data-gesture-kind="original" data-in={inCart[rec.itemId] !== false && !!product} data-later={later} data-priority={item?.priority}>
             <div className="oc-card-top"><span className="oc-card-item">{rec.name}{rec.quantity > 1 ? ` ×${rec.quantity}` : ""}</span>{item?.priority === "conditions" ? <span className="oc-nasa" title={item.reason}>NASA</span> : null}</div>
             {product ? <>
-              <a className="oc-img" href={product.url} target="_blank" rel="noreferrer">{product.image ? <img src={`${product.image}${product.image.includes("?") ? "&" : "?"}width=320`} alt="" loading="lazy" /> : null}</a>
-              <a className="oc-title" href={product.url} target="_blank" rel="noreferrer">{product.title}</a>
+              <button type="button" className="oc-img" aria-label={`Inspect ${rec.name} offers`} onClick={() => setInspect(rec.itemId)}>{product.image ? <img src={`${product.image}${product.image.includes("?") ? "&" : "?"}width=320`} alt="" loading="lazy" /> : null}</button>
+              <button type="button" className="oc-title" onClick={() => setInspect(rec.itemId)}>{product.title}</button>
               <p className="oc-store">{product.store}</p>
               <p className="oc-price mono">{money(product.price)}{product.compareAt ? <s>{money(product.compareAt)}</s> : null}</p>
               <p className="oc-why">{item?.reason}</p>
               <div className="oc-card-actions">
-                <button type="button" aria-label="Previous option" disabled={index === 0} onClick={() => setChoice((c) => ({ ...c, [rec.itemId]: index - 1 }))}>‹</button>
+                <button type="button" aria-label="Previous option" disabled={index === 0 || saved?.purchased || saved?.owned} onClick={() => { void selectProduct(rec.itemId, index - 1).catch((err) => setError(err.message)); }}>‹</button>
                 <span className="mono">{index + 1}/{rec.products.length}</span>
-                <button type="button" aria-label="Next option" disabled={index >= rec.products.length - 1} onClick={() => setChoice((c) => ({ ...c, [rec.itemId]: index + 1 }))}>›</button>
-                <button type="button" className="oc-cart" aria-pressed={inCart[rec.itemId] !== false} onClick={() => setInCart((c) => ({ ...c, [rec.itemId]: c[rec.itemId] === false }))}>{inCart[rec.itemId] !== false ? (later ? "Rent or borrow" : "In budget") : "Add"}</button>
+                <button type="button" aria-label="Next option" disabled={index >= rec.products.length - 1 || saved?.purchased || saved?.owned} onClick={() => { void selectProduct(rec.itemId, index + 1).catch((err) => setError(err.message)); }}>›</button>
+                <button type="button" className="oc-cart" disabled={saved?.purchased || saved?.owned} aria-pressed={inCart[rec.itemId] !== false} onClick={() => setInCart((c) => ({ ...c, [rec.itemId]: c[rec.itemId] === false }))}>{saved?.purchased ? "Purchased" : saved?.owned ? "Owned" : inCart[rec.itemId] !== false ? (later ? "Rent or borrow" : "In budget") : "Add"}</button>
               </div>
             </> : <p className="oc-none">{rec.message}</p>}
           </li>;
         })}
       </ul>
-      <p className="oc-shelf-note">Real listings from the brands' own stores. Trust Receipt and checkout come next.</p>
+      <p className="oc-shelf-note">Listings retrieved from connected outdoor stores. Stock and prices are checked when retrieved. Merchant trust and delivered totals may be unknown.</p>
     </section> : null}
+    <div className="esper-trip-checkout"><CheckoutControls plan={backendPlan} itemIds={plan.buy.map((item) => item.itemId)} onPlan={setBackendPlan} /><button type="button" className="btn" onClick={() => setShowEvidence((value) => !value)} aria-expanded={showEvidence}>Review and website evidence</button>{showEvidence ? <EvidenceTools /> : null}</div>
+    {inspect && backendPlan?.items.find((item) => item.id === inspect) ? <OfferDialog plan={backendPlan} item={backendPlan.items.find((item) => item.id === inspect)!} onClose={() => setInspect(null)} onSelect={async (listing: Listing) => { const rec = state.current.recs?.find((row) => row.itemId === inspect); const index = rec?.products.findIndex((row) => row.id === listing.id) ?? -1; if (index >= 0) await selectProduct(inspect, index); }} onOwn={async () => { const token = generation.current; const current = state.current; if (!current.backendPlan || !current.result) return; const item = current.backendPlan.items.find((row) => row.id === inspect)!; const updated = await api<ShoppingPlan>(`/api/plans/${encodeURIComponent(current.backendPlan.id)}/items/${encodeURIComponent(item.id)}`, "PATCH", { owned: !item.owned }); if (generation.current !== token || state.current.backendPlan?.id !== current.backendPlan.id) throw new DOMException("A newer trip replaced this ownership request.", "AbortError"); setBackendPlan(updated); setInCart((value) => ({ ...value, [item.id]: false })); setResult((value) => { if (!value) return value; const next = { ...value, trip: { ...value.trip, owned: item.owned ? value.trip.owned.filter((name) => name !== item.name.toLowerCase()) : [...new Set([...value.trip.owned, item.name.toLowerCase()])] } }; tripGenerations.current.set(next, generation.current); return next; }); setInspect(null); }} /> : null}
   </div>;
 }

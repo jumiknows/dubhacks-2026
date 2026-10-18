@@ -23,7 +23,7 @@ for (let run = 1; run <= 3; run += 1) {
 test("WebGL failure retains keyboard list, selection and briefing", async ({ page }) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (kind: string, ...args: unknown[]) {
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...args: unknown[]) {
       if (kind.includes("webgl")) return null;
       return original.apply(this, [kind, ...args] as Parameters<typeof original>);
     } as typeof original;
