@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 const offers = [
   { id: "shop.example:tent-a", title: "Trail tent", store: "Example Outdoors", price: 80, currency: "USD", available: true, inStock: true, source: "shopify_storefront", why: [], compareAt: null, image: null, url: "https://shop.example/products/tent-a" },
@@ -26,12 +27,18 @@ test("SpaceX trip and budget flow uses server-owned DubHacks selection and check
   await expect(page.getByRole("navigation", { name: "Applications" })).toBeVisible();
   await page.getByLabel("Message Grok").fill("I'm camping in Seattle this weekend with $200"); await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your kit for Seattle, WA" })).toBeVisible();
-  await page.getByRole("button", { name: "Inspect Tent offers" }).click();
-  const dialog = page.getByRole("dialog", { name: "Tent", exact: true });
-  await dialog.getByLabel("Compare", { exact: true }).nth(0).check(); await dialog.getByLabel("Compare", { exact: true }).nth(1).check();
-  await expect(dialog.getByLabel("Offer comparison")).toContainText("Camp tent");
-  await dialog.getByRole("button", { name: "Choose this offer", exact: true }).nth(1).click(); expect(chosen).toBe(offers[1].id);
-  await dialog.getByRole("button", { name: "Close Tent", exact: true }).click();
+  const board = page.getByRole("region", { name: "Gesture shopping board" });
+  await expect(page.getByRole("region", { name: "Map", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Grok shopping assistant" })).toBeVisible();
+  await board.getByRole("button", { name: "Open Kit for Seattle, WA", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Tent product options", exact: true });
+  await dialog.getByRole("button", { name: "Compare best two", exact: true }).click();
+  const comparison = board.getByRole("region", { name: "Offer comparison" });
+  await expect(comparison).toContainText("Camp tent");
+  await comparison.getByRole("button", { name: "Choose Camp tent", exact: true }).click();
+  await expect.poll(() => chosen).toBe(offers[1].id);
+  await comparison.getByRole("button", { name: "Close comparison", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Review checkout · $60.00" }).click(); await page.getByRole("button", { name: "Place mock order" }).click();
   await expect(page.getByLabel("Order receipt")).toContainText("MOCK-TRIP");
   expect(errors).toEqual([]);
@@ -64,26 +71,48 @@ test("Next hosts the existing gesture lab and synthetic expand collapse compare 
   await expect(page.locator(".lab-error")).toHaveCount(0);
 });
 
-test("Next gesture camera initializes its worker and releases synthetic media on stop", async ({ page }) => {
+test("Next gesture camera initializes its worker and releases synthetic media on stop", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
+  const consoleMessages: { type: string; text: string }[] = [];
+  const requests: { url: string; error?: string; status?: number }[] = [];
+  page.on("console", (message) => { if (["warning", "error"].includes(message.type())) consoleMessages.push({ type: message.type(), text: message.text().slice(0, 2000) }); });
+  page.on("requestfailed", (request) => requests.push({ url: request.url(), error: request.failure()?.errorText }));
+  page.on("response", (response) => { if (response.status() >= 400) requests.push({ url: response.url(), status: response.status() }); });
   await page.addInitScript(() => {
-    const state = window as unknown as { gestureWorkerMessages: string[]; gestureWorkerTerminations: number };
-    state.gestureWorkerMessages = []; state.gestureWorkerTerminations = 0;
+    const state = window as unknown as { gestureWorkerMessages: string[]; gestureWorkerTerminations: number; gestureWorkerEvents: Record<string, unknown>[] };
+    state.gestureWorkerMessages = []; state.gestureWorkerTerminations = 0; state.gestureWorkerEvents = [];
     const OriginalWorker = window.Worker;
     window.Worker = class extends OriginalWorker {
       constructor(url: string | URL, options?: WorkerOptions) {
         super(url, options);
-        this.addEventListener("message", (event: MessageEvent) => { if (typeof event.data?.type === "string") state.gestureWorkerMessages.push(event.data.type); });
+        state.gestureWorkerEvents.push({ event: "created", at: performance.now(), url: String(url) });
+        this.addEventListener("message", (event: MessageEvent) => {
+          const data = event.data;
+          if (typeof data?.type === "string") state.gestureWorkerMessages.push(data.type);
+          if (state.gestureWorkerEvents.length < 30) state.gestureWorkerEvents.push({ event: "message", at: performance.now(), type: data?.type, delegate: data?.delegate, error: data?.error, inferenceMs: data?.inferenceMs });
+        });
+        this.addEventListener("error", (event: ErrorEvent) => state.gestureWorkerEvents.push({ event: "error", at: performance.now(), message: event.message, filename: event.filename, line: event.lineno }));
+        this.addEventListener("messageerror", () => state.gestureWorkerEvents.push({ event: "messageerror", at: performance.now() }));
       }
-      terminate() { state.gestureWorkerTerminations += 1; super.terminate(); }
+      terminate() { state.gestureWorkerTerminations += 1; state.gestureWorkerEvents.push({ event: "terminated", at: performance.now() }); super.terminate(); }
     };
   });
-  await page.goto("/gesture-lab"); await page.getByRole("button", { name: "Start camera", exact: true }).click();
-  await expect(page.locator(".lab-local")).toContainText("LIVE", { timeout: 60_000 });
-  await expect.poll(() => page.evaluate(() => (window as unknown as { gestureWorkerMessages: string[] }).gestureWorkerMessages)).toContain("ready");
-  await expect.poll(() => page.evaluate(() => (window as unknown as { gestureWorkerMessages: string[] }).gestureWorkerMessages)).toContain("result");
-  await page.getByRole("button", { name: "Stop", exact: true }).click(); await expect(page.locator(".lab-local")).toContainText("Camera off");
-  expect(await page.evaluate(() => (window as unknown as { gestureWorkerTerminations: number }).gestureWorkerTerminations)).toBeGreaterThan(0);
+  try {
+    await page.goto("/gesture-lab"); await page.getByRole("button", { name: "Start camera", exact: true }).click();
+    await expect(page.locator(".lab-local")).toContainText("LIVE", { timeout: 60_000 });
+    await expect.poll(() => page.evaluate(() => (window as unknown as { gestureWorkerMessages: string[] }).gestureWorkerMessages)).toContain("ready");
+    await expect.poll(() => page.evaluate(() => (window as unknown as { gestureWorkerMessages: string[] }).gestureWorkerMessages)).toContain("result");
+    await page.getByRole("button", { name: "Stop", exact: true }).click(); await expect(page.locator(".lab-local")).toContainText("Camera off");
+    expect(await page.evaluate(() => (window as unknown as { gestureWorkerTerminations: number }).gestureWorkerTerminations)).toBeGreaterThan(0);
+  } finally {
+    const worker = await page.evaluate(() => {
+      const state = window as unknown as { gestureWorkerEvents: Record<string, unknown>[]; gestureWorkerTerminations: number };
+      return { events: state.gestureWorkerEvents, terminations: state.gestureWorkerTerminations, status: document.querySelector(".lab-local")?.textContent };
+    }).catch(() => null);
+    const diagnosticsPath = testInfo.outputPath("camera-diagnostics.json");
+    await writeFile(diagnosticsPath, JSON.stringify({ worker, console: consoleMessages, requests }, null, 2));
+    await testInfo.attach("camera-diagnostics", { path: diagnosticsPath, contentType: "application/json" });
+  }
 });
 
 test("settled purchases reduce the trip budget shown for remaining kit items", async ({ page }) => {
@@ -97,7 +126,7 @@ test("settled purchases reduce the trip budget shown for remaining kit items", a
   await page.route("**/api/plans/trip-plan", (route) => route.fulfill({ json: paidPlan }));
   await page.goto("/");
   await expect(page.locator(".oc-meter")).toContainText("$80 spent"); await expect(page.locator(".oc-meter")).toContainText("$20 available");
-  await expect(page.getByRole("button", { name: "Rent or borrow", exact: true })).toBeVisible();
+  await expect(page.getByText("Rent or borrow: Sleeping bag", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose priced items for checkout", exact: true })).toBeDisabled();
   await expect(page.getByText("Whole kit fits", { exact: true })).toHaveCount(0);
 });

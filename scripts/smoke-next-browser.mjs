@@ -167,13 +167,40 @@ export async function smokeBrowser(base, cookie) {
     await expect(page.locator(".briefing")).toContainText("replay mode");
     await page.goto(`${origin}/gesture-lab`);
     await expect(page.getByRole("heading", { name: "Objects with more beneath.", exact: true })).toBeVisible();
-    await page.goto(`${origin}/shop`);
-    await expect(page.getByRole("heading", { name: "OrbiCart shopping workspace", exact: true })).toBeVisible();
+    // Restore the plan just purchased through the real backend onto the main
+    // board. The trip envelope is synthetic and contains no weather claims.
+    await page.evaluate(saved => sessionStorage.setItem("orbicart.trip", JSON.stringify(saved)), {
+      result: {
+        trip: { destination: "Seattle", startDate: "2026-10-24", nights: 1, people: 1, budget: null, owned: [], fireWarnings: true },
+        place: { name: "Seattle", region: "WA", country: "US", latitude: 47.6, longitude: -122.3 },
+        forecastDays: [], evidence: {}, unavailable: [{ source: "Weather", reason: "Synthetic smoke trip" }],
+        kit: { items: purchased.items.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, spec: "", priority: "essential", reason: "Smoke-test shopping plan", evidence: [] })), skipped: [], warnings: [] },
+      },
+      backendPlan: purchased, choice: {}, inCart: {},
+      recs: purchased.items.map(item => ({ itemId: item.id, name: item.name, quantity: item.quantity, status: "ok", products: item.products.map(product => ({ ...product, available: product.inStock, why: [] })) })),
+    });
+    await page.goto(origin);
+    const board = page.getByRole("region", { name: "Gesture shopping board", exact: true });
+    const grok = page.getByRole("complementary", { name: "Grok shopping assistant", exact: true });
+    await expect(board).toBeVisible(); await expect(grok).toBeVisible();
+    await expect(page.locator(".maplibregl-map")).toHaveCount(0);
+    const boardBox = await board.boundingBox(); const grokBox = await grok.boundingBox();
+    assert(boardBox && grokBox && boardBox.x + boardBox.width <= grokBox.x + 2, "Grok must stay beside the shopping board on desktop");
+    await board.locator(`[data-group-id="${plan.id}"]`).click();
+    await board.locator(`[data-gesture-object="item:${tent.id}"]`).click();
+    await expect(board.getByRole("dialog", { name: `${tent.name} product options`, exact: true })).toBeVisible();
+    await expect(grok).toContainText(`Shared with Grok: ${tent.name}`);
     await mkdir(new URL("../test-results/", import.meta.url), { recursive: true });
     await page.screenshot({ path: fileURLToPath(new URL("../test-results/integrated-next.png", import.meta.url)), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "The main shopping board must fit a phone viewport");
+    const mobileOptions = await board.getByRole("dialog", { name: `${tent.name} product options`, exact: true }).boundingBox();
+    assert(mobileOptions && mobileOptions.x >= 0 && mobileOptions.x + mobileOptions.width <= 391, "Offer inspection must stay within the mobile board");
+    await expect(grok).toBeVisible();
+    await page.screenshot({ path: fileURLToPath(new URL("../test-results/integrated-next-mobile.png", import.meta.url)), fullPage: true });
     assert.deepEqual(apiFailures, [], "Required local API requests failed in the built application");
     assert.deepEqual(errors, [], "The built Next application emitted uncaught browser errors");
-    console.log("PASS: evidence analysis, unknown-site hold, preserved wildfire replay and gesture lab on the shared application origin");
+    console.log("PASS: evidence analysis, unknown-site hold, preserved wildfire replay and gesture lab, plus the main shopping board beside Grok");
     return { planId: plan.id, selectedListingId: listingId, purchasedItems: purchased.items.length, assistantProducts: results.product_ids.length, signedCartHash: staged.cart.cart_hash, blockedExternalOrigins: blockedOrigins.size };
   } finally {
     await browser.close();

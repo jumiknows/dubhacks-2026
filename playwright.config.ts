@@ -23,6 +23,7 @@ export default defineConfig({
       PYTHON_API_URL: "http://127.0.0.1:8080",
       CLIENT_URL: "http://127.0.0.1:3081",
       APP_ORIGIN: "http://127.0.0.1:3081",
+      PLANBOARD_URL: "http://127.0.0.1:3081",
       STORES_LIVE: "false",
       MOCK_ORDER_SANDBOX: "off",
       STRIPE_SECRET_KEY: "",

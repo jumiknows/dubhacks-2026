@@ -106,6 +106,35 @@ test("readyBy requires arrival evidence for every item rather than a latest know
   assert.equal(quotePlan([entry("2026-10-21"), entry(null)]).readyBy, null);
 });
 
+test("trip prompts plan a travel kit named after the destination", () => {
+  for (const [prompt, title] of [
+    ["I'm going to Tokyo for a week", "Trip to Tokyo"],
+    ["Beach weekend in Cancún", "Trip to Cancún"],
+    ["Business trip to New York", "Trip to New York"],
+    ["planning a vacation", "Travel kit"],
+  ]) {
+    const plan = generatePlan({ prompt });
+    assert.equal(plan.category, "travel", prompt);
+    assert.equal(plan.title, title, prompt);
+  }
+  const names = generatePlan({ prompt: "trip to Lisbon" }).items.map((item) => item.name);
+  assert.ok(names.includes("Carry-on suitcase") && names.includes("Universal travel adapter"));
+  // "week" alone is still groceries; camping trips stay camping.
+  assert.equal(generatePlan({ prompt: "groceries for the week" }).category, "groceries");
+  assert.equal(generatePlan({ prompt: "camping trip in Yosemite" }).category, "camping");
+  assert.equal(validatePlanRequest({ prompt: "x", category: "travel" }), null);
+});
+
+test("every travel item has offline listings from two stores to compare", async () => {
+  const draft = generatePlan({ prompt: "I'm flying to Paris" });
+  const offers = await attachOffers(draft.items);
+  for (const item of offers) {
+    const stores = new Set(item.products.map((p) => p.store));
+    assert.ok(stores.size >= 2, `${item.name}: ${[...stores].join(", ")}`);
+    assert.equal(typeof item.synthesis.totalPrice, "number", item.name);
+  }
+});
+
 test("planner validates request shape and length without coercing user input", () => {
   for (const request of [null, [], {}, { prompt: false }, { prompt: " " }, { prompt: "x".repeat(2001) }, { prompt: "x", category: {} }, { prompt: "x", category: "unknown" }, { prompt: "x", purchased: true }]) {
     assert.equal(typeof validatePlanRequest(request), "string");

@@ -1,14 +1,14 @@
 import { useState } from 'react';
 
-const KEY = 'conjure.gesture.hintsSeen.shop-board-v1';
+const KEY = 'conjure.gesture.hintsSeen.shop-board-v2';
 const HINTS = [
-  { title: 'Point', text: 'Point with your index finger. That is the cursor.' },
-  { title: 'Scroll the list', text: 'One finger: pan up or down through every query you have sent. Pinch and swipe up or down does the same.' },
-  { title: 'Split a group', text: 'Grab the same item group with both hands and pull them apart. Its pieces line up so you can pan them left and right.' },
-  { title: 'Inspect a piece', text: 'Grab one piece with one fist and hold. It lifts to the middle with products you can buy.' },
-  { title: 'Add to cart', text: 'Grab a product and hold for two seconds. It turns yellow (in the cart). Swipe up, or bring both fists together, to cancel.' },
-  { title: 'Recombine', text: 'Swipe up or down to close the split and keep moving through the list. Bring both fists together to close the split without moving.' },
-  { title: 'Status', text: 'Each item is labeled owned, purchased, in cart, or to buy. The cart always uses the offer you chose.' },
+  { title: 'Point', text: 'Point with your index finger. That is the cursor. The mouse works everywhere too.' },
+  { title: 'Split a group', text: 'Grab one group with both fists and pull apart, or click it. Its pieces line up left to right.' },
+  { title: 'Inspect a piece', text: 'Grab a piece with one fist and hold, or click it. Its store listings fill the screen.' },
+  { title: 'Compare', text: 'Pinch two listings, one in each hand, and bring them together. Or press Compare on two of them.' },
+  { title: 'Add to cart', text: 'Hold a listing for 1 second with a fist or the mouse, or drag it onto the cart. It turns yellow.' },
+  { title: 'Ask the assistant', text: 'Type or talk in the shopping panel: “compare the suitcases”, “use the winner”, “check out”.' },
+  { title: 'Status', text: 'Items are labeled owned, purchased, in cart, or to buy. Checkout always uses the saved offer you chose.' },
 ];
 
 

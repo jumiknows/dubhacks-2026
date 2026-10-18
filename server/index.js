@@ -10,7 +10,7 @@ import { attachVoiceGateway } from "./voiceGateway.js";
 import { attachFrontendGateway, createFrontendGateway, isBackendPath } from "./frontendGateway.js";
 import { compareItems } from "./services/compareBot.js";
 import { topItems } from "./services/topItemsBot.js";
-import { assertItemUnlocked, cancelCheckout, CheckoutError, confirmCheckout, createCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
+import { assertItemUnlocked, cancelCheckout, CheckoutError, confirmCheckout, createCartCheckout, handleWebhook, stripeMode } from "./services/checkout.js";
 import { storesRouter } from "./routes/stores.js";
 import { accountRouter } from "./routes/account.js";
 import { budgetMax, currentSession, ensureSession, profileFor } from "./services/accounts.js";
@@ -22,7 +22,18 @@ export function createApp(gatewayOptions, { selectListing = pickListing, fronten
   app.use(cors());
   const frontend = createFrontendGateway(frontendOptions);
   app.use((req, res, next) => isBackendPath(req.path) ? next() : frontend(req, res));
-  app.use("/api/conjure", createPythonGateway(gatewayOptions));
+  app.use("/api/conjure", (req, res, next) => {
+    if (req.path === "/planner/chat") {
+      ensureSession(req, res);
+      const cookies = res.getHeader("set-cookie");
+      const issued = (Array.isArray(cookies) ? cookies : cookies ? [cookies] : []).find((cookie) => cookie.startsWith("pb_sid="));
+      if (issued) req.headers.cookie = issued.split(";")[0];
+    }
+    next();
+  }, createPythonGateway(gatewayOptions));
+  app.get(/^\/static\/products\/([A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg))$/i, (req, res) => {
+    res.redirect(307, `/api/conjure/static/products/${encodeURIComponent(req.params[0])}`);
+  });
   app.post("/api/stripe/webhook", express.raw({ type: "application/json", limit: "1mb" }), (req, res) => {
     try { res.json(handleWebhook(req.body, req.headers["stripe-signature"])); }
     catch (err) { sendError(res, err, "Could not handle webhook"); }
@@ -181,7 +192,8 @@ export function createApp(gatewayOptions, { selectListing = pickListing, fronten
 
   app.post("/api/checkout", async (req, res) => {
     try {
-      res.status(201).json(await createCheckout(req.body?.planId, req.body?.itemIds));
+      const cart = req.body?.cart === undefined ? [{ planId: req.body?.planId, itemIds: req.body?.itemIds }] : req.body.cart;
+      res.status(201).json(await createCartCheckout(cart));
     } catch (err) {
       sendError(res, err, "Could not start checkout");
     }

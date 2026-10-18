@@ -172,7 +172,8 @@ Express proxies those as `POST /api/compare` and `POST /api/top`.
 `/ws-live` relays browser PCM audio to Gemini Live. Set `GEMINI_API_KEY` in the ignored
 `api/.env`, or use the existing Gemini `LLM_API_KEY`. `GEMINI_LIVE_MODEL` is configurable;
 the relay can discover an available Live model if a preview identifier retires.
-The browser marks speech activity, supports interruption, and receives optional captions.
+The relay supports automatic speech detection and explicit manual activity from the legacy
+client (`session.audio_mode: "manual"`), plus optional input and output captions.
 `GEMINI_LIVE_MAX_SESSION_S` caps a connection (default 600 seconds).
 
 Voice tools use the same Express plans, comparisons, and onboarding session as the
@@ -182,3 +183,24 @@ loads `/api/plans/:id` until `status: "ready"`. `UI_UPDATE` events include `PLAN
 load the complete plan before replacing the UI's product listings. Comparisons and
 shortlists refresh server state after background pricing. Voice never processes payments.
 
+
+## Shared typed and voice planner
+
+`POST /api/conjure/planner/chat` on Express forwards to Python `/planner/chat`. Send
+`{text, plan_id?, trust_floor?, focus_item_id?, compare?, history?}`. The response
+contains `reply`, `source` (`rules` or `llm`), and `events`. Both typed and voice
+assistants can create, inspect, compare, select offers, stage a cart, and open the
+checkout review sheet. Payment always requires the user's on-screen confirmation.
+The typed assistant renders product statements from tool results and falls back
+to deterministic rules when the provider fails.
+
+Additional `UI_UPDATE` actions are `FOCUS`, `CART`, and `CHECKOUT`. `PLAN` events
+remain compact: hydrate the full plan through Express before replacing listings.
+The gateway forwards only the app's `pb_sid` session so assistant-created plans
+share browser preferences and history. Unknown price, stock, currency and demo
+provenance remain visible in tool results.
+
+The Live relay also accepts `{type: "text", text}` and `{type: "audio_end"}`.
+Send the initial `{type: "session", plan_id, trust_floor, focus_item_id}` as soon
+as the browser socket opens. Raw provider setup and tool response frames are
+rejected. The legacy manual client sends `audio_mode: "manual"` in that session.

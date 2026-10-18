@@ -2,7 +2,7 @@
  * OWNER: Fetch bot
  * STATUS: Live. Searches two sources in parallel and merges what they return:
  *   - Python marketplace service: POST {PYTHON_API_URL}/market/search
- *       { query, marketplaces, limit: 50, details: false }
+ *       { query, marketplaces, limit: 8, details: true }
  *   - every configured store API (services/stores/), including the sample
  *     stores DummyJSON and Fake Store that mock checkout can place orders with
  * Falls back to the mock catalog below when neither returns a match.
@@ -43,8 +43,8 @@ async function searchPython(query, options) {
     const body = await marketPost("/market/search", {
       query,
       marketplaces: options.marketplaces || MARKETS,
-      limit: options.limit ?? 50,
-      details: options.details === true,
+      limit: options.limit ?? 8,
+      details: options.details !== false,
       min_price: options.minPrice ?? options.min_price,
       max_price: options.maxPrice ?? options.max_price,
       brands_include: options.brandsInclude || options.brands_include || [],
@@ -71,7 +71,7 @@ export function toRaw(product) {
     title: product.title,
     price: product.price,
     currency: product.currency ?? null,
-    image: product.image,
+    image: resolveImage(product.image),
     url: product.url,
     dimensions: product.dimensions,
     shippingDays,
@@ -114,6 +114,12 @@ export function toRaw(product) {
     description: product.description ?? null,
     gtin: product.gtin ?? null,
   };
+}
+
+function resolveImage(image) {
+  if (typeof image !== "string" || !image) return null;
+  if (/^\/static\/products\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg)$/i.test(image)) return `/api/conjure${image}`;
+  return image;
 }
 
 export function toValued(product) {
@@ -227,4 +233,21 @@ const CATALOG = [
   listing({ keyword: "first aid", store: "Target", title: "Adventure Medical Kit", price: 15, dimensions: "8 × 5 in", shippingDays: 5, url: "https://www.target.com/s?searchTerm=first+aid", brand: "Adventure Medical" }),
   listing({ keyword: "cooler", store: "Walmart", title: "Igloo Island Breeze", price: 30, dimensions: "16 can", shippingDays: 4, url: "https://www.walmart.com/search?q=cooler", brand: "Igloo" }),
   listing({ keyword: "laptop", store: "Best Buy", title: "14-inch Laptop", price: 699, dimensions: "12.4 × 8.9 in", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=laptop", brand: "Lenovo" }),
+  // Travel: two stores per item so a comparison is always possible offline.
+  listing({ keyword: "suitcase", store: "Amazon", title: "Samsonite Freeform 21\" Carry-On Spinner", price: 149, dimensions: "21 × 15 × 10 in", shippingDays: 2, url: "https://www.amazon.com/s?k=carry-on+suitcase", brand: "Samsonite" }),
+  listing({ keyword: "suitcase", store: "Target", title: "Open Story 20\" Hardside Carry-On", price: 89, dimensions: "20 × 14 × 9 in", shippingDays: 5, url: "https://www.target.com/s?searchTerm=carry-on+suitcase", brand: "Open Story" }),
+  listing({ keyword: "packing cube", store: "Amazon", title: "BAGSMART Packing Cubes, 6 Set", price: 24, dimensions: "6 pieces", shippingDays: 2, url: "https://www.amazon.com/s?k=packing+cubes", brand: "BAGSMART" }),
+  listing({ keyword: "packing cube", store: "REI", title: "Eagle Creek Pack-It Starter Set", price: 45, dimensions: "3 pieces", shippingDays: 4, url: "https://www.rei.com/search?q=packing+cubes", brand: "Eagle Creek" }),
+  listing({ keyword: "travel adapter", store: "Amazon", title: "EPICKA Universal Travel Adapter", price: 22, dimensions: "3 × 2 in", shippingDays: 2, url: "https://www.amazon.com/s?k=universal+travel+adapter", brand: "EPICKA" }),
+  listing({ keyword: "travel adapter", store: "Best Buy", title: "Insignia Worldwide Travel Adapter", price: 30, dimensions: "3 × 2 in", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=travel+adapter", brand: "Insignia" }),
+  listing({ keyword: "portable charger", store: "Best Buy", title: "Anker PowerCore 20,000 mAh", price: 50, dimensions: "6 × 2.9 in", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=portable+charger", brand: "Anker" }),
+  listing({ keyword: "portable charger", store: "Walmart", title: "onn. 10,000 mAh Power Bank", price: 15, dimensions: "5.6 × 2.8 in", shippingDays: 4, url: "https://www.walmart.com/search?q=portable+charger", brand: "onn." }),
+  listing({ keyword: "headphones", store: "Amazon", title: "Soundcore Space Q45 Noise Cancelling", price: 99, dimensions: "Over-ear", shippingDays: 2, url: "https://www.amazon.com/s?k=noise+cancelling+headphones", brand: "Soundcore" }),
+  listing({ keyword: "headphones", store: "Best Buy", title: "Bose QuietComfort Headphones", price: 299, dimensions: "Over-ear", shippingDays: 3, url: "https://www.bestbuy.com/site/searchpage.jsp?st=noise+cancelling+headphones", brand: "Bose" }),
+  listing({ keyword: "neck pillow", store: "Amazon", title: "Cabeau Evolution S3 Travel Pillow", price: 40, dimensions: "Memory foam", shippingDays: 2, url: "https://www.amazon.com/s?k=travel+neck+pillow", brand: "Cabeau" }),
+  listing({ keyword: "neck pillow", store: "Target", title: "Open Story Memory Foam Neck Pillow", price: 15, dimensions: "Memory foam", shippingDays: 5, url: "https://www.target.com/s?searchTerm=neck+pillow", brand: "Open Story" }),
+  listing({ keyword: "toiletry", store: "Amazon", title: "BAGSMART Hanging Toiletry Bag", price: 20, dimensions: "10 × 7 in", shippingDays: 2, url: "https://www.amazon.com/s?k=toiletry+bag", brand: "BAGSMART" }),
+  listing({ keyword: "toiletry", store: "Target", title: "Open Story Clear Toiletry Bag", price: 12, dimensions: "TSA quart size", shippingDays: 5, url: "https://www.target.com/s?searchTerm=toiletry+bag", brand: "Open Story" }),
+  listing({ keyword: "passport", store: "Amazon", title: "Zoppen RFID Passport Wallet", price: 13, dimensions: "9 × 5 in", shippingDays: 2, url: "https://www.amazon.com/s?k=passport+wallet", brand: "Zoppen" }),
+  listing({ keyword: "passport", store: "REI", title: "Eagle Creek RFID Passport Wallet", price: 25, dimensions: "5.5 × 4 in", shippingDays: 4, url: "https://www.rei.com/search?q=passport+wallet", brand: "Eagle Creek" }),
 ];

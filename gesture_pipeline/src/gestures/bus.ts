@@ -1,6 +1,7 @@
 // Tiny typed event bus. Every input source (hand, mouse, keyboard, voice) emits GestureEvents here.
 
 import type { GestureEvent, GestureSource, GestureType } from './types';
+import { gestureAction, gestureIdForEvent } from './gestureMap';
 
 type Handler = (e: GestureEvent) => void;
 const handlers = new Map<GestureType | '*', Set<Handler>>();
@@ -41,6 +42,8 @@ export function makeEvent(
 ): GestureEvent {
   return {
     type,
+    gesture_id: rest.gesture_id ?? gestureIdForEvent(type, rest.delta_y),
+    action: rest.action ?? gestureAction({ type, delta_y: rest.delta_y }),
     source,
     hand_id: rest.hand_id,
     hand_ids: rest.hand_ids,

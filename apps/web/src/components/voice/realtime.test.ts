@@ -104,3 +104,102 @@ describe("streamed Voice playback", () => {
     connection.stop();
   });
 });
+
+describe("shared shopping context", () => {
+  it("orders batched shopping mutations before review and sends one follow-up response", async () => {
+    let finishSelection!: () => void;
+    const pending = new Promise<void>((resolve) => { finishSelection = resolve; });
+    const actions: string[] = [];
+    let saved = "old-offer";
+    const handler: ToolHandler = async (name) => {
+      actions.push(name);
+      if (name === "select_product") { await pending; saved = "new-offer"; }
+      return { selected: saved, review_open: name === "review_checkout" };
+    };
+    const { connection, socket } = await connect(true, handler);
+    for (const [call_id, name] of [["select", "select_product"], ["review", "review_checkout"]]) {
+      socket.onmessage?.({ data: JSON.stringify({ type: "response.function_call_arguments.done", call_id, name, arguments: "{}" }) });
+    }
+    socket.onmessage?.({ data: JSON.stringify({ type: "response.done" }) });
+    await vi.waitFor(() => expect(actions).toEqual(["select_product"]));
+    expect(socket.sent).toEqual([]);
+    finishSelection();
+    await vi.waitFor(() => expect(socket.sent.filter((event) => event.type === "response.create")).toHaveLength(1));
+    expect(actions).toEqual(["select_product", "review_checkout"]);
+    const outputs = socket.sent.filter((event) => event.type === "conversation.item.create").map((event) => event.item);
+    expect(outputs).toEqual([
+      { type: "function_call_output", call_id: "select", output: '{"selected":"new-offer","review_open":false}' },
+      { type: "function_call_output", call_id: "review", output: '{"selected":"new-offer","review_open":true}' },
+    ]);
+    connection.stop();
+  });
+
+  it("drops queued shopping mutations when the user stops the session", async () => {
+    let finishFirst!: () => void;
+    const pending = new Promise<void>((resolve) => { finishFirst = resolve; });
+    const handler = vi.fn(async () => { await pending; return { ok: true }; });
+    const { connection, socket } = await connect(true, handler);
+    for (const call_id of ["first", "second"]) socket.onmessage?.({ data: JSON.stringify({ type: "response.function_call_arguments.done", call_id, name: "select_product", arguments: "{}" }) });
+    socket.onmessage?.({ data: JSON.stringify({ type: "response.done" }) });
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
+    connection.stop(); finishFirst();
+    await vi.advanceTimersByTimeAsync(201);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(socket.sent).toEqual([]);
+  });
+
+  it("sends the latest board state on connection and coalesces gesture changes without a spoken turn", async () => {
+    const { connection, state, socket } = await connect(true);
+    connection.updateShoppingContext({ focus_item_id: "tent", cart: [] });
+    socket.onopen?.();
+    expect(JSON.stringify(socket.sent[0])).toContain('\\"focus_item_id\\":\\"tent\\"');
+    socket.onmessage?.({ data: JSON.stringify({ type: "session.updated" }) });
+    socket.sent.length = 0;
+    connection.updateShoppingContext({ focus_item_id: "tent", cart: ["tent"] });
+    connection.updateShoppingContext({ focus_item_id: "stove", cart: ["tent"] });
+    await vi.advanceTimersByTimeAsync(201);
+    expect(socket.sent).toHaveLength(1);
+    expect(socket.sent[0].type).toBe("session.update");
+    const instructions = (socket.sent[0].session as { instructions: string }).instructions;
+    expect(instructions).toContain('"focus_item_id":"stove"');
+    expect(instructions).not.toContain('"focus_item_id":"tent"');
+    expect(instructions).toContain('"cart":["tent"]');
+    socket.onmessage?.({ data: JSON.stringify({ type: "session.updated" }) });
+    expect(state).toHaveBeenCalledTimes(1);
+    connection.updateShoppingContext({ focus_item_id: "stove", cart: ["tent"] });
+    await vi.advanceTimersByTimeAsync(201);
+    expect(socket.sent).toHaveLength(1);
+    connection.stop();
+  });
+
+  it("flushes new gesture context before a typed question and drops queued updates on stop", async () => {
+    const { connection, socket } = await connect(true);
+    socket.onopen?.();
+    socket.onmessage?.({ data: JSON.stringify({ type: "session.updated" }) });
+    socket.sent.length = 0;
+    connection.updateShoppingContext({ comparison: { left_id: "offer-a", right_id: "offer-b" } });
+    connection.ask("Which of these offers fits my budget?");
+    expect(socket.sent.map((message) => message.type)).toEqual(["session.update", "conversation.item.create", "response.create"]);
+    expect(JSON.stringify(socket.sent[0])).toContain("offer-b");
+    connection.updateShoppingContext({ focus_item_id: "sleeping-bag" });
+    const sent = socket.sent.length;
+    connection.stop();
+    await vi.advanceTimersByTimeAsync(201);
+    expect(socket.sent).toHaveLength(sent);
+    expect(connection.updateShoppingContext({ focus_item_id: "stove" })).toBe(false);
+  });
+
+  it("rejects oversized snapshots and leaves wildfire session instructions alone", async () => {
+    const { connection, socket } = await connect();
+    expect(connection.updateShoppingContext({ text: "x".repeat(16001) })).toBe(false);
+    connection.updateShoppingContext({ focus_item_id: "tent" });
+    socket.onopen?.();
+    socket.onmessage?.({ data: JSON.stringify({ type: "session.updated" }) });
+    expect((socket.sent[0].session as { instructions: string }).instructions).toBe("Test");
+    socket.sent.length = 0;
+    connection.updateShoppingContext({ focus_item_id: "stove" });
+    await vi.advanceTimersByTimeAsync(201);
+    expect(socket.sent).toHaveLength(0);
+    connection.stop();
+  });
+});

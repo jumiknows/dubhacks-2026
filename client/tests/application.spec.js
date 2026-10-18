@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const completedProfile = { completedAt: '2026-10-18T12:00:00Z' };
-const plannerHeading = 'Be ready for what’s next.';
+const plannerHeading = 'Where are you headed?';
 
 async function mockApi(page, handle = () => null) {
   const unexpected = [];
@@ -12,7 +12,8 @@ async function mockApi(page, handle = () => null) {
     if (response) return route.fulfill(response);
     if (path === '/api/me') return route.fulfill({ json: { profile: completedProfile, google: { available: false }, user: null } });
     if (path === '/api/plans' && request.method() === 'GET') return route.fulfill({ json: { plans: [] } });
-    if (path === '/api/voice-health') return route.fulfill({ json: { integrations: { gemini_live: 'not configured' } } });
+    if (path === '/api/voice-health' || path === '/api/conjure/health') return route.fulfill({ json: { integrations: { gemini_live: 'not configured', llm: 'not configured' } } });
+    if (path === '/api/health') return route.fulfill({ json: { ok: true, stripe: 'mock' } });
     unexpected.push(`${request.method()} ${path}`);
     return route.fulfill({ status: 404, json: { error: `Unexpected request: ${path}` } });
   });
@@ -35,12 +36,12 @@ test('account-service failure leaves planning usable and configured voice discov
   page.on('pageerror', (error) => errors.push(error.message));
   const unexpected = await mockApi(page, (path) => {
     if (path === '/api/me') return { status: 503, json: { error: 'Account service unavailable' } };
-    if (path === '/api/voice-health') return { json: { integrations: { gemini_live: 'configured' } } };
+    if (path === '/api/conjure/health') return { json: { integrations: { gemini_live: 'configured', llm: 'not configured' } } };
     return null;
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: plannerHeading })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Talk to ESPER', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Talk', exact: true })).toBeVisible();
   await page.getByLabel('Plan prompt').fill('Prepare for a trip');
   await expect(page.getByRole('button', { name: 'Build list', exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
@@ -109,25 +110,23 @@ test('calendar onboarding starts a shared plan, polls prices, and keeps ownershi
   await expect(page.getByRole('heading', { name: 'Coming up', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Weekend expedition/ }).click();
   const open = page.getByRole('button', { name: 'Open Weekend expedition', exact: true });
-  await expect(open).toContainText('Finding prices');
+  await open.click();
+  const dialog = page.getByRole('dialog', { name: 'Shelter product options', exact: true });
+  await expect(dialog).toContainText('No store listings yet.');
   finishPricing();
-  await expect(open).not.toContainText('Finding prices');
+  await expect(dialog.getByText('shelter listing', { exact: true })).toBeVisible();
   expect(polls).toBeGreaterThan(0);
   expect(saved).toEqual({ focus: 'outdoors', priority: 'speed', budget: 'under-100' });
   expect(created).toEqual({ prompt: plan.prompt, category: 'camping', async: true });
-  await open.click();
-  await page.getByRole('button', { name: /To buy Shelter/ }).click();
-  const dialog = page.getByRole('dialog', { name: 'Shelter', exact: true });
-  await expect(dialog.getByText('shelter listing', { exact: true })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Already own this', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Mark owned', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Mark needed', exact: true })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Add to cart', exact: true })).toBeDisabled();
+  await expect(dialog.locator('[data-gesture-id="product:shelter-item:shelter"]')).toBeDisabled();
   expect(unexpected).toEqual([]);
 });
 
 test('mobile layout retains keyboard inspection and holds unknown-stock or mixed-currency purchases', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => localStorage.setItem('esper.cart.v1', JSON.stringify({ 'usd-item': 'cart', 'cad-item': 'cart' })));
+  await page.addInitScript(() => sessionStorage.setItem('esper:board', JSON.stringify({ planIds: ['mobile-plan'], marks: { 'usd-item': 'cart', 'cad-item': 'cart' }, trustFloor: 0.5 })));
   const unknown = offer('unknown', 'USD', null);
   const unknownItem = item('unknown-item', 'Mystery supply', unknown);
   unknownItem.synthesis = { best: null, alternatives: [unknown], totalPrice: null, currency: 'USD', warnings: ['Stock and the merchandise subtotal are unknown.'] };
@@ -135,23 +134,24 @@ test('mobile layout retains keyboard inspection and holds unknown-stock or mixed
     id: 'mobile-plan', title: 'Travel essentials', prompt: 'Travel supplies', category: 'custom', status: 'ready',
     items: [item('usd-item', 'US supply', offer('usd')), item('cad-item', 'Canadian supply', offer('cad', 'CAD')), unknownItem],
   };
-  const unexpected = await mockApi(page, (path) => path === '/api/plans' ? { json: { plans: [plan] } } : null);
+  const unexpected = await mockApi(page, (path) => path === '/api/plans' ? { json: { plans: [plan] } } : path === '/api/plans/mobile-plan' ? { json: plan } : null);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: plannerHeading })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Prices or currency need review', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Open Travel essentials', exact: true }).click();
-  const inspect = page.getByRole('button', { name: /To buy Mystery supply/ });
-  await inspect.click();
-  const dialog = page.getByRole('dialog', { name: 'Mystery supply', exact: true });
-  await expect(dialog.getByText('Stock unknown', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Add to cart', exact: true })).toBeDisabled();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Close Mystery supply', exact: true })).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^Cart, 2 items/ }).click();
+  const cart = page.getByRole('dialog', { name: 'Cart and checkout', exact: true });
+  await cart.getByRole('button', { name: 'Check out $40.00', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Checkout requires a single known currency.');
+  await cart.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.locator('[data-group-id="mobile-plan"]').click();
+  const inspect = page.locator('[data-gesture-object="item:unknown-item"]');
+  await inspect.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Mystery supply product options', exact: true });
+  await expect(dialog).toContainText('Stock unknown');
+  await expect(dialog.locator('[data-gesture-id="product:unknown-item:unknown"]')).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).focus();
+  await page.keyboard.press('Enter');
   await expect(dialog).toHaveCount(0);
-  await expect(inspect).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(unexpected).toEqual([]);
 });

@@ -82,6 +82,12 @@ try {
     if (!ready) throw new Error("Next startup timed out");
     frontendOptions = { baseUrl: webOrigin };
   }
+  // Reserve the public listener before Python starts so its planner tools call
+  // this isolated gateway instead of another developer's running application.
+  server = http.createServer().listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const base = `http://127.0.0.1:${server.address().port}`;
+  env.PLANBOARD_URL = base;
   python = spawn(pythonPath, ["-B", "-m", "uvicorn", "api.main:app", "--host", "127.0.0.1", "--port", "0", "--no-access-log", "--no-use-colors"],
     { cwd: root, env, windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
   const pythonOrigin = await new Promise((resolve, reject) => {
@@ -97,9 +103,7 @@ try {
     python.once("exit", () => { clearTimeout(timer); reject(new Error("Python exited during the smoke check; details withheld")); });
   });
   process.env.PYTHON_API_URL = pythonOrigin;
-  server = createApp({ baseUrl: pythonOrigin }, { frontendOptions }).listen(0, "127.0.0.1");
-  await once(server, "listening");
-  const base = `http://127.0.0.1:${server.address().port}`;
+  server.on("request", createApp({ baseUrl: pythonOrigin }, { frontendOptions }));
   assert((await json(base, "/api/health")).ok);
   const health = await json(base, "/api/conjure/health");
   assert(health.ok && health.products === 20);
@@ -134,6 +138,34 @@ try {
   const history = await json(base, "/api/plans");
   assert(history.plans.some(row => row.id === pending.id));
   console.log("PASS: profile preferences, async pricing, comparison, persisted offer selection, offline checkout and list history");
+
+  // The newly merged planner calls back through Express with the same session.
+  // Check its real Python tools against the stored plan, including review-only
+  // checkout, rather than substituting a fake planner service.
+  const focus = pending.items.find(row => row.id !== item.id && row.products.length >= 2);
+  assert(focus, "Expected a second priced item for the assistant's shared state");
+  const turn = (text, context = {}) => json(base, "/api/conjure/planner/chat", "POST", {
+    text, plan_id: pending.id, focus_item_id: focus.id, ...context,
+  });
+  const openedItem = await turn(`Open ${focus.name}`);
+  assert.equal(openedItem.source, "rules");
+  assert(openedItem.events.some(event => event.action === "FOCUS" && event.item_id === focus.id));
+  const comparedItem = await turn("Compare these options");
+  const comparison = comparedItem.events.find(event => event.action === "COMPARE");
+  assert(comparison?.payload.left && comparison.payload.right && comparison.payload.axes.length);
+  const choice = comparison.payload.right;
+  const chosenItem = await turn("Use the right one", { compare: {
+    item_id: focus.id, left_id: comparison.payload.left.id, right_id: choice.id,
+  } });
+  assert(chosenItem.events.some(event => event.action === "PLAN"));
+  const afterChoice = await json(base, `/api/plans/${pending.id}`);
+  assert.equal(afterChoice.items.find(row => row.id === focus.id).selectedListingId, choice.id);
+  const reviewTurn = await turn("Add it to my cart and check out");
+  assert(reviewTurn.events.some(event => event.action === "CART" && event.item_id === focus.id));
+  assert(reviewTurn.events.some(event => event.action === "CHECKOUT"));
+  const afterReview = await json(base, `/api/plans/${pending.id}`);
+  assert.equal(afterReview.items.find(row => row.id === focus.id).purchased, false);
+  console.log("PASS: real planner tools share the account, focused item, comparison and saved offer; checkout only requests review");
 
   const products = await json(base, "/api/conjure/products/search?q=moisturizer&max_price=40");
   assert(products.length > 0 && products.every(product => product.price <= 40));

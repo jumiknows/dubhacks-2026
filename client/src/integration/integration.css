@@ -126,3 +126,8 @@
 .esper-signing { margin: 20px 0; padding: 16px; border: 1px solid #415145; border-radius: 10px; }
 .esper-signing summary { cursor: pointer; color: #b8e0cf; font-weight: 550; }
 .esper-signing .esper-inline { margin-top: 16px; }
+
+.esper-legacy-tools { width: min(80rem, 100%); margin-top: 24px; }
+.esper-legacy-tools > [hidden] { display: none !important; }
+.esper-legacy-tools .esper-nav { margin-top: 0; }
+.esper-legacy-tools .esper-nav button[aria-expanded="true"] { color: #bcf5e7; background: #172b2c; border-color: #345451; }

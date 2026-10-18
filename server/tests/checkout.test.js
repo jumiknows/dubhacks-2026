@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { savePlan } from "../store.js";
 import { pickListing, quotePlan } from "../services/pipeline.js";
 import {
-  assertItemUnlocked, cancelCheckout, CheckoutError, cartLines, configureStripe, confirmCheckout, createCheckout, handleWebhook, stripeMode,
+  assertItemUnlocked, cancelCheckout, CheckoutError, cartLines, configureStripe, confirmCheckout, createCheckout, createCartCheckout, handleWebhook, stripeMode,
 } from "../services/checkout.js";
 
 let seq = 0;
@@ -359,5 +359,75 @@ describe("cumulative OrbiCart trip budget", () => {
     await rejects(createCheckout(p.id, ["stove"]), 409);
     release();
     assert.ok((await first).id);
+  });
+});
+
+describe("cart across plans retains checkout protections", () => {
+  it("pays one immutable order for two plans and returns every updated plan", async () => {
+    const a = plan();
+    const b = plan();
+    const original = structuredClone(b.items[1].synthesis);
+    const checkout = await createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: b.id, itemIds: ["stove"] }]);
+    assert.equal(checkout.amount, 17549);
+    await rejects(createCheckout(a.id, ["tent"]), 409);
+    await rejects(createCheckout(b.id, ["stove"]), 409);
+    b.items[1] = await pickListing(b.items[1], "stove-alt");
+    const paid = await confirmCheckout(checkout.id);
+    assert.deepEqual(paid.plans.map((entry) => entry.id), [a.id, b.id]);
+    assert.equal(paid.plan.id, a.id);
+    assert.equal(a.items[0].purchased, true);
+    assert.equal(b.items[1].purchased, true);
+    assert.equal(b.items[0].purchased, false);
+    assert.equal(b.items[1].synthesis.totalPrice, original.totalPrice);
+    assert.equal(b.items[1].order.listing.id, original.best.id);
+    assert.deepEqual(paid.receipt.lines.map((line) => [line.planId, line.itemId]), [[a.id, "tent"], [b.id, "stove"]]);
+  });
+
+  it("rejects invalid or mixed carts atomically and cancellation unlocks every plan", async () => {
+    const a = plan();
+    const b = plan();
+    await rejects(createCartCheckout([]), 400);
+    await rejects(createCartCheckout([{ planId: "missing", itemIds: ["tent"] }]), 404);
+    await rejects(createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: a.id, itemIds: ["stove"] }]), 400);
+    b.items[1].synthesis.currency = "EUR";
+    b.items[1].synthesis.best.currency = "EUR";
+    await rejects(createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: b.id, itemIds: ["stove"] }]), 409);
+    assert.doesNotThrow(() => assertItemUnlocked(a.id, "tent"));
+    b.items[1].synthesis.currency = "USD";
+    b.items[1].synthesis.best.currency = "USD";
+    const checkout = await createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: b.id, itemIds: ["stove"] }]);
+    const cancelled = await cancelCheckout(checkout.id);
+    assert.equal(cancelled.plans.length, 2);
+    assert.doesNotThrow(() => assertItemUnlocked(a.id, "tent"));
+    assert.doesNotThrow(() => assertItemUnlocked(b.id, "stove"));
+    assert.equal((await confirmCheckout(checkout.id)).status, "cancelled");
+  });
+
+  it("accounts paid and pending amounts against each trip's own budget", async () => {
+    const a = plan();
+    const b = plan();
+    a.source = b.source = "orbicart_catalog";
+    a.preferences = { budgetMax: 130 };
+    b.preferences = { budgetMax: 50 };
+    b.items.push(item("filter", 3));
+    const checkout = await createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: b.id, itemIds: ["stove"] }]);
+    await rejects(createCheckout(a.id, ["stove"]), 409);
+    await confirmCheckout(checkout.id);
+    await rejects(createCheckout(a.id, ["stove"]), 409);
+    assert.equal((await createCheckout(b.id, ["filter"])).amount, 300);
+  });
+
+  it("uses multi-plan Stripe metadata while confirming only server-captured prices", async () => {
+    const a = plan();
+    const b = plan();
+    const client = fakeStripe({ payment_status: "paid", amount_total: 17549, currency: "usd" });
+    configureStripe({ client });
+    const checkout = await createCartCheckout([{ planId: a.id, itemIds: ["tent"] }, { planId: b.id, itemIds: ["stove"] }]);
+    assert.equal(client.calls[0].metadata.cart_0, `${a.id}|tent`);
+    assert.equal(client.calls[0].metadata.cart_1, `${b.id}|stove`);
+    const result = await confirmCheckout(checkout.id);
+    assert.equal(result.plans.length, 2);
+    assert.equal(result.receipt.amount, 17549);
+    assert.equal(result.receipt.orderId, checkout.id);
   });
 });

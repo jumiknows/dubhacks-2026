@@ -27,6 +27,28 @@ describe('fist and swipes', () => {
     expect(poses.update(almost, 160, true)).toBeNull();
   });
 
+  it('keeps the close gesture armed while the index travels inward', () => {
+    const poses = new PoseDetector();
+    const moving = frame('fist');
+    moving[8] = { ...moving[8], y: moving[8].y - 0.08 };
+    poses.update(frame('open'), 0, true);
+    poses.update(frame('open'), 70, true);
+    poses.update(moving, 90, true);
+    poses.update(moving, 130, true);
+    expect(poses.update(frame('fist'), 160, true)).toBe('grab');
+  });
+
+  it('does not turn a stopped, partly curled index into a fist', () => {
+    const poses = new PoseDetector();
+    const moving = frame('fist');
+    moving[8] = { ...moving[8], y: moving[8].y - 0.08 };
+    poses.update(frame('open'), 0, true);
+    poses.update(frame('open'), 70, true);
+    poses.update(moving, 90, true);
+    poses.update(moving, 130, true);
+    expect(poses.update(moving, 230, true)).toBeNull();
+  });
+
   it('asks for a wrist turn when every finger points at the camera', () => {
     const poses = new PoseDetector();
     const toward = frame('fist').map((point, index) => (

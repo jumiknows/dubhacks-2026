@@ -19,6 +19,7 @@ import { MAX_MONEY_CENTS, normalizeCurrency, parseCents, validQuantity } from ".
 const CLIENT_URL = (process.env.CLIENT_URL || process.env.APP_ORIGIN || "http://localhost:3001").replace(/\/$/, "");
 // Stripe caps each metadata value at 500 characters; item ids are UUIDs.
 const METADATA_MAX = 500;
+const MAX_GROUPS = 20;
 
 let stripe = makeClient(process.env.STRIPE_SECRET_KEY);
 let webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -99,7 +100,7 @@ export function cartLines(plan, itemIds) {
 /** Reject edits while a checkout can still be paid, including provider creation. */
 export function assertItemUnlocked(planId, itemId) {
   const pending = [...new Set(checkoutSessions.values())].find((entry) =>
-    entry.planId === planId && entry.itemIds.includes(itemId) && ["creating", "open", "confirming"].includes(entry.state));
+    entry.cart.some((group) => group.planId === planId && group.itemIds.includes(itemId)) && ["creating", "open", "confirming"].includes(entry.state));
   if (pending) throw new CheckoutError(409, "This item has a pending checkout. Finish or cancel it before changing the cart.");
 }
 
@@ -114,12 +115,16 @@ function committedTripCents(plan) {
   };
   // Session id and local cancellation token point to the same object. Count it once.
   for (const entry of new Set(checkoutSessions.values())) {
-    if (entry.planId !== plan.id) continue;
+    if (!entry.cart.some((group) => group.planId === plan.id)) continue;
+    const planAmount = entry.lines.filter((line) => line.planId === plan.id).reduce((sum, line) => sum + line.amount, 0);
     if (entry.state === "paid") {
-      total += amountFor(entry.completedReceipt.amount, entry.completedReceipt.currency);
+      if (entry.cart.length > 1 && (entry.completedReceipt.amount !== entry.amount || entry.completedReceipt.currency !== entry.currency)) {
+        throw new CheckoutError(409, "The multi-plan payment needs reconciliation before its trip budgets can be reused.");
+      }
+      total += amountFor(entry.cart.length === 1 ? entry.completedReceipt.amount : planAmount, entry.completedReceipt.currency);
       paidSessions.add(entry.id);
     } else if (["creating", "open", "confirming"].includes(entry.state)) {
-      total += amountFor(entry.amount, entry.currency);
+      total += amountFor(planAmount, entry.currency);
     }
   }
   // Retain paid-order accounting if a snapshot was restored without its session map.
@@ -131,25 +136,49 @@ function committedTripCents(plan) {
   return total;
 }
 
-export async function createCheckout(planId, itemIds) {
-  const plan = getPlan(planId);
-  if (!plan) throw new CheckoutError(404, "plan not found");
-  const lines = cartLines(plan, itemIds);
-  for (const id of itemIds) assertItemUnlocked(planId, id);
-  const amount = lines.reduce((sum, line) => sum + line.amount, 0);
-  const currency = lines[0].currency;
-  if (plan.source === "orbicart_catalog" && plan.preferences?.budgetMax !== null && plan.preferences?.budgetMax !== undefined) {
-    const budgetCents = parseCents(plan.preferences.budgetMax, "USD");
-    if (budgetCents === null || currency !== "usd" || committedTripCents(plan) + BigInt(amount) > BigInt(budgetCents)) {
-      throw new CheckoutError(409, "Paid, pending and selected camping items exceed the trip budget. Cancel another checkout, choose a smaller cart or update the trip budget.");
-    }
+export function createCheckout(planId, itemIds) {
+  return createCartCheckout([{ planId, itemIds }]);
+}
+
+/** One atomically reserved order across one or more stored plans. */
+export async function createCartCheckout(groups) {
+  if (!Array.isArray(groups) || groups.length < 1 || groups.length > MAX_GROUPS ||
+      groups.some((group) => !group || typeof group !== "object" || Array.isArray(group) ||
+        Object.keys(group).some((key) => !["planId", "itemIds"].includes(key)))) {
+    throw new CheckoutError(400, "Select items from 1-20 plans.");
   }
+  if (new Set(groups.map((group) => group.planId)).size !== groups.length) {
+    throw new CheckoutError(400, "Combine each plan's selected items into one cart group.");
+  }
+  const lines = [];
+  const snapshots = [];
+  for (const group of groups) {
+    const plan = typeof group.planId === "string" ? getPlan(group.planId) : null;
+    if (!plan) throw new CheckoutError(404, "plan not found");
+    const groupLines = cartLines(plan, group.itemIds).map((line) => ({ ...line, planId: plan.id }));
+    for (const id of group.itemIds) assertItemUnlocked(plan.id, id);
+    const groupAmount = groupLines.reduce((sum, line) => sum + BigInt(line.amount), 0n);
+    if (plan.source === "orbicart_catalog" && plan.preferences?.budgetMax != null) {
+      const budget = parseCents(plan.preferences.budgetMax, "USD");
+      if (budget === null || groupLines[0].currency !== "usd" || committedTripCents(plan) + groupAmount > BigInt(budget)) {
+        throw new CheckoutError(409, "Paid, pending and selected camping items exceed the trip budget. Cancel another checkout, choose a smaller cart or update the trip budget.");
+      }
+    }
+    lines.push(...groupLines);
+    snapshots.push({ planId: plan.id, items: structuredClone(plan.items.filter((item) => group.itemIds.includes(item.id))) });
+  }
+  if (lines.length > 100) throw new CheckoutError(400, "Select at most 100 items in one checkout.");
+  if (new Set(lines.map((line) => line.currency)).size !== 1) throw new CheckoutError(409, "Items in one checkout must share a currency.");
+  const total = lines.reduce((sum, line) => sum + BigInt(line.amount), 0n);
+  if (total > MAX_MONEY_CENTS) throw new CheckoutError(409, "Checkout amount exceeds the supported safe amount.");
+  const amount = Number(total);
+  const currency = lines[0].currency;
   const mock = !stripe;
   const reference = `co_${randomUUID()}`;
+  const cart = groups.map((group) => ({ planId: group.planId, itemIds: [...group.itemIds] }));
   const pending = {
-    reference, id: null, planId, itemIds: [...itemIds], lines: structuredClone(lines), amount, currency,
-    items: structuredClone(plan.items.filter((item) => itemIds.includes(item.id))),
-    state: "creating", mock, receipt: null,
+    reference, id: null, planId: cart[0].planId, itemIds: cart[0].itemIds, cart, snapshots,
+    lines: structuredClone(lines), amount, currency, state: "creating", mock, receipt: null,
   };
   // Reserve before the first provider await so two requests cannot charge a cart twice.
   checkoutSessions.set(reference, pending);
@@ -158,13 +187,19 @@ export async function createCheckout(planId, itemIds) {
       pending.id = `cs_mock_${randomUUID()}`;
       pending.url = successUrl(pending.id);
     } else {
-      const metadataIds = itemIds.join(",");
-      if (metadataIds.length > METADATA_MAX) {
-        throw new CheckoutError(400, "Too many items for one checkout. Pay for fewer at a time.");
+      const metadata = { checkout_reference: reference };
+      cart.forEach((group, index) => {
+        const value = `${group.planId}|${group.itemIds.join(",")}`;
+        if (value.length > METADATA_MAX) throw new CheckoutError(400, "Too many items for one checkout. Pay for fewer at a time.");
+        metadata[`cart_${index}`] = value;
+      });
+      if (cart.length === 1) {
+        metadata.plan_id = cart[0].planId;
+        metadata.item_ids = cart[0].itemIds.join(",");
       }
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
-        client_reference_id: planId,
+        client_reference_id: cart[0].planId,
         line_items: lines.map((line) => ({
           quantity: 1,
           price_data: {
@@ -177,17 +212,17 @@ export async function createCheckout(planId, itemIds) {
             },
           },
         })),
-        metadata: { plan_id: planId, item_ids: metadataIds, checkout_reference: reference },
+        metadata,
         success_url: successUrl("{CHECKOUT_SESSION_ID}"),
         // This is an application token, with no dependence on Stripe URL interpolation.
-        cancel_url: `${CLIENT_URL}/?checkout=cancel&plan_id=${encodeURIComponent(planId)}&checkout_id=${reference}`,
+        cancel_url: `${CLIENT_URL}/?checkout=cancel&plan_id=${encodeURIComponent(cart[0].planId)}&checkout_id=${reference}`,
       });
       pending.id = session.id;
       pending.url = session.url;
     }
     pending.state = "open";
     checkoutSessions.set(pending.id, pending);
-    return { id: pending.id, url: pending.url, amount, currency, mock, priceScope: "items_only", fullTotal: null };
+    return { id: pending.id, url: pending.url, amount, currency, mock, cart: structuredClone(cart), priceScope: "items_only", fullTotal: null };
   } catch (err) {
     pending.state = "failed";
     checkoutSessions.delete(reference);
@@ -219,7 +254,7 @@ export async function confirmCheckout(sessionId) {
     pending.state = "expired";
     return cancelledResult(pending);
   }
-  return { status: session.payment_status || "unpaid", mock: false, plan: getPlan(pending.planId) };
+  return { status: session.payment_status || "unpaid", mock: false, ...currentPlans(pending) };
 }
 
 /** Expire the old payable session before allowing a different cart. */
@@ -283,12 +318,17 @@ function isPaid(session) {
   return session.payment_status === "paid" || session.payment_status === "no_payment_required";
 }
 
+function currentPlans(pending) {
+  const plans = pending.cart.map((group) => getPlan(group.planId)).filter(Boolean);
+  return { plan: plans[0] ?? null, plans };
+}
+
 function cancelledResult(pending) {
-  return { status: "cancelled", mock: pending.mock, plan: getPlan(pending.planId) };
+  return { status: "cancelled", mock: pending.mock, ...currentPlans(pending) };
 }
 
 function paidResult(pending) {
-  return { status: "paid", mock: pending.mock, plan: getPlan(pending.planId), receipt: pending.completedReceipt };
+  return { status: "paid", mock: pending.mock, ...currentPlans(pending), receipt: pending.completedReceipt };
 }
 
 /** Record the captured paid offer even if an older caller changed the current row. */
@@ -296,7 +336,7 @@ function settlePaid(pending, session, receipt) {
   if (pending.state === "paid") return paidResult(pending);
   pending.state = "paid";
   const paidAt = new Date().toISOString();
-  pending.completedReceipt = receipt || {
+  pending.completedReceipt = receipt ? { ...receipt, lines: structuredClone(pending.lines) } : {
     orderId: session?.id ?? pending.id,
     placedAt: paidAt,
     amount: session?.amount_total ?? pending.amount,
@@ -304,12 +344,13 @@ function settlePaid(pending, session, receipt) {
     lines: structuredClone(pending.lines),
     mock: false,
   };
-  const plan = getPlan(pending.planId);
-  if (plan) {
+  for (const snapshot of pending.snapshots) {
+    const plan = getPlan(snapshot.planId);
+    if (!plan) continue;
     plan.items = plan.items.map((current) => {
-      const captured = pending.items.find((item) => item.id === current.id);
+      const captured = snapshot.items.find((item) => item.id === current.id);
       if (!captured) return current;
-      const line = pending.lines.find((entry) => entry.itemId === current.id);
+      const line = pending.lines.find((entry) => entry.planId === plan.id && entry.itemId === current.id);
       return {
         ...current,
         quantity: captured.quantity,

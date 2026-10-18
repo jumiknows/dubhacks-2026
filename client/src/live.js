@@ -1,264 +1,257 @@
-/**
- * Gemini Live voice session over /ws-live (see plan.md).
- *
- * Cost and latency choices:
- * - Audio is sent only while someone is talking. A small voice detector here
- *   marks activityStart / activityEnd, so silence is never billed and Gemini
- *   answers the moment the user stops (no server-side silence timeout).
- * - The session closes after IDLE_MS without speech; the next tap reopens it
- *   and the plan id carries the context over.
- * - Microphone permission and the socket open in parallel.
- *
- * createLive({ onStatus, onUi, onCaption, onError }) →
- *   { start(), stop(), say(text), setPlanId(id), setTrustFloor(n) }
- * status: "idle" | "connecting" | "listening" | "hearing" | "thinking" | "speaking"
- */
+// Gemini Live voice session through the /ws-live relay (the API key never reaches the browser).
+// Mic: 16 kHz PCM16 mono, sent as binary frames. Speaker: Gemini's 24 kHz PCM16 chunks.
+// The mic is paused while Esper speaks so speakers can't feed back into it.
 
-const IDLE_MS = 45_000;
-const FRAME_MS = 64; // 1024 samples at 16 kHz, set by public/live-capture.js
-const START_FRAMES = 2; // ~130 ms above threshold starts a turn
-const END_MS = 650; // this much quiet ends a turn
-const PREROLL_FRAMES = 4; // keep the first syllable
-const MAX_TURN_MS = 30_000;
+const MIC_RATE = 16000;
+const SPEAKER_RATE = 24000;
+const SEND_EVERY_MS = 100;
 
-export function createLive({ onStatus, onUi, onCaption, onError }) {
-  let ws = null;
-  let status = "idle";
-  let session = { plan_id: null, trust_floor: 0.5 };
-  let pendingText = [];
+// Collects mic samples off the audio thread and hands them to the page.
+const WORKLET = `
+class Tap extends AudioWorkletProcessor {
+  process(inputs) {
+    const channel = inputs[0] && inputs[0][0];
+    if (channel) this.port.postMessage(channel.slice(0));
+    return true;
+  }
+}
+registerProcessor("esper-mic-tap", Tap);
+`;
 
-  // capture
-  let micContext = null;
-  let stream = null;
-  let node = null;
-  let noiseFloor = 0.01;
-  let loudFrames = 0;
-  let quietMs = 0;
-  let turnMs = 0;
-  let inTurn = false;
-  let preroll = [];
+export function liveSocketUrl() {
+  const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${scheme}//${window.location.host}/ws-live`;
+}
 
-  // playback
-  let playContext = null;
-  let playhead = 0;
-  const sources = new Set();
-  let turnComplete = false;
-
-  let idleTimer = null;
-
-  function setStatus(next) {
-    if (status === next) return;
-    status = next;
-    onStatus?.(next);
+export class LiveSession {
+  constructor({ onStatus, onUi, onCaption, onTurnEnd, onError }) {
+    this.handlers = { onStatus, onUi, onCaption, onTurnEnd, onError };
+    this.ws = null;
+    this.mic = null;
+    this.playing = new Set();
+    this.playhead = 0;
+    this.status = "off";
   }
 
-  function send(value) {
-    if (ws?.readyState === WebSocket.OPEN) ws.send(typeof value === "string" || value instanceof ArrayBuffer ? value : JSON.stringify(value));
+  setStatus(status, detail) {
+    this.status = status;
+    this.handlers.onStatus?.(status, detail);
   }
 
-  function touch() {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      if (!inTurn && status !== "speaking" && status !== "thinking") stop("Paused to save. Tap to keep talking.");
-      else touch();
-    }, IDLE_MS);
+  async start(context) {
+    if (this.ws) return;
+    this.setStatus("connecting");
+    let ws;
+    try {
+      this.speaker = new AudioContext({ sampleRate: SPEAKER_RATE });
+      ws = new WebSocket(liveSocketUrl());
+      ws.binaryType = "arraybuffer";
+      this.ws = ws;
+      ws.onmessage = (event) => { if (this.ws === ws) this.receive(event.data); };
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Voice relay did not respond.")), 10000);
+        const finish = (error) => { clearTimeout(timer); if (error) reject(error); else resolve(); };
+        ws.onopen = () => finish();
+        ws.onerror = () => finish(new Error("Voice relay is unreachable."));
+        ws.onclose = () => finish(new Error("Voice relay closed before connecting."));
+      });
+      if (this.ws !== ws) return;
+      ws.onclose = () => { if (this.ws === ws) this.stop("off"); };
+      this.sendContext(context);
+      await this.speaker.resume();
+      if (this.ws !== ws) return;
+      await this.startMic(ws);
+      if (this.ws === ws) this.setStatus("listening");
+    } catch (err) {
+      // An old permission prompt or connection must not stop a replacement session.
+      if (ws && this.ws !== ws) return;
+      this.stop("error", err.message);
+      throw err;
+    }
   }
 
-  async function start() {
-    if (ws) return;
-    setStatus("connecting");
-    onCaption?.("");
-    const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws-live`);
-    socket.binaryType = "arraybuffer";
-    ws = socket;
-    // Both audio contexts are created inside the tap so the browser lets them run.
-    playContext = new AudioContext({ sampleRate: 24000 });
-    micContext = new AudioContext();
-    micContext.resume().catch(() => undefined);
-    const mic = startMic(socket, micContext).catch((err) => {
-      if (ws !== socket) return null;
-      fail(err?.name === "NotAllowedError" ? "Microphone access was blocked." : "No microphone is available.");
-      return null;
-    });
-    socket.onopen = () => send({ type: "session", ...session });
-    socket.onmessage = async (event) => {
-      if (typeof event.data !== "string") return;
-      let message;
-      try {
-        message = JSON.parse(event.data);
-      } catch {
-        return;
-      }
-      if (message.type === "error") return fail(message.error === "session_limit" ? "Voice session time limit reached. Tap to start again." : message.error);
-      if (message.type === "UI_UPDATE") return onUi?.(message);
-      if (message.setupComplete) {
-        if (!(await mic) || ws !== socket) return;
-        setStatus("listening");
-        touch();
-        for (const text of pendingText.splice(0)) say(text);
-        return;
-      }
-      if (message.serverContent) handleServer(message.serverContent);
-      if (message.goAway) stop("Voice session ended. Tap to start again.");
-    };
-    socket.onclose = () => {
-      if (ws === socket) stop(status === "connecting" ? "Voice is off right now." : null);
-    };
+  releaseMic() {
+    const mic = this.mic;
+    this.mic = null;
+    if (!mic) return;
+    mic.closed = true;
+    mic.stream.getTracks().forEach((track) => track.stop());
+    for (const node of [mic.source, mic.tap, mic.sink]) {
+      try { node?.disconnect(); } catch { /* already disconnected */ }
+    }
+    if (mic.ctx) void mic.ctx.close().catch(() => {});
   }
 
-  async function startMic(socket, context) {
-    const captured = await navigator.mediaDevices.getUserMedia({
+  async startMic(ws = this.ws) {
+    if (!ws || this.ws !== ws) return;
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("This browser cannot use the microphone.");
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
-    if (ws !== socket || micContext !== context) { captured.getTracks().forEach((track) => track.stop()); return null; }
-    stream = captured;
-    await context.audioWorklet.addModule("/live-capture.js");
-    if (ws !== socket || micContext !== context) { captured.getTracks().forEach((track) => track.stop()); return null; }
-    node = new AudioWorkletNode(context, "live-capture");
-    node.port.onmessage = (event) => onFrame(event.data);
-    micContext.createMediaStreamSource(stream).connect(node);
-    // A silent path to the speakers keeps the capture node running in every browser.
-    const mute = micContext.createGain();
-    mute.gain.value = 0;
-    node.connect(mute).connect(micContext.destination);
+    let ctx; let source; let tap; let sink;
+    const mic = { stream, closed: false };
+    const cleanup = () => {
+      if (mic.closed) return;
+      mic.closed = true;
+      if (this.mic === mic) this.mic = null;
+      stream.getTracks().forEach((track) => track.stop());
+      for (const node of [source, tap, sink]) { try { node?.disconnect(); } catch { /* already disconnected */ } }
+      if (ctx) void ctx.close().catch(() => {});
+    };
+    // stop() may run while the browser permission dialog is still open.
+    if (!ws || this.ws !== ws) { cleanup(); return; }
+    this.mic = mic;
+    try {
+      ctx = mic.ctx = new AudioContext();
+      const url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
+      try { await ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+      if (this.ws !== ws) { cleanup(); return; }
+      await ctx.resume();
+      if (this.ws !== ws) { cleanup(); return; }
+      source = mic.source = ctx.createMediaStreamSource(stream);
+      tap = mic.tap = new AudioWorkletNode(ctx, "esper-mic-tap");
+      sink = mic.sink = ctx.createGain();
+      sink.gain.value = 0;
+      const pending = [];
+      let pendingLength = 0;
+      const flushAt = Math.round((ctx.sampleRate * SEND_EVERY_MS) / 1000);
+      tap.port.onmessage = ({ data }) => {
+        pending.push(data);
+        pendingLength += data.length;
+        if (pendingLength < flushAt) return;
+        const joined = new Float32Array(pendingLength);
+        let offset = 0;
+        for (const chunk of pending) { joined.set(chunk, offset); offset += chunk.length; }
+        pending.length = 0;
+        pendingLength = 0;
+        // Half duplex: drop mic audio while Esper is talking.
+        if (this.playing.size || this.ws !== ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(toPcm16(downsample(joined, ctx.sampleRate, MIC_RATE)));
+      };
+      source.connect(tap);
+      // Keep the worklet in the rendered audio graph without monitoring the microphone.
+      tap.connect(sink).connect(ctx.destination);
+      this.mic = mic;
+    } catch (error) { cleanup(); throw error; }
+  }
+
+  receive(raw) {
+    let message;
+    try {
+      message = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
+    } catch {
+      return;
+    }
+    if (!message || typeof message !== "object" || Array.isArray(message)) return;
+    if (message.type === "error") {
+      this.handlers.onError?.(message.error || "Voice is unavailable.");
+      this.stop("unavailable", message.error);
+      return;
+    }
+    if (message.type === "UI_UPDATE") {
+      this.handlers.onUi?.(message);
+      return;
+    }
+    const content = message.serverContent;
+    if (!content) return;
+    if (content.interrupted) this.flushSpeaker();
+    for (const part of content.modelTurn?.parts || []) {
+      if (part.inlineData?.data && part.inlineData.mimeType?.startsWith("audio/")) this.play(part.inlineData.data);
+    }
+    if (content.inputTranscription?.text) this.handlers.onCaption?.("user", content.inputTranscription.text);
+    if (content.outputTranscription?.text) this.handlers.onCaption?.("assistant", content.outputTranscription.text);
+    if (content.turnComplete) this.handlers.onTurnEnd?.();
+  }
+
+  play(base64) {
+    if (!this.speaker) return;
+    let bytes;
+    try { bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)); } catch { return; }
+    if (bytes.length < 2 || bytes.length % 2) return;
+    const samples = new Int16Array(bytes.buffer, 0, Math.floor(bytes.length / 2));
+    const buffer = this.speaker.createBuffer(1, samples.length, SPEAKER_RATE);
+    const channel = buffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) channel[i] = samples[i] / 0x8000;
+    const node = this.speaker.createBufferSource();
+    node.buffer = buffer;
+    node.connect(this.speaker.destination);
+    this.playhead = Math.max(this.playhead, this.speaker.currentTime + 0.03);
+    node.start(this.playhead);
+    this.playhead += buffer.duration;
+    this.playing.add(node);
+    if (this.status !== "speaking") this.setStatus("speaking");
+    node.onended = () => {
+      this.playing.delete(node);
+      if (!this.playing.size && this.ws) this.setStatus("listening");
+    };
+  }
+
+  flushSpeaker() {
+    for (const node of this.playing) {
+      try {
+        node.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    this.playing.clear();
+    this.playhead = 0;
+  }
+
+  sendContext(context) {
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ type: "session", ...context }));
+  }
+
+  sendText(text) {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.ws.send(JSON.stringify({ type: "text", text }));
     return true;
   }
 
-  // Voice activity: an adaptive threshold over the frame loudness.
-  function onFrame({ pcm, rms }) {
-    if (!ws || status === "connecting") return;
-    const speaking = status === "speaking";
-    if (!inTurn) noiseFloor = noiseFloor * 0.95 + Math.min(rms, 0.05) * 0.05;
-    const on = Math.max(0.012, noiseFloor * 3) * (speaking ? 2 : 1); // echo margin while Gemini talks
-    const off = on * 0.6;
-
-    if (!inTurn) {
-      preroll.push(pcm);
-      if (preroll.length > PREROLL_FRAMES) preroll.shift();
-      loudFrames = rms > on ? loudFrames + 1 : 0;
-      if (loudFrames < START_FRAMES) return;
-      inTurn = true;
-      quietMs = 0;
-      turnMs = 0;
-      if (speaking || status === "thinking") clearPlayback(); // barge-in
-      send({ realtimeInput: { activityStart: {} } });
-      for (const frame of preroll.splice(0)) send(frame);
-      setStatus("hearing");
-      onCaption?.("");
-      touch();
-      return;
-    }
-
-    send(pcm);
-    turnMs += FRAME_MS;
-    quietMs = rms < off ? quietMs + FRAME_MS : 0;
-    if (quietMs >= END_MS || turnMs >= MAX_TURN_MS) {
-      inTurn = false;
-      loudFrames = 0;
-      send({ realtimeInput: { activityEnd: {} } });
-      setStatus("thinking");
-      touch();
-    }
+  get open() {
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  function handleServer(content) {
-    if (content.interrupted) clearPlayback();
-    for (const part of content.modelTurn?.parts || []) {
-      if (part.inlineData?.data && part.inlineData.mimeType?.startsWith("audio/")) play(part.inlineData.data);
-    }
-    if (content.outputTranscription?.text) onCaption?.((current) => `${current}${content.outputTranscription.text}`);
-    if (content.turnComplete) {
-      turnComplete = true;
-      settle();
-    }
-  }
-
-  function play(base64) {
-    if (!playContext) return;
-    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-    const samples = new Int16Array(bytes.buffer, 0, bytes.length >> 1);
-    const buffer = playContext.createBuffer(1, samples.length, 24000);
-    const channel = buffer.getChannelData(0);
-    for (let i = 0; i < samples.length; i += 1) channel[i] = samples[i] / 32768;
-    const source = playContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(playContext.destination);
-    playhead = Math.max(playhead, playContext.currentTime + 0.02);
-    source.start(playhead);
-    playhead += buffer.duration;
-    sources.add(source);
-    source.onended = () => {
-      sources.delete(source);
-      settle();
-    };
-    turnComplete = false;
-    if (!inTurn) setStatus("speaking");
-    touch();
-  }
-
-  function settle() {
-    if (turnComplete && sources.size === 0 && !inTurn && ws) setStatus("listening");
-  }
-
-  function clearPlayback() {
-    for (const source of sources) {
+  stop(status = "off", detail) {
+    const ws = this.ws;
+    this.ws = null;
+    if (ws && ws.readyState <= WebSocket.OPEN) {
       try {
-        source.stop();
+        ws.send(JSON.stringify({ type: "audio_end" }));
       } catch {
-        // already stopped
+        /* closing anyway */
       }
+      ws.close();
     }
-    sources.clear();
-    playhead = 0;
+    this.releaseMic();
+    this.flushSpeaker();
+    if (this.speaker) void this.speaker.close().catch(() => {});
+    this.speaker = null;
+    this.setStatus(status, detail);
   }
-
-  /** A typed or tapped turn ("I need to prepare for camping"). Starts a session if needed. */
-  function say(text) {
-    if (!text) return;
-    if (status === "idle" || status === "connecting" || !ws) {
-      pendingText.push(text);
-      start();
-      return;
-    }
-    clearPlayback();
-    send({ clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: true } });
-    setStatus("thinking");
-    touch();
-  }
-
-  function setPlanId(id) {
-    session = { ...session, plan_id: id };
-    send({ type: "session", ...session });
-  }
-
-  function setTrustFloor(value) {
-    session = { ...session, trust_floor: value };
-    send({ type: "session", ...session });
-  }
-
-  function fail(message) {
-    onError?.(message || "Voice is off right now.");
-    stop(null, true);
-  }
-
-  function stop(note = null, failed = false) {
-    clearTimeout(idleTimer);
-    const socket = ws;
-    ws = null;
-    socket?.close();
-    clearPlayback();
-    node?.port.close();
-    node?.disconnect();
-    stream?.getTracks().forEach((track) => track.stop());
-    micContext?.close().catch(() => undefined);
-    playContext?.close().catch(() => undefined);
-    node = stream = micContext = playContext = null;
-    inTurn = false;
-    preroll = [];
-    pendingText = [];
-    setStatus(failed ? "error" : "idle");
-    if (note) onCaption?.(note);
-  }
-
-  return { start, stop: () => stop(), say, setPlanId, setTrustFloor, get status() { return status; } };
 }
+
+function downsample(input, from, to) {
+  if (from === to) return input;
+  const ratio = from / to;
+  const out = new Float32Array(Math.floor(input.length / ratio));
+  for (let i = 0; i < out.length; i++) {
+    const start = Math.floor(i * ratio);
+    const end = Math.min(input.length, Math.floor((i + 1) * ratio));
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += input[j];
+    out[i] = sum / Math.max(1, end - start);
+  }
+  return out;
+}
+
+function toPcm16(samples) {
+  const out = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return out.buffer;
+}
+
+export { createLive } from "./live-manual.js";

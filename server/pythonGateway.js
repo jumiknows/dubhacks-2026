@@ -12,6 +12,8 @@ const ROUTES = [
   { path: /^\/market\/(?:search|details|synthesize|compare|top)$/, methods: ["POST"] },
   { path: /^\/products\/search$/, methods: ["GET"], query: ["q", "max_price", "limit", "session_id"] },
   { path: /^\/products\/recommend$/, methods: ["POST"] },
+  { path: /^\/planner\/chat$/, methods: ["POST"] },
+  { path: /^\/static\/products\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg)$/i, methods: ["GET"] },
   { path: /^\/reviews\/(?:analyze|fetch|demo)$/, methods: ["POST"] },
   { path: /^\/reviews\/(?:sources|workbench)$/, methods: ["GET"] },
   { path: /^\/reviews\/products$/, methods: ["GET"], query: ["merchant", "q", "limit"] },
@@ -71,6 +73,10 @@ export function createPythonGateway({
     const headers = {};
     for (const name of ["accept", "content-type"]) {
       if (typeof req.headers[name] === "string") headers[name] = req.headers[name];
+    }
+    if (path === "/planner/chat") {
+      const session = String(req.headers.cookie || "").split(/;\s*/).find((part) => /^pb_sid=[A-Za-z0-9_-]{1,128}$/.test(part));
+      if (session) headers.cookie = session;
     }
     let timer;
     let response;

@@ -21,13 +21,13 @@ npm run build
 npm start
 ```
 
-`NEXT_PORT`, `PORT`, and `API_PORT` can change the process ports. When changing them, set `ORBICART_WEB_URL`, `CONJURE_API_URL`, `PYTHON_API_URL`, `CLIENT_URL`, and `APP_ORIGIN` to the matching origins. The web launcher keeps Next's port separate from Express's `PORT`.
+`NEXT_PORT`, `PORT`, and `API_PORT` can change the process ports. When changing them, set `ORBICART_WEB_URL`, `CONJURE_API_URL`, `PYTHON_API_URL`, `CLIENT_URL`, `APP_ORIGIN`, and `PLANBOARD_URL` to the matching origins. `PLANBOARD_URL` points Python's shopping tools back to the public Express origin. The web launcher keeps Next's port separate from Express's `PORT`.
 
 ## Application
 
 | Route | Features |
 | --- | --- |
-| `/` | OrbiCart camping trips, NASA and weather evidence, map, condition-based kits, product recommendations, budget planning, Grok conversation, and integrated checkout |
+| `/` | DubHacks gesture-controlled shopping board with Grok alongside it, OrbiCart camping trips, NASA and weather evidence, condition-based kits, budget planning, and integrated checkout |
 | `/fires` | EmberReady wildfire observations, live/replay modes, accessible community list, timeline, research danger zones, provenance, briefing, printing, and Grok Voice |
 | `/shop` | DubHacks generic shopping plans, saved lists, account onboarding, calendar suggestions, comparisons, assistant, review evidence, website checks, and checkout |
 | `/gesture-lab` | Preserved gesture replay, camera trials, tuning, and assessment export |

@@ -53,6 +53,9 @@ Their full action pins appear in the manifest and workflows.
 
 - OrbiCart trip planning, environmental evidence, maps, product discovery, budget
   allocation, ownership choices, and Grok shopping tools come from the source app.
+  The requested shopping layout replaces the rain map with the DubHacks gesture
+  board and keeps Grok alongside it. Forecast and environmental evidence remain
+  available, and the wildfire map is unchanged.
 - EmberReady's satellite replay, public-feed observations, accessible map and list,
   community briefings, and research risk-layer implementation remain available.
 - The research acquisition, feature, split, model, evaluation, and reporting code is
@@ -66,6 +69,16 @@ Their full action pins appear in the manifest and workflows.
 The source commit titled “Added: payments” supplied product and budget controls.
 Its UI still described checkout as future work. The combined application's payment
 flow therefore uses the retained DubHacks backend.
+
+## Latest DubHacks release
+
+The integration also pulls DubHacks `main` at `40d6f1a`, preserving its eight
+additional commits. That release supplies the updated gesture board, typed planner,
+shared voice tools, travel templates and checkout across saved plans. The combined
+implementation keeps the established gateway, session isolation, stock checks,
+immutable checkout offers and cumulative trip budgets. Grok receives the board's
+current focus, comparison, chosen offers and cart, and its tools use those same
+shopping actions. Checkout tools open review without authorizing payment.
 
 ## Verify preservation
 

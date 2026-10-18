@@ -36,6 +36,37 @@ test("gateway preserves JSON bodies and Python 4xx status without forwarding cre
   assert.deepEqual(await response.json(), { detail: [] });
 });
 
+test("typed planner forwards only a valid planner session cookie", async (t) => {
+  const seen = [];
+  const upstream = await listen(t, (req, res) => {
+    req.resume();
+    seen.push({ cookie: req.headers.cookie, authorization: req.headers.authorization, key: req.headers["x-api-key"] });
+    res.end("{}");
+  });
+  const url = await gateway(t, upstream);
+  await fetch(`${url}/planner/chat`, { method: "POST", headers: { Cookie: "private=secret; pb_sid=planner_session-123", Authorization: "Bearer secret", "X-Api-Key": "secret" }, body: "{}" });
+  assert.deepEqual(seen[0], { cookie: "pb_sid=planner_session-123", authorization: undefined, key: undefined });
+  await fetch(`${url}/planner/chat`, { method: "POST", headers: { Cookie: "pb_sid=bad%0Avalue; private=secret" }, body: "{}" });
+  assert.equal(seen[1].cookie, undefined);
+  assert.equal((await fetch(`${url}/planner/chat`)).status, 405);
+});
+
+test("product image paths are fixed and streamed through the same origin", async (t) => {
+  const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
+  const upstream = await listen(t, (req, res) => {
+    assert.equal(req.url, "/static/products/fixture-1.png");
+    res.writeHead(200, { "Content-Type": "image/png" });
+    res.end(bytes);
+  });
+  const url = await gateway(t, upstream);
+  const result = await fetch(`${url}/static/products/fixture-1.png`);
+  assert.equal(result.headers.get("content-type"), "image/png");
+  assert.deepEqual(Buffer.from(await result.arrayBuffer()), bytes);
+  assert.equal((await fetch(`${url}/static/products/fixture-1.png`, { method: "POST" })).status, 405);
+  assert.equal((await fetch(`${url}/static/products/fixture-1.png?url=https://other.example`)).status, 400);
+  assert.equal((await fetch(`${url}/static/products/%2Fsecret.png`)).status, 404);
+});
+
 test("gateway streams each SSE chunk before the upstream finishes", async (t) => {
   let release;
   const complete = new Promise((resolve) => { release = resolve; });

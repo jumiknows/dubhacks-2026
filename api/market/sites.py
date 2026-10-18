@@ -240,14 +240,22 @@ def _in_stock(marketplace: Marketplace, doc, offers: dict) -> bool:
 
 
 def _dimensions(doc) -> dict | None:
+    dimension_terms = ("dimension", "product size", "item size", "package size", "size")
+    for row in doc.select("table tr, .ux-layout-section-evo tr, [data-testid*='spec'] tr"):
+        cells = row.find_all(["th", "td"])
+        if len(cells) < 2:
+            continue
+        key = cells[0].get_text(" ", strip=True)
+        value = cells[1].get_text(" ", strip=True)
+        if key and value and any(term in key.lower() for term in dimension_terms):
+            return {"label": f"{key}: {value}"[:120]}
+
     text = first_text(doc, ["#productDetails_techSpec_section_1", "#detailBullets_feature_div", ".ux-layout-section-evo"])
-    if not text:
-        return None
-    for line in text.split("\n"):
-        if "dimension" in line.lower() or "size" in line.lower():
-            label = " ".join(line.split())
-            if label:
-                return {"label": label[:80]}
+    if text:
+        flattened = " ".join(text.split())
+        match = re.search(r"((?:item|package|product)?\s*dimensions?|size)\s*[:\-]?\s*([^|·]{2,80})", flattened, re.I)
+        if match:
+            return {"label": f"{match.group(1).strip()}: {match.group(2).strip()}"[:120]}
     return None
 
 

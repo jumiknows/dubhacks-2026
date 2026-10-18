@@ -78,6 +78,40 @@ test("Express exposes Python under its own namespace while retaining planner hea
   assert.deepEqual(await (await request("/api/health", undefined, "GET")).json(), { ok: true, stripe: "mock" });
 });
 
+test("typed planner receives a browser-owned session and no unrelated credentials", async (t) => {
+  const seen = [];
+  const peer = http.createServer((req, res) => {
+    seen.push({ path: req.url, cookie: req.headers.cookie, authorization: req.headers.authorization });
+    req.resume();
+    res.setHeader("Content-Type", "application/json");
+    res.end('{"reply":"Planner fixture","events":[]}');
+  }).listen(0, "127.0.0.1");
+  await new Promise((resolve) => peer.once("listening", resolve));
+  t.after(async () => { peer.closeAllConnections(); await new Promise((resolve) => peer.close(resolve)); });
+  const request = await start(t, { baseUrl: `http://127.0.0.1:${peer.address().port}` });
+  const first = await request("/api/conjure/planner/chat", { message: "Plan a trip" });
+  assert.equal(first.status, 200);
+  assert.match(first.headers.get("set-cookie"), /^pb_sid=/);
+  assert.match(seen[0].cookie, /^pb_sid=[A-Za-z0-9_-]+$/);
+  await request("/api/conjure/planner/chat", { message: "Read it" });
+  assert.equal(seen[1].cookie, seen[0].cookie);
+  await request("/api/conjure/health", undefined, "GET");
+  assert.equal(seen[2].cookie, undefined);
+});
+
+test("the checkout HTTP endpoint accepts a cart spanning saved plans", async (t) => {
+  const request = await start(t);
+  const a = await (await request("/api/plans", { prompt: "camping" })).json();
+  const b = await (await request("/api/plans", { prompt: "camping" })).json();
+  const opened = await request("/api/checkout", { cart: [{ planId: a.id, itemIds: [a.items[0].id] }, { planId: b.id, itemIds: [b.items[1].id] }] });
+  assert.equal(opened.status, 201);
+  const checkout = await opened.json();
+  const done = await (await request(`/api/checkout/${checkout.id}`, undefined, "GET")).json();
+  assert.deepEqual(done.plans.map((plan) => plan.id), [a.id, b.id]);
+  assert.equal(done.plans[0].items[0].purchased, true);
+  assert.equal(done.plans[1].items[1].purchased, true);
+});
+
 test("async plans retain owned edits during pricing and history stays in its browser session", async (t) => {
   let released = false;
   const waiting = new Set();

@@ -14,7 +14,7 @@ export function normalizeCurrency(value) {
   if (typeof value !== "string") return null;
   const code = value.trim().toUpperCase();
   if (!CURRENCIES.has(code)) return null;
-  // This Planboard contract uses cents. Do not misprice zero/three-decimal currencies.
+  // The planner contract uses cents. Do not misprice zero/three-decimal currencies.
   const digits = new Intl.NumberFormat("en", { style: "currency", currency: code })
     .resolvedOptions().maximumFractionDigits;
   return digits === 2 ? code : null;
@@ -48,6 +48,7 @@ export function validDate(value) {
 
 function safeUrl(value) {
   if (typeof value !== "string") return null;
+  if (/^\/api\/conjure\/static\/products\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpe?g|webp|gif|svg)$/i.test(value)) return value;
   try {
     const url = new URL(value);
     return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
@@ -56,44 +57,76 @@ function safeUrl(value) {
   }
 }
 
+function unit(value) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null;
+}
+
+function count(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function text(value, max = 200) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;
+}
+
+/** Validated listing: money and links checked, comparison signals kept for the UI and compare model. */
 function normalizeListing(raw, index) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const currency = normalizeCurrency(raw.currency);
   const cents = parseCents(raw.price, currency);
   const isMock = raw.isMock === true;
+  const inStock = typeof raw.inStock === "boolean" ? raw.inStock : typeof raw.in_stock === "boolean" ? raw.in_stock : null;
+  const shippingDays = [raw.shippingDays, raw.shipping_days].find((d) => Number.isSafeInteger(d) && d >= 0) ?? null;
+  const label = typeof raw.dimensions === "string" ? raw.dimensions : raw.dimensions?.label;
+  const reviewCount = count(raw.reviewCount ?? raw.review_count);
+  const rating = typeof raw.rating === "number" && raw.rating >= 0 && raw.rating <= 5 ? raw.rating : null;
+  const sourceWarnings = Array.isArray(raw.warnings) ? raw.warnings.filter((w) => typeof w === "string").slice(0, 5) : [];
   return {
     id: typeof raw.id === "string" ? raw.id : `listing-${index}`,
     store: typeof raw.store === "string" ? raw.store : "Unknown merchant",
     title: typeof raw.title === "string" ? raw.title : "Untitled listing",
+    description: text(raw.description, 400),
     price: cents === null ? null : cents / 100,
     currency,
     image: safeUrl(raw.image),
     url: safeUrl(raw.url),
-    dimensions: typeof raw.dimensions?.label === "string" ? { label: raw.dimensions.label } : null,
-    inStock: typeof raw.inStock === "boolean" ? raw.inStock : null,
-    shippingDays: Number.isSafeInteger(raw.shippingDays) && raw.shippingDays >= 0 ? raw.shippingDays : null,
+    dimensions: typeof label === "string" && label.trim() ? { label: label.trim().slice(0, 80) } : null,
+    inStock,
+    in_stock: inStock,
+    shippingDays,
+    shipping_days: shippingDays,
     shippingDate: isMock ? null : validDate(raw.shippingDate),
     estimatedArrival: isMock ? null : validDate(raw.estimatedArrival),
     shippingPrice: normalizeCurrency(raw.shippingCurrency) === currency ? centsAmount(raw.shippingPrice, currency) : null,
     tax: normalizeCurrency(raw.taxCurrency) === currency ? centsAmount(raw.tax, currency) : null,
+    // Comparison signals. Scores are 0..1; anything else is dropped rather than guessed.
+    score: unit(raw.score),
+    scores: raw.scores && typeof raw.scores === "object" && !Array.isArray(raw.scores) ? raw.scores : null,
+    bang_per_buck: unit(raw.bang_per_buck),
+    relevancy: unit(raw.relevancy),
+    trust: unit(raw.trust),
+    trust_multiplier: unit(raw.trust_multiplier),
+    rating,
+    reviewCount,
+    review_count: reviewCount,
+    seller: text(raw.seller, 80),
+    condition: text(raw.condition, 40),
+    marketplace: text(raw.marketplace, 40),
+    brand: text(raw.brand, 80),
+    specs: raw.specs && typeof raw.specs === "object" && !Array.isArray(raw.specs) ? raw.specs : {},
+    history: raw.history ?? null,
+    flags: Array.isArray(raw.flags) ? raw.flags.filter((f) => typeof f === "string").slice(0, 10) : [],
+    prime: raw.prime === true,
+    asin: text(raw.asin, 20),
+    walmart_id: text(raw.walmart_id, 40),
+    gtin: text(raw.gtin, 40),
+    shippingCurrency: normalizeCurrency(raw.shippingCurrency),
+    taxCurrency: normalizeCurrency(raw.taxCurrency),
     source: typeof raw.source === "string" ? raw.source : "unverified_source",
     isMock,
-    description: typeof raw.description === "string" ? raw.description : null,
-    gtin: typeof raw.gtin === "string" ? raw.gtin : null,
-    marketplace: typeof raw.marketplace === "string" ? raw.marketplace : null,
-    brand: typeof raw.brand === "string" ? raw.brand : null,
-    specs: raw.specs && typeof raw.specs === "object" && !Array.isArray(raw.specs) ? raw.specs : {},
-    rating: typeof raw.rating === "number" && Number.isFinite(raw.rating) ? raw.rating : null,
-    reviewCount: Number.isSafeInteger(raw.reviewCount ?? raw.review_count) ? (raw.reviewCount ?? raw.review_count) : null,
-    bang_per_buck: Number.isFinite(raw.bang_per_buck) ? raw.bang_per_buck : null,
-    relevancy: Number.isFinite(raw.relevancy) ? raw.relevancy : null,
-    trust: Number.isFinite(raw.trust) ? raw.trust : null,
-    score: Number.isFinite(raw.score) ? raw.score : null,
-    flags: Array.isArray(raw.flags) ? raw.flags.filter((flag) => typeof flag === "string") : [],
-    warnings: [
-      ...(Array.isArray(raw.warnings) ? raw.warnings.filter((warning) => typeof warning === "string") : []),
-      ...(isMock ? ["Demo listing: price, stock, dimensions and shipping duration are sample data."] : []),
-    ],
+    warnings: isMock
+      ? ["Demo listing: price, stock, dimensions and shipping duration are sample data.", ...sourceWarnings]
+      : sourceWarnings,
   };
 }
 
@@ -102,8 +135,12 @@ function centsAmount(value, currency) {
   return cents === null ? null : cents / 100;
 }
 
+export function sanitizeListings(products) {
+  return (Array.isArray(products) ? products : []).map(normalizeListing).filter(Boolean);
+}
+
 export async function synthesize(item, products, options = {}) {
-  const originals = (Array.isArray(products) ? products : []).map(normalizeListing).filter(Boolean);
+  const originals = sanitizeListings(products);
   let ranking = null;
   if (originals.length > 1 && originals.some((product) => product.source === "selenium")) {
     try {

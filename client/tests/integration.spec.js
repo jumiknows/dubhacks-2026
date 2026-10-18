@@ -14,12 +14,13 @@ async function setup(page, handle = () => null) {
     const result = await handle(path, route.request());
     if (result) return route.fulfill(result);
     if (path === '/api/me') return route.fulfill({ json: { profile: { completedAt: '2026-10-18' }, google: { available: false }, user: null } });
-    if (path === '/api/voice-health') return route.fulfill({ json: { integrations: { gemini_live: 'off' } } });
+    if (path === '/api/voice-health' || path === '/api/conjure/health') return route.fulfill({ json: { integrations: { gemini_live: 'not configured', llm: 'not configured' } } });
+    if (path === '/api/health') return route.fulfill({ json: { ok: true, stripe: 'mock' } });
     if (path === '/api/plans') return route.fulfill({ json: { plans: [] } });
     return route.fulfill({ status: 404, json: { error: `Unexpected test request: ${path}` } });
   });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Be ready for what’s next.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Where are you headed?' })).toBeVisible();
 }
 
 test('multiple plans retain selected offers through comparison, deliberate cart and mock checkout', async ({ page }) => {
@@ -28,29 +29,45 @@ test('multiple plans retain selected offers through comparison, deliberate cart 
   await setup(page, (path, req) => {
     if (path === '/api/plans' && req.method() === 'POST') { const next = samplePlan(`plan-${++serial}`, serial === 1 ? 'Tent' : 'Boots'); plans.push(next); return { json: next }; }
     if (path === '/api/plans') return { json: { plans: plans.slice().reverse() } };
+    const stored = plans.find((plan) => path === `/api/plans/${plan.id}`);
+    if (stored) return { json: stored };
     if (path.endsWith('/listing')) { selected = req.postDataJSON().listingId; plans[0].items[0].synthesis = { best: offers[1], totalPrice: 60, currency: 'USD' }; return { json: plans[0] }; }
     if (path === '/api/compare') return { json: { left: offers[0], right: offers[1], pick: 'right', reasons: ['Lower price within your trust floor.'], axes: [{ name: 'Price', left: '$80', right: '$60' }] } };
-    if (path === '/api/checkout') { expect(req.postDataJSON()).toEqual({ planId: 'plan-1', itemIds: ['plan-1-item'] }); return { json: { id: 'mock-1', mock: true, amount: 6000, currency: 'usd' } }; }
-    if (path === '/api/checkout/mock-1') { plans[0].items[0].purchased = true; return { json: { status: 'paid', plan: plans[0], receipt: { orderId: 'MOCK-1', amount: 6000, currency: 'usd', card: { last4: '4242' }, placedAt: '2026-10-18T12:00:00Z', sandboxes: [], local: ['plan-1-item'] } } }; }
+    if (path === '/api/checkout') { expect(req.postDataJSON()).toEqual({ cart: [{ planId: 'plan-1', itemIds: ['plan-1-item'] }, { planId: 'plan-2', itemIds: ['plan-2-item'] }] }); return { json: { id: 'mock-1', mock: true, amount: 14000, currency: 'usd' } }; }
+    if (path === '/api/checkout/mock-1') { plans.forEach((plan) => { plan.items[0].purchased = true; }); return { json: { status: 'paid', mock: true, plan: plans[0], plans, receipt: { orderId: 'MOCK-1', amount: 14000, currency: 'usd', card: { last4: '4242' }, placedAt: '2026-10-18T12:00:00Z', sandboxes: [], local: ['plan-1-item', 'plan-2-item'] } } }; }
     return null;
   });
   await page.getByLabel('Plan prompt').fill('A tent for camping'); await page.getByRole('button', { name: 'Build list', exact: true }).click();
   await page.getByRole('button', { name: 'Open Tent plan', exact: true }).click();
-  await page.getByRole('button', { name: /To buy Tent/ }).click();
-  const dialog = page.getByRole('dialog', { name: 'Tent', exact: true });
-  await expect(dialog).toContainText('Demo offer');
-  await dialog.getByLabel('Compare', { exact: true }).nth(0).check(); await dialog.getByLabel('Compare', { exact: true }).nth(1).check();
-  await dialog.getByRole('button', { name: 'Use recommended listing' }).click();
-  await expect(page.getByLabel('Shopping cart')).toContainText('$60.00'); expect(selected).toBe('offer-b');
-  await dialog.getByRole('button', { name: 'Close Tent', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tent product options', exact: true });
+  await expect(dialog).toContainText('Demo data');
+  await dialog.getByRole('button', { name: 'Compare best two', exact: true }).click();
+  const comparison = page.getByRole('dialog', { name: 'Compare Tent listings', exact: true });
+  await expect(comparison).toContainText('Lower price within your trust floor.');
+  await comparison.getByRole('button', { name: 'Choose B + add to cart', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Cart, 1 item/ })).toContainText('$60.00');
+  expect(selected).toBe('offer-b');
+  await expect(dialog.locator('[data-gesture-id="product:plan-1-item:offer-b"]')).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByLabel('Plan prompt').fill('Boots for camping'); await page.getByRole('button', { name: 'Build list', exact: true }).click();
   await expect(page.locator('.shop-group')).toHaveCount(2);
-  await page.getByRole('button', { name: 'Review checkout · $60.00' }).click();
-  await expect(page.getByLabel('Mock checkout')).toContainText('Demo checkout');
-  await page.getByRole('button', { name: 'Place mock order' }).click();
-  await expect(page.getByLabel('Order receipt')).toContainText('MOCK-1');
+  await page.getByRole('button', { name: 'Open Boots plan', exact: true }).click();
+  const boots = page.getByRole('dialog', { name: 'Boots product options', exact: true });
+  await boots.getByRole('button', { name: 'Add chosen to cart', exact: true }).click();
+  await boots.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: /^Cart, 2 items/ }).click();
+  const cart = page.getByRole('dialog', { name: 'Cart and checkout', exact: true });
+  await cart.getByRole('button', { name: 'Check out $140.00', exact: true }).click();
+  await expect(cart).toContainText('Demo checkout');
+  await cart.getByRole('button', { name: 'Place mock order', exact: true }).click();
+  await expect(cart).toContainText('MOCK-1');
+  await expect(cart).toContainText(/no card was charged/i);
+  await cart.getByRole('button', { name: 'Close', exact: true }).click();
   await page.reload(); await expect(page.locator('.shop-group')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: 'Open Tent plan' })).toContainText('Purchased');
+  await expect(page.locator('[data-group-id="plan-1"]')).toContainText('Purchased');
+  await expect(page.locator('[data-group-id="plan-2"]')).toContainText('Purchased');
+  await page.getByRole('button', { name: 'Open Tent plan', exact: true }).click();
+  await expect(page.locator('[data-gesture-id="product:plan-1-item:offer-b"]')).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]);
 });
 
@@ -102,22 +119,25 @@ test('assistant streams products and browser signs separate rules and exact demo
 test('pending mock checkout survives reload and cancellation restores the editable cart', async ({ page }) => {
   const plan = samplePlan('cancel-plan', 'Tent');
   let cancelled = false;
-  await setup(page, (path) => {
+  await setup(page, (path, req) => {
     if (path === '/api/plans') return { json: { plans: [plan] } };
+    if (path === '/api/plans/cancel-plan') return { json: plan };
     if (path.endsWith('/listing')) return { json: plan };
-    if (path === '/api/checkout') return { json: { id: 'cancel-mock', mock: true, amount: 8000, currency: 'usd' } };
+    if (path === '/api/checkout') { expect(req.postDataJSON()).toEqual({ cart: [{ planId: plan.id, itemIds: [plan.items[0].id] }] }); return { json: { id: 'cancel-mock', mock: true, amount: 8000, currency: 'usd' } }; }
     if (path === '/api/checkout/cancel-mock/cancel') { cancelled = true; return { json: { status: 'cancelled', mock: true, plan } }; }
     return null;
   });
-  await page.getByRole('button', { name: 'Open Tent plan' }).click();
-  await page.getByRole('button', { name: /To buy Tent/ }).click();
-  await page.getByRole('dialog', { name: 'Tent', exact: true }).getByRole('button', { name: 'Add to cart', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Close Tent', exact: true }).click();
-  await page.getByRole('button', { name: 'Review checkout · $80.00' }).click();
+  await page.getByRole('button', { name: 'Open Tent plan', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Tent product options', exact: true });
+  await dialog.getByRole('button', { name: 'Add chosen to cart', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: /^Cart, 1 item/ }).click();
+  await page.getByRole('button', { name: 'Check out $80.00', exact: true }).click();
   await page.reload();
-  await expect(page.getByLabel('Mock checkout')).toBeVisible();
-  await page.getByRole('button', { name: 'Back to cart', exact: true }).click();
-  await expect(page.getByLabel('Mock checkout')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Review checkout · $80.00' })).toBeEnabled();
+  const cart = page.getByRole('dialog', { name: 'Cart and checkout', exact: true });
+  await expect(cart).toContainText('Demo checkout');
+  await cart.getByRole('button', { name: 'Back to cart', exact: true }).click();
+  await expect(cart).not.toContainText('Demo checkout');
+  await expect(cart.getByRole('button', { name: 'Check out $80.00', exact: true })).toBeEnabled();
   expect(cancelled).toBe(true);
 });

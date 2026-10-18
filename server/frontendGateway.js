@@ -37,7 +37,7 @@ function unavailable(res, status = 503) {
 
 /** These namespaces stay on Express. Other paths, including source APIs, belong to Next. */
 export function isBackendPath(path) {
-  return /^\/api\/(?:health|voice-health|plans|checkout|stripe|me|auth|calendar|stores|orbicart|compare|top|conjure)(?:\/|$)/.test(path) ||
+  return /^\/static\/products(?:\/|$)/.test(path) || /^\/api\/(?:health|voice-health|plans|checkout|stripe|me|auth|calendar|stores|orbicart|compare|top|conjure)(?:\/|$)/.test(path) ||
     /^\/api\/products\/search(?:\/|$)/.test(path);
 }
 

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const win = process.platform === "win32";
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+export const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const venvPython = join(root, "api", ".venv", win ? "Scripts/python.exe" : "bin/python");
 
 export function pythonCmd({ system = false } = {}) {

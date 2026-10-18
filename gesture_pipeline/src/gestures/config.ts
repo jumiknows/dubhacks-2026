@@ -15,6 +15,17 @@ export const defaults = {
   smoothing: { minCutoff: 1.0, beta: 0.015, dCutoff: 1.0, releaseBlendMs: 90 },
   presentation: { responseMs: 18 },
   pinch: { on: 0.25, off: 0.4, confirmMs: 35, releaseMs: 50 },
+  fist: {
+    closeMs: 70,
+    openMs: 70,
+    curlOn: 1.2,
+    curlOff: 1.35,
+    pointingReach: 1.5,
+    indexTransitionMaxReach: 1.65,
+    indexClosingDelta: 0.035,
+    indexMotionGraceMs: 110,
+    aimedZGap: 0.03,
+  },
   drag: { minDist: 0.025, armMs: 100, pointerMinPx: 8 },
   swipe: { on: 0.5, off: 0.75, maxMiddleExtension: 1.25, armMs: 70, releaseMs: 120, minDist: 0.09, dominance: 1.5 },
   scroll: { gain: 2, deadband: 0.003 },
@@ -26,7 +37,7 @@ export const defaults = {
 export type Config = typeof defaults;
 
 // Versioned so old saved thresholds do not silently defeat the new interaction rules.
-const KEY = 'conjure.gesture.config.v3';
+const KEY = 'conjure.gesture.config.v4';
 
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v));
@@ -61,6 +72,9 @@ const bounds: Record<string, [number, number, boolean?]> = {
   'mapping.boxLeft': [0, 0.9], 'mapping.boxRight': [0.1, 1], 'mapping.boxTop': [0, 0.9], 'mapping.boxBottom': [0.1, 1], 'mapping.idleBelowY': [0.1, 1],
   'smoothing.minCutoff': [0.01, 10], 'smoothing.beta': [0, 1], 'smoothing.dCutoff': [0.01, 10], 'smoothing.releaseBlendMs': [1, 1000],
   'presentation.responseMs': [0, 100], 'pinch.on': [0.01, 1], 'pinch.off': [0.02, 2], 'pinch.confirmMs': [0, 150], 'pinch.releaseMs': [0, 500],
+  'fist.closeMs': [30, 300], 'fist.openMs': [30, 400], 'fist.curlOn': [0.8, 1.8], 'fist.curlOff': [0.9, 2],
+  'fist.pointingReach': [1.1, 2.5], 'fist.indexTransitionMaxReach': [1.1, 2.5], 'fist.indexClosingDelta': [0.005, 0.5],
+  'fist.indexMotionGraceMs': [30, 400], 'fist.aimedZGap': [0.005, 0.2],
   'drag.minDist': [0.005, 0.5], 'drag.armMs': [0, 1000], 'drag.pointerMinPx': [1, 100],
   'swipe.on': [0.01, 1], 'swipe.off': [0.02, 2], 'swipe.maxMiddleExtension': [0.5, 2], 'swipe.armMs': [0, 500], 'swipe.releaseMs': [10, 1000], 'swipe.minDist': [0.01, 0.5], 'swipe.dominance': [1, 5],
   'scroll.gain': [0.1, 10], 'scroll.deadband': [0, 0.1], 'hover.stickyMs': [0, 1000], 'cooldownMs': [0, 2000],
@@ -71,6 +85,8 @@ export function normalizeConfig(overrides: unknown): Config {
   const c = merge(clone(defaults), overrides) as Config;
   if (c.pinch.off <= c.pinch.on) c.pinch = { ...c.pinch, on: defaults.pinch.on, off: defaults.pinch.off };
   if (c.swipe.off <= c.swipe.on) c.swipe = { ...c.swipe, on: defaults.swipe.on, off: defaults.swipe.off };
+  if (c.fist.curlOff <= c.fist.curlOn) c.fist = { ...c.fist, curlOn: defaults.fist.curlOn, curlOff: defaults.fist.curlOff };
+  if (c.fist.indexTransitionMaxReach < c.fist.pointingReach) c.fist.indexTransitionMaxReach = c.fist.pointingReach;
   if (c.mapping.boxRight - c.mapping.boxLeft < 0.1) { c.mapping.boxLeft = defaults.mapping.boxLeft; c.mapping.boxRight = defaults.mapping.boxRight; }
   if (c.mapping.boxBottom - c.mapping.boxTop < 0.1) { c.mapping.boxTop = defaults.mapping.boxTop; c.mapping.boxBottom = defaults.mapping.boxBottom; }
   return c;
@@ -113,6 +129,7 @@ export function setPath(path: string, value: number | boolean) {
   candidateParent[last] = value;
   // Reject inverted pairs instead of silently breaking a running interaction.
   if (candidate.pinch.off <= candidate.pinch.on || candidate.swipe.off <= candidate.swipe.on
+    || candidate.fist.curlOff <= candidate.fist.curlOn
     || candidate.mapping.boxRight - candidate.mapping.boxLeft < 0.1 || candidate.mapping.boxBottom - candidate.mapping.boxTop < 0.1) {
     listeners.forEach(l => l()); return;
   }

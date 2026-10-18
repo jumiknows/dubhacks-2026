@@ -119,6 +119,7 @@ def live_relay(monkeypatch):
 def test_relay_session_flow(client, live_relay) -> None:
     fake, express_calls = live_relay
     with client.websocket_connect("/ws-live") as ws:
+        ws.send_json({"type": "session", "audio_mode": "manual"})
         assert "setupComplete" in ws.receive_json()
         ws.send_text("not JSON")
         ws.send_text("[]")
@@ -126,7 +127,7 @@ def test_relay_session_flow(client, live_relay) -> None:
         ws.send_text(json.dumps({"realtimeInput": {"activityStart": {}}}))
         ws.send_bytes(b"\x01\x00" * 160)
         ui = ws.receive_json()
-        assert ui == {"type": "UI_UPDATE", "action": "PLAN", "payload": ui["payload"]}
+        assert ui == {"type": "UI_UPDATE", "action": "PLAN", "payload": ui["payload"], "item_id": None}
         assert ui["payload"]["status"] == "pricing"
         assert "Prices are still loading" in ui["payload"]["note"]
         audio = ws.receive_json()
@@ -235,3 +236,20 @@ def test_tool_errors_remain_errors_and_invalid_values_are_rejected(monkeypatch) 
     assert asyncio.run(ctx.execute("get_plan", {})) == {"error": "plan not found"}
     assert "error" in asyncio.run(ctx.execute("mark_purchased", {"purchased": "false"}))
     assert "error" in asyncio.run(ctx.execute("set_trust_floor", {"trust_floor": float("nan")}))
+
+
+def test_cart_rejects_unknown_offer_and_owned_items(monkeypatch) -> None:
+    ctx = LiveContext()
+    ctx.plan_id = "p"
+    item = {"id": "i", "name": "Tent", "synthesis": {"totalPrice": 12, "best": {"id": "x", "price": 12}}}
+    async def get_plan(*args, **kwargs):
+        return {"id": "p", "items": [item]}
+    monkeypatch.setattr(ctx, "_http", get_plan)
+    assert "error" in asyncio.run(ctx.execute("add_to_cart", {"item_id": "i"}))
+    item["synthesis"]["best"].update(currency="USD", inStock=True)
+    assert asyncio.run(ctx.execute("add_to_cart", {"item_id": "i"}))["ui"] == "CART"
+    item["owned"] = True
+    assert "error" in asyncio.run(ctx.execute("add_to_cart", {"item_id": "i"}))
+    item["owned"] = False
+    item["synthesis"]["totalPrice"] = float("nan")
+    assert "error" in asyncio.run(ctx.execute("add_to_cart", {"item_id": "i"}))

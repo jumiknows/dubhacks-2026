@@ -9,7 +9,7 @@ export interface PlanItem {
   products: Listing[]; synthesis?: { best?: Listing; totalPrice?: number | null; currency?: string | null; warnings?: string[]; summary?: string }; order?: { amount: number; currency: string; checkoutSessionId?: string; orderId?: string };
 }
 export interface ShoppingPlan { id: string; title: string; prompt?: string; status?: string; items: PlanItem[]; }
-export interface Checkout { id: string; mock: boolean; amount: number; currency: string; url?: string; itemIds?: string[]; }
+export interface Checkout { id: string; mock: boolean; amount: number; currency: string; url?: string; itemIds?: string[]; planId?: string; items?: { id: string; name: string }[]; }
 export interface Receipt { orderId: string; amount: number; currency: string; placedAt: string; sandboxes?: { label: string; status: string; cartId?: string | number }[]; }
 export interface CheckoutResult { status: string; mock: boolean; plan: ShoppingPlan; receipt?: Receipt; }
 export async function api<T>(path: string, method = "GET", body?: unknown): Promise<T> {

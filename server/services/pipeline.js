@@ -12,7 +12,7 @@ export async function attachOffers(items, options = {}) {
     items.map(async (item) => {
       if (item.purchased || item.owned || item.synthesis) return item;
 
-      const fetched = await fetchProducts(item.name, options);
+      const fetched = await fetchProducts(item.name, { ...options, details: true, limit: options.productLimit ?? 8 });
       const products = await shortlistTop(fetched, options);
 
       const synthesisPromise = synthesize(item, products, options);
@@ -20,7 +20,8 @@ export async function attachOffers(items, options = {}) {
 
       // Expose the same sanitized listings used by synthesis, including sources
       // and nulls for unsafe URLs/prices, rather than leaking unvalidated raw data.
-      return { ...item, products: [synthesis.best, ...synthesis.alternatives].filter(Boolean), synthesis };
+      const checkedProducts = [synthesis.best, ...synthesis.alternatives].filter(Boolean);
+      return { ...item, products: checkedProducts, synthesis, image: synthesis.image || checkedProducts.find((product) => product.image)?.image || null };
     })
   );
 }
@@ -55,6 +56,7 @@ export async function pickListing(item, listingId) {
   return {
     ...item,
     selectedListingId: listingId,
+    image: synthesis.image || item.image || null,
     synthesis: {
       ...synthesis,
       alternatives: (item.products || []).filter((product) => product.id !== listingId),
