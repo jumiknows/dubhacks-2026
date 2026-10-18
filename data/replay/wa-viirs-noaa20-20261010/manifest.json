@@ -1,0 +1,62 @@
+{
+  "manifestVersion": "1.0",
+  "datasetId": "wa-viirs-noaa20-20261010",
+  "datasetVersion": "6e36953921de1b157ff26d913de03cc100dba8dd269aa1d700d3573bf479f673",
+  "supersedesSnapshotId": null,
+  "runId": "77b5854b-c554-45c5-854d-50a26f91257a",
+  "mode": "replay",
+  "synthetic": false,
+  "source": {
+    "id": "firms-viirs-noaa20",
+    "provider": "NASA FIRMS",
+    "product": "VIIRS_NOAA20_NRT",
+    "productVersion": "2.0NRT",
+    "documentationUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_7d.csv",
+    "fetchedAt": "2026-10-18T04:34:28Z",
+    "availableAt": null
+  },
+  "scope": {
+    "regionId": "wa-demo",
+    "bbox": [
+      -124.85,
+      45.5,
+      -116.9,
+      49.05
+    ],
+    "windowStart": "2026-10-10T09:54:00Z",
+    "windowEnd": "2026-10-17T20:49:00Z",
+    "asOf": "2026-10-17T20:49:00Z"
+  },
+  "transformVersion": "firms-normalize-1",
+  "codeCommit": "f87b441cba35e0d8e87515960799199d26cc9ea4",
+  "artifacts": {
+    "raw": [
+      {
+        "path": "data/replay/wa-viirs-noaa20-20261010/raw/J1_VIIRS_C2_USA_contiguous_and_Hawaii_7d.csv",
+        "sha256": "d94310ccd14dd8552bd428116259b74eae6ba264d140b44a46fe8cc9ecefd0e0",
+        "bytes": 712541
+      }
+    ],
+    "normalized": {
+      "path": "data/replay/wa-viirs-noaa20-20261010/normalized.jsonl",
+      "sha256": "24d56bbd957117499060f9a77d321ca316c9d4beaded627608071fbb3c9d92da",
+      "bytes": 168700
+    },
+    "quality": {
+      "path": "data/replay/wa-viirs-noaa20-20261010/quality.json",
+      "sha256": "b7c613296016ec0911d981a0c753c95309427780846cc30007ed96cead26a78b",
+      "bytes": 494
+    }
+  },
+  "counts": {
+    "rawRows": 8441,
+    "retainedRows": 397,
+    "duplicateRows": 0,
+    "excludedRows": 8044,
+    "quarantinedRows": 0
+  },
+  "qualityStatus": "passed",
+  "coverageStatus": "unknown",
+  "attribution": "NASA FIRMS NOAA-20 VIIRS Collection 2 near real-time active fire detections. Contiguous United States and Hawaii 7-day file, filtered to the Washington demo region after retrieval.",
+  "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29"
+}

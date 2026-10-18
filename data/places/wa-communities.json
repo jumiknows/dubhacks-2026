@@ -1,0 +1,200 @@
+{
+  "catalogVersion": "1",
+  "description": "Twelve Washington communities taken from the 2026 Census Gazetteer place file. Coordinates are internal points, not boundaries or households.",
+  "source": {
+    "provider": "US Census Bureau",
+    "vintage": "2026 Gazetteer",
+    "url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+    "sha256": "ea15e505da225db4290d9f318cc6fa08701cd9c953e6cae33209dfb432807e11",
+    "bytes": 65797,
+    "retrievedAt": "2026-10-18T04:26:00Z"
+  },
+  "places": [
+    {
+      "id": "wa-5311615",
+      "name": "Chelan",
+      "censusName": "Chelan city",
+      "geoid": "5311615",
+      "latitude": 47.844282,
+      "longitude": -120.013572,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5338845",
+      "name": "Leavenworth",
+      "censusName": "Leavenworth city",
+      "geoid": "5338845",
+      "latitude": 47.594704,
+      "longitude": -120.663913,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5344690",
+      "name": "Medical Lake",
+      "censusName": "Medical Lake city",
+      "geoid": "5344690",
+      "latitude": 47.571039,
+      "longitude": -117.68945,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Countywide AlertSpokane information",
+          "url": "https://my.spokanecity.org/emergencymanagement/alerts/"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5363000",
+      "name": "Seattle",
+      "censusName": "Seattle city",
+      "geoid": "5363000",
+      "latitude": 47.619335,
+      "longitude": -122.351538,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Seattle emergency alerts",
+          "url": "https://alert.seattle.gov/"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5367000",
+      "name": "Spokane",
+      "censusName": "Spokane city",
+      "geoid": "5367000",
+      "latitude": 47.666935,
+      "longitude": -117.433322,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Countywide AlertSpokane information",
+          "url": "https://my.spokanecity.org/emergencymanagement/alerts/"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5377105",
+      "name": "Wenatchee",
+      "censusName": "Wenatchee city",
+      "geoid": "5377105",
+      "latitude": 47.435985,
+      "longitude": -120.329266,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Chelan County Emergency Management",
+          "url": "https://www.co.chelan.wa.us/emergency-management"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5379380",
+      "name": "Winthrop",
+      "censusName": "Winthrop town",
+      "geoid": "5379380",
+      "latitude": 48.471581,
+      "longitude": -120.178987,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Okanogan County Alerts",
+          "url": "https://www.okanogancounty.gov/408/What-is-Okanogan-County-Alerts"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    },
+    {
+      "id": "wa-5380010",
+      "name": "Yakima",
+      "censusName": "Yakima city",
+      "geoid": "5380010",
+      "latitude": 46.590938,
+      "longitude": -120.5494,
+      "sourceUrl": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_53.txt",
+      "sourceVintage": "2026 Gazetteer",
+      "officialInfoLinks": [
+        {
+          "label": "Yakima County Emergency Management",
+          "url": "https://www.yakimacounty.us/350/Emergency-Management"
+        },
+        {
+          "label": "Washington Emergency Management wildfire resources",
+          "url": "https://mil.wa.gov/wildfire"
+        }
+      ]
+    }
+  ],
+  "linkVerification": {
+    "checkedAt": "2026-10-18",
+    "method": "Official government page content retrieved and reviewed for jurisdiction and purpose. These links are resources, not an assertion of current alert status.",
+    "resources": [
+      {
+        "label": "Chelan County Emergency Management",
+        "url": "https://www.co.chelan.wa.us/emergency-management"
+      },
+      {
+        "label": "Countywide AlertSpokane information",
+        "url": "https://my.spokanecity.org/emergencymanagement/alerts/"
+      },
+      {
+        "label": "Okanogan County Alerts",
+        "url": "https://www.okanogancounty.gov/408/What-is-Okanogan-County-Alerts"
+      },
+      {
+        "label": "Seattle emergency alerts",
+        "url": "https://alert.seattle.gov/"
+      },
+      {
+        "label": "Yakima County Emergency Management",
+        "url": "https://www.yakimacounty.us/350/Emergency-Management"
+      }
+    ]
+  }
+}

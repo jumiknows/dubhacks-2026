@@ -1,73 +1,73 @@
-# ESPER
+# EmberReady
 
-ESPER combines shopping lists, store offers, comparison, review evidence, voice, hand gestures, and checkout in one React/Vite application with Express and Python/FastAPI services.
+Community wildfire briefings from satellite observations.
 
-## Run locally
+**Status:** real NASA replay and public-feed live observations, the accessible map and list, deterministic briefings, and a verified data pipeline are implemented. Grok Voice code is connected but real audio and conversation still need an xAI key. Twelve evaluation cases are prepared and await actual outputs and human review. No wildfire model has been trained.
 
-Use Node.js 22+ and Python 3.11+.
+[Open the private demo](https://emberready.jumiknows.chatgpt.site). Access is limited to the site owner. [Test and deployment evidence](docs/RELEASE_READINESS.md) records what works and the remaining release gates.
+
+EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
+
+Start with the [implementation epic](https://github.com/jumiknows/spacex2026Hacks/issues/10), [product brief](docs/PRODUCT_BRIEF.md), and [Grok handoff](docs/GROK_HANDOFF.md).
+
+The heatmap represents observed thermal activity. The MVP does not claim ignition prediction, fire spread forecasts, or evacuation guidance.
+
+## Start here
+
+You need Git, Python 3.12 or newer, and Node.js 24.
 
 ```bash
+git clone https://github.com/jumiknows/spacex2026Hacks.git
+cd spacex2026Hacks
+git switch dev
+python3 tools/check_repo.py
+python3 -m unittest discover -s tests -v
 npm ci
-npm run api:setup
+npm run typecheck
+npm test
+npm run build
 npm run dev
 ```
 
-Setup creates `api/.venv`; development and tests use that environment. `PYTHON` can select another Python 3.11+ interpreter for development. Stop the development command to stop all three services.
+On Windows, use `py -3` instead of `python3`.
 
-- Application: http://localhost:5173
-- Express: http://localhost:3001
-- Python API docs: http://localhost:8000/docs
-- Health: `/api/health` and `/api/conjure/health`
+Pick an [open issue](https://github.com/jumiknows/spacex2026Hacks/issues), assign yourself, and follow [CONTRIBUTING.md](CONTRIBUTING.md). `npm run dev` starts the replay workspace. Live observations use the public NASA NOAA-20 24-hour CSV by default. `FIRMS_MAP_KEY` selects the bounded SNPP Area API. Spoken briefing and conversation need private `XAI_API_KEY` and access configuration. See [release evidence](docs/RELEASE_READINESS.md).
 
-Copy `server/.env.example` to `server/.env` and `api/.env.example` to `api/.env` to configure optional integrations. Keep credentials in these ignored files. The application supports offline sample data. Google, live retailer APIs, Gemini voice, and Stripe test mode require their respective configuration; the UI reports availability and data provenance.
+## Repository map
 
-For the built application, run `npm run build`, keep Python running with `npm run api`, and run `npm start` to serve the application and its API on port 3001. Set `CLIENT_URL` and `APP_ORIGIN` in `server/.env` to that application origin so Google and checkout return to it.
+| Path | Purpose |
+| --- | --- |
+| [apps/](apps/README.md) | Deployable applications and services |
+| [packages/](packages/README.md) | Code shared by applications |
+| `tools/` | Repository checks and development scripts |
+| `tests/` | Tests for repository tooling |
+| [research/](research/README.md) | Wildfire discovery research pipeline and danger-zone scoring |
+| [docs/](docs/WORKFLOW.md) | Workflow, engineering decisions, and demo guidance |
+| `.github/` | Issue forms, pull request template, ownership, and CI |
 
-## Application flow
+## Team workflow
 
-Complete or skip onboarding, choose a calendar suggestion or describe a shopping task, and build a list. Multiple lists share the shopping board. Open a group with a click or hand gesture, inspect items, compare listings, select an offer, and add it to the cart. Purchased items update the server plan and its quote. Checkout returns to the same application and refreshes the paid plan.
+Create a focused branch from `dev`, open a pull request into `dev`, and record the checks you ran. Promote a verified demo from `dev` into `main` through a release pull request.
 
-The assistant uses `/api/conjure/*` for conversational search and evidence. Its labelled demo catalog is separate from marketplace offers. Review and website workbenches are available at `/api/conjure/reviews/workbench` and `/api/conjure/websites/workbench`.
+Use real GitHub issue numbers in branches and pull requests. Example: `feat/12-demo-flow` with the title `feat(app): add demo flow` and `Refs #12` in the description.
 
-Voice uses `/ws-live` and the same planner routes as the board. An initial checklist can appear while offers load; subsequent updates hydrate the complete plan. Missing voice configuration leaves text and pointer controls available.
+## Working guides
 
-The [gesture module](gesture_pipeline/README.md) supplies pointer, pinch, drag, swipe, split, and recombine interactions. `/gesture-lab` retains camera-free replays, live assessments, and JSON export. See [two-hand gestures](docs/two-hand-gestures.md) for tuning and tests.
-
-## Data and checkout
-
-Checklist generation uses explicit templates. Marketplace search combines the Python marketplace service and configured store adapters, with labelled fixture fallback. Selenium is optional (`SELENIUM_ENABLED=true`); store adapters are controlled by `STORES_LIVE` and provider settings in `server/.env.example`.
-
-Prices are validated and calculated in integer cents. Quotes distinguish known merchandise subtotals, missing prices, mixed currencies, shipping, tax, and arrival evidence. The cart uses server-selected offers and server prices. Missing configuration uses an explicitly labelled mock checkout; `STRIPE_SECRET_KEY=sk_test_...` enables Stripe test Checkout. `MOCK_ORDER_SANDBOX=off` keeps sample orders offline.
-
-Accounts and preferences persist under ignored `server/data/`. Planner lists and checkout sessions currently live in server memory; restarting Express expires them. The application restores the current browser or signed-in account’s lists while their server plans remain available.
-
-## API
-
-- `POST /api/plans` — `{prompt, category?, marketplaces?, async?}`; `async:true` returns a checklist while offers load.
-- `GET /api/plans/:id` — retrieve the complete plan and pricing status.
-- `PATCH /api/plans/:id/items/:itemId` — `{purchased:boolean}`.
-- `PUT /api/plans/:id/items/:itemId/listing` — `{listingId}` selects an existing offer.
-- `POST /api/compare` and `POST /api/top` — marketplace comparison and ranking.
-- `POST /api/checkout` — `{planId,itemIds}`; `GET /api/checkout/:sessionId` confirms the result.
-- `POST /api/checkout/:sessionId/cancel` — cancels an open checkout and releases its item reservations.
-- `/api/me`, `/api/me/profile`, `/api/auth/*`, `/api/calendar/suggestions` — onboarding and account integration.
-- `/api/conjure/*` — bounded gateway for assistant sessions, streamed chat, catalog search, recommendations, trust, reviews, website assessments, and signed demo checkout.
-
-See [backend contracts](BACKEND_HANDOFF.md), [review insights](docs/review-insights.md), and [website safety](docs/website-safety.md) for provider setup and evidence boundaries. Historical branch validation in the handoff describes those branch snapshots.
-
-## Verification
-
-```bash
-npm test                   # server, Python, client units, gesture engine
-npm run typecheck:gestures
-npm run build
-npm run smoke:backend      # real local HTTP integration, offline providers
-npm run smoke:app          # built app against real local services in Chromium
-npm run test:e2e           # browser application and gesture-lab checks
-```
-
-Install the test browser once with `npx playwright install chromium` if needed. All default verification uses offline providers or controlled fixtures. Live provider checks are opt-in.
-
-## Integration
-
-`integration/cohesive-esper` includes the latest safety/review backend, store APIs and Stripe checkout, onboarding/calendar, final shopping board, and voice pipeline, plus the existing AI, marketplace, and gesture branches. The useful local voice work was integrated explicitly; original stashes remain available. Superseded branch tips remain in the ancestry through their feature merges.
+- [Product scope and demo goals](docs/PRODUCT_BRIEF.md)
+- [Architecture and component boundaries](docs/ARCHITECTURE.md)
+- [Data and API contracts](docs/CONTRACTS.md)
+- [Data backend, cleaning, quality gates and storage](docs/DATA_BACKEND.md)
+- [Labeling, baseline experiments and Hugging Face readiness](docs/LABELING_AND_ML.md)
+- [Data registry and artifact schemas](data/README.md)
+- [Interactive mockup and implementation notes](docs/prototype/README.md)
+- [Verified data sources](docs/DATA_SOURCES.md)
+- [Grok Bot and Cursor implementation handoff](docs/GROK_HANDOFF.md)
+- [Three-minute demo script](docs/DEMO_SCRIPT.md)
+- [Build and sponsor evidence](docs/BUILD_EVIDENCE.md)
+- [Contribution steps](CONTRIBUTING.md)
+- [Branches, issues, and work queue](docs/WORKFLOW.md)
+- [Engineering review standard](docs/ENGINEERING_STANDARD.md)
+- [CI and repository settings](docs/CI_CD.md)
+- [Demo checklist](docs/DEMO_CHECKLIST.md)
+- [Repository architecture decision](docs/adr/0001-repository-workflow.md)
+- [Data foundation architecture decision](docs/adr/0003-data-foundation.md)

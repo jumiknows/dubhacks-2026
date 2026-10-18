@@ -1,3 +1,42 @@
+# Local environment values
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Dependencies and generated output
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+coverage/
+.coverage
+.next/
+.turbo/
+playwright-report/
+test-results/
+artifacts/
+
+# Local editor and operating system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+apps/web/src/lib/server/replay.generated.json
+
+# Research pipeline: downloaded sources and run outputs stay local
+research/artifacts/
+apps/web/src/lib/server/risk.generated.json
+
+# Preserved DubHacks runtime and reports
 node_modules/
 dist/
 .env

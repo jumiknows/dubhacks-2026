@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmberReady briefing evaluation case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["caseId", "rubricVersion", "synthetic", "split", "snapshotId", "placeId", "asOf", "question", "expectedFacts", "requiredSourceIds", "prohibitedClaims", "reviews"],
+  "properties": {
+    "caseId": {"type": "string", "minLength": 1},
+    "rubricVersion": {"type": "string", "minLength": 1},
+    "synthetic": {"type": "boolean"},
+    "split": {"enum": ["development", "held-out"]},
+    "snapshotId": {"type": "string", "minLength": 1},
+    "placeId": {"type": "string", "minLength": 1},
+    "asOf": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "question": {"type": "string", "minLength": 1},
+    "expectedFacts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "requiredSourceIds": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "prohibitedClaims": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reviewerId", "reviewedAt", "responseArtifact", "decision", "notes"],
+        "properties": {
+          "reviewerId": {"type": "string", "minLength": 1},
+          "reviewedAt": {"type": "string", "format": "date-time", "pattern": "Z$"},
+          "responseArtifact": {"type": "string", "minLength": 1},
+          "decision": {"enum": ["pass", "fail", "needs-adjudication"]},
+          "notes": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

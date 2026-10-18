@@ -1,0 +1,83 @@
+{
+  "experiment": "wa-discovery-nextday-v1",
+  "experiment_sha256": "a6ecc0bedf6098a6f2171d7d8c6a827635c59fde8e98ba8e8d108eac91e3a960",
+  "features": [
+    "doy_sin",
+    "doy_cos",
+    "weekend",
+    "july4_window",
+    "elev_mean",
+    "elev_relief",
+    "slope_mean",
+    "lat",
+    "lon",
+    "det_1d",
+    "det_3d",
+    "det_7d",
+    "det3x3_3d",
+    "det3x3_7d",
+    "det5x5_7d",
+    "frp_7d",
+    "tmax",
+    "tmin",
+    "rh",
+    "vpd",
+    "wind_max",
+    "precip_1d",
+    "precip_7d",
+    "precip_30d",
+    "dry_days",
+    "soil_wet",
+    "tmax_7d",
+    "hist_rate",
+    "hist_rate3x3"
+  ],
+  "excluded": [
+    "days_since_det",
+    "det_30d"
+  ],
+  "params": {
+    "min_samples_leaf": 30,
+    "max_features": "sqrt"
+  },
+  "trained_years": [
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "calibrated_on": [
+    2021,
+    2022
+  ],
+  "test_years": [
+    2023,
+    2024
+  ],
+  "test": {
+    "rows": 1279981,
+    "positives": 3237,
+    "prevalence": 0.002528943789009368,
+    "pr_auc": 0.02087748357865606,
+    "recall_at_budget": 0.09700339820821749,
+    "precision_at_budget": 0.021477428180574555,
+    "false_positives_per_1000_cell_days": 11.176728404562256,
+    "brier": 0.002497325938739876,
+    "brier_reference_prevalence": 0.0025225482323214,
+    "pr_auc_95ci": [
+      0.017226936256098942,
+      0.02483039102278683
+    ],
+    "recall_at_budget_95ci": [
+      0.08617981003023287,
+      0.1104547758583782
+    ],
+    "resamples": 200,
+    "unit": "calendar week"
+  },
+  "generated_at": "2026-10-18T12:57:19+00:00"
+}

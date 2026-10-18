@@ -1,28 +1,64 @@
 {
   "name": "dubhacks-2026",
   "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "workspaces": [
-    "client",
+    "apps/web",
+    "apps/pipeline",
+    "packages/domain",
+    "packages/data",
     "server",
-    "gesture_pipeline"
+    "gesture_pipeline",
+    "client"
   ],
   "scripts": {
-    "dev": "concurrently -k -n api,server,client -c magenta,blue,green \"npm run api\" \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev": "concurrently -k -n api,server,web -c magenta,blue,green \"npm run api\" \"npm run dev -w server\" \"npm run dev -w @emberready/web\"",
+    "lint": "eslint apps packages tools/*.ts *.ts *.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:domain && npm run test:server && npm run test:api && npm run test:gesture-engine && npm run test:client",
+    "test:browser": "playwright test",
+    "build": "npm run build -w @emberready/web",
+    "start": "node scripts/start-app.mjs",
+    "data:ingest": "node --import tsx apps/pipeline/src/cli.ts ingest",
+    "data:replay": "node --import tsx apps/pipeline/src/cli.ts replay",
+    "data:validate": "node --import tsx apps/pipeline/src/cli.ts validate",
+    "data:publish": "node --import tsx apps/pipeline/src/cli.ts publish",
+    "data:bundle": "node --import tsx apps/pipeline/src/bundle.ts",
+    "postinstall": "npm run data:bundle && npm run assets -w conjure-gestures",
+    "prebuild": "npm run data:bundle",
+    "verify:data": "node --import tsx apps/pipeline/src/verify-rebuild.ts",
+    "verify:evaluation": "vitest run packages/data/src/evaluation.test.ts",
+    "dev:legacy": "npm run dev -w client",
     "api": "node scripts/run-api.mjs",
     "api:setup": "node scripts/setup-api.mjs",
-    "test:api": "node scripts/test-api.mjs",
+    "api:start": "node scripts/run-api.mjs --production",
+    "start:web": "npm run start -w @emberready/web",
+    "start:backend": "npm run start -w server",
+    "test:domain": "vitest run",
     "test:server": "npm run test -w server",
+    "test:api": "node scripts/test-api.mjs",
     "test:client": "npm run test:unit -w client",
-    "test:e2e": "npm run test:e2e -w client",
     "test:gesture-engine": "npm run test -w conjure-gestures",
     "typecheck:gestures": "npm run typecheck -w conjure-gestures",
+    "test:legacy-browser": "npm run test:e2e -w client",
+    "test:e2e": "playwright test",
+    "build:legacy": "npm run build -w client",
     "smoke:backend": "node scripts/smoke-backend.mjs",
-    "smoke:app": "node scripts/smoke-backend.mjs --browser",
-    "test": "npm run test:server && npm run test:api && npm run test:client && npm run test:gesture-engine",
-    "build": "npm run build -w client",
-    "start": "npm run start -w server"
+    "smoke:legacy": "node scripts/smoke-backend.mjs --browser"
   },
   "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.5.2",
+    "eslint": "^9.36.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0",
+    "vitest": "^3.2.4",
     "concurrently": "^9.1.0"
   }
 }

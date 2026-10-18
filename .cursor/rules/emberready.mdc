@@ -1,0 +1,22 @@
+---
+description: EmberReady implementation scope, source fidelity, and review evidence
+alwaysApply: true
+---
+
+Read AGENTS.md, CONTRIBUTING.md, docs/GROK_HANDOFF.md, and docs/CONTRACTS.md before implementing an issue.
+
+For data work also read docs/DATA_BACKEND.md, docs/LABELING_AND_ML.md and data/README.md. Use docs/prototype/index.html only as a synthetic design reference. Preserve raw artifacts, quarantine invalid rows, reconcile counts and publish immutable snapshots. Reuse the same parser across the web adapter and batch job.
+
+Build the selected issue on a focused branch from dev. Use its acceptance criteria and dependency links. Keep one authoritative set of data contracts.
+
+Follow the writing and visual direction in docs/PRODUCT_BRIEF.md. Keep prose concise, with no semicolons, long dashes, emoji headings or promotional filler. Preserve required code syntax. Use Segoe UI, Arial and sans-serif fallbacks, consistent 4-pixel spacing, flat surfaces and neutral dividers. Keep the wordmark as text. Do not add decorative gradients, glass effects, headline badges, ornamental icon rows, star logos, scroll reveals, pointer effects or fading buttons. Style any component library deliberately.
+
+The product is accessible wildfire awareness with NASA observations and Grok Voice. Counts, distances, timestamps, attention bands, and source references come from deterministic code. Do not invent probabilities, incidents, fire perimeters, or evacuation routes.
+
+Preserve the difference between observation time and retrieval time. Replay must not include future observations or current weather. Distinguish real source snapshots from synthetic test cases.
+
+Do not train a model before defining independent labels, feature availability and frozen temporal/geographic splits. Compare measured baselines. Do not turn attention-rule labels or Grok suggestions into ground truth. Keep Hugging Face publication gated on source rights and an actual reviewed release.
+
+Keep provider keys on the server. Use short-lived credentials for browser Voice sessions. Cancel old audio when place or timeline context changes.
+
+Run the repository and affected application checks. Record actual commands and outcomes in the pull request and actual Cursor work in docs/BUILD_EVIDENCE.md. Do not invent tool-use evidence or measurements.

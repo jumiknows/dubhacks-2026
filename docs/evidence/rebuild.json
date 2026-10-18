@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-18T05:31:02.056Z",
+  "command": "npm run verify:data",
+  "inputRawSha256": "d94310ccd14dd8552bd428116259b74eae6ba264d140b44a46fe8cc9ecefd0e0",
+  "outputs": [
+    {
+      "datasetVersion": "41a6b0903ebc524d96e5bf82fc1d8cacff83b3724768b42d57165c00fcaec80d",
+      "snapshotId": "37bd85c4e89332b89d08e72d1313dbccddfd4d3e50785e57ad91bfcceda851f6",
+      "normalizedSha256": "24d56bbd957117499060f9a77d321ca316c9d4beaded627608071fbb3c9d92da",
+      "counts": {
+        "rawRows": 8441,
+        "retainedRows": 397,
+        "duplicateRows": 0,
+        "excludedRows": 8044,
+        "quarantinedRows": 0
+      },
+      "transformVersion": "firms-normalize-2"
+    },
+    {
+      "datasetVersion": "41a6b0903ebc524d96e5bf82fc1d8cacff83b3724768b42d57165c00fcaec80d",
+      "snapshotId": "a189d383986fd360bcd066e54f5e50223a44702acf33439974d14e06b98f84ec",
+      "normalizedSha256": "24d56bbd957117499060f9a77d321ca316c9d4beaded627608071fbb3c9d92da",
+      "counts": {
+        "rawRows": 8441,
+        "retainedRows": 397,
+        "duplicateRows": 0,
+        "excludedRows": 8044,
+        "quarantinedRows": 0
+      },
+      "transformVersion": "firms-normalize-2"
+    }
+  ],
+  "result": "identical normalized bytes and datasetVersion"
+}

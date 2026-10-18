@@ -1,0 +1,24 @@
+name: Decision
+description: Agree a technical choice that affects the team
+labels: ["type:decision", "status:backlog"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and constraints
+      description: What decision is needed and what limits the options?
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options and tradeoffs
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed decision and verification
+      description: State the choice, evidence needed, and who needs to agree.
+    validations:
+      required: true

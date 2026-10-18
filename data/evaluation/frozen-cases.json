@@ -1,0 +1,94 @@
+{
+  "frozenAt": "2026-10-18T05:32:16.740Z",
+  "rubricVersion": "briefing-1",
+  "sourceSnapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+  "status": "prepared-not-human-reviewed",
+  "actualGrokResponses": 0,
+  "reviewedCases": 0,
+  "cases": [
+    {
+      "caseId": "recent-observations",
+      "path": "data/evaluation/real/recent-observations.json",
+      "sha256": "0d519b7177b26e70b967e2c8d9734b707698c75bb6e0102baf0e37b05b554913",
+      "split": "development",
+      "synthetic": false
+    },
+    {
+      "caseId": "historical-cutoff",
+      "path": "data/evaluation/real/historical-cutoff.json",
+      "sha256": "1404d02627e55ba8045e5ceac388a9c4eefa61f617cdc7175446defa971ef14a",
+      "split": "development",
+      "synthetic": false
+    },
+    {
+      "caseId": "source-citation",
+      "path": "data/evaluation/real/source-citation.json",
+      "sha256": "22809c8cfdb1f587a6c5f3fcacde7c5083ead9be022ad034cc80544794767c3e",
+      "split": "held-out",
+      "synthetic": false
+    },
+    {
+      "caseId": "evacuation-question",
+      "path": "data/evaluation/real/evacuation-question.json",
+      "sha256": "ef9488607b43fd37849336017b02d21cb1ebdda5ba2dcc93be5cc878a5847f85",
+      "split": "development",
+      "synthetic": false
+    },
+    {
+      "caseId": "map-failure",
+      "path": "data/evaluation/real/map-failure.json",
+      "sha256": "5d52f34670ba5538bf2103445f94bc004c807ff4b6aeb597906d13dfa387c969",
+      "split": "development",
+      "synthetic": false
+    },
+    {
+      "caseId": "empty-cutoff",
+      "path": "data/evaluation/real/empty-cutoff.json",
+      "sha256": "d293e26961020b9a042d3874c1c13ef805ae44b93de4951f86f58bafd3196900",
+      "split": "held-out",
+      "synthetic": false
+    },
+    {
+      "caseId": "stale-source",
+      "path": "tests/fixtures/synthetic/briefing/stale-source.json",
+      "sha256": "f52aeb8d5575d6ad0577560f90bcddab0ae2495064e9afe5a57bb7eefcb70fa3",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "caseId": "unavailable-source",
+      "path": "tests/fixtures/synthetic/briefing/unavailable-source.json",
+      "sha256": "7b2cfbdfc8b0e5f9ecde7e1c21de79f6a84ee5518803f485a67cc382dafd57ad",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "caseId": "low-confidence",
+      "path": "tests/fixtures/synthetic/briefing/low-confidence.json",
+      "sha256": "6f5f6f765c23e4315801f35332893da8958ccdd91067680a7c9213f142f96a6f",
+      "split": "held-out",
+      "synthetic": true
+    },
+    {
+      "caseId": "future-row-trap",
+      "path": "tests/fixtures/synthetic/briefing/future-row-trap.json",
+      "sha256": "31e75e0a738711931c5501dd1ae20afe841afdd07bd071e3f215a515dcf86de2",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "caseId": "context-switch",
+      "path": "tests/fixtures/synthetic/briefing/context-switch.json",
+      "sha256": "2b45693968c0e296ef163362728075b0b57a83b6ccbb5db0512590e0136f1bd1",
+      "split": "development",
+      "synthetic": true
+    },
+    {
+      "caseId": "unknown-snapshot",
+      "path": "tests/fixtures/synthetic/briefing/unknown-snapshot.json",
+      "sha256": "e3d488a19f524a6607ca17fd9d86d37cb22adab63badf23675efab7cf59f9960",
+      "split": "held-out",
+      "synthetic": true
+    }
+  ]
+}
