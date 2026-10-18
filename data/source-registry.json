@@ -1,0 +1,51 @@
+{
+  "registryVersion": "1.0",
+  "reviewedAt": "2026-10-18",
+  "status": "documentation-reviewed-no-data-acquired",
+  "sources": [
+    {
+      "id": "firms-viirs-snpp",
+      "provider": "NASA FIRMS",
+      "product": "VIIRS_SNPP_NRT",
+      "documentationUrl": "https://firms.modaps.eosdis.nasa.gov/api/area/",
+      "purpose": "thermal-observations",
+      "priority": "P0",
+      "credentialEnv": "FIRMS_MAP_KEY",
+      "availabilityVerified": false,
+      "redistributionReview": "pending",
+      "notes": "One bounded region. Confidence is categorical. Acquire a real replay window only after checking product availability."
+    },
+    {
+      "id": "census-gazetteer-places",
+      "provider": "US Census Bureau",
+      "documentationUrl": "https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html",
+      "purpose": "public-community-catalog",
+      "priority": "P0",
+      "availabilityVerified": false,
+      "redistributionReview": "pending",
+      "notes": "Pin the acquired vintage. Representative coordinates are not boundaries or household locations."
+    },
+    {
+      "id": "fpa-fod-research",
+      "provider": "US Forest Service",
+      "editionCandidate": "FPA_FOD_20260615, seventh edition",
+      "documentationUrl": "https://apps.fs.usda.gov/arcx/rest/services/EDW/EDW_FireOccurrenceCurrentEdition_01/MapServer",
+      "archiveDoi": "https://doi.org/10.2737/RDS-2013-0009.7",
+      "purpose": "retrospective-reported-discovery-label-research",
+      "priority": "P2",
+      "availabilityVerified": false,
+      "redistributionReview": "pending",
+      "notes": "Current service metadata reviewed. Archive not downloaded. Pin exact edition and checksum before use. Reporting and location precision vary."
+    },
+    {
+      "id": "mtbs-research",
+      "provider": "USGS and US Forest Service",
+      "documentationUrl": "https://www.mtbs.gov/project-overview",
+      "purpose": "later-burn-area-and-severity-research",
+      "priority": "P2",
+      "availabilityVerified": false,
+      "redistributionReview": "pending",
+      "notes": "Large-fire selection and prescribed fires limit its use as an early-detection label source."
+    }
+  ]
+}

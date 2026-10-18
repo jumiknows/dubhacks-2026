@@ -6,6 +6,8 @@ The repository foundation and this planning handoff were created through ChatGPT
 
 No authenticated Grok Voice call, FIRMS key-based fetch, application demo, user study, or application deployment has been completed by this planning task.
 
+The data specifications, JSON schemas and interactive synthetic design reference were also prepared through ChatGPT. No operational pipeline, human-labeled dataset, training run, model metric or Hugging Face upload has been completed. Mockup interactions are not Grok API evidence.
+
 ## Append actual evidence
 
 | Time | Tool or environment | Issue and commit | Action completed | Evidence location | Result or limitation |

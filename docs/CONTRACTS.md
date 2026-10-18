@@ -2,6 +2,8 @@
 
 These contracts keep data, map, and voice work compatible. Implement runtime validation and exported TypeScript types before connecting the components.
 
+Artifact persistence and quality gates are specified in [data backend](DATA_BACKEND.md), with versioned [manifest and evaluation schemas](../data/README.md). Keep the existing response schema version separate from the artifact manifest version. The schema files are specifications, not a working validator or acquired dataset.
+
 ## Coordinate and time rules
 
 - GeoJSON coordinates are longitude, latitude in WGS84.
@@ -84,6 +86,8 @@ Voice answers about safety, evacuation, or road access must state that those fac
 ## Replay manifest
 
 Each real dataset records `datasetId`, provider, product, source URL without credentials, retrieval time, observation start and end, region bounds, raw and retained row counts, transformation version, SHA-256, attribution, and `synthetic: false`.
+
+Use the published manifest schema to add `datasetVersion`, `snapshotId`, raw and derived artifact hashes, count reconciliation and quality status. Persist original row lineage, validate all artifacts before publication and resolve the same immutable snapshot across application surfaces. A schema-valid manifest is not proof of real data or a completed quality check.
 
 Record known source-availability timestamps if available, otherwise null. Keep synthetic edge-case fixtures under `tests/fixtures/synthetic` with `synthetic: true`. They are never the main demo's claimed NASA evidence.
 

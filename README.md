@@ -2,7 +2,7 @@
 
 Satellite evidence to accessible community wildfire briefings.
 
-**Status:** the repository foundation and implementation plan are ready. The application is not implemented yet.
+**Status:** repository setup, product/data implementation plans, artifact schemas and an interactive design mockup are ready. The application, operational data pipeline and trained models are not implemented yet.
 
 EmberReady helps a community coordinator understand thermal observations near a Washington community, replay what changed, and hear a plain-language Grok Voice briefing with source timestamps. It combines real NASA data, an accessible map and list, and links to official information.
 
@@ -48,6 +48,10 @@ Use real GitHub issue numbers in branches and pull requests. Example: `feat/12-d
 - [Product scope and demo goals](docs/PRODUCT_BRIEF.md)
 - [Architecture and component boundaries](docs/ARCHITECTURE.md)
 - [Data and API contracts](docs/CONTRACTS.md)
+- [Data backend, cleaning, quality gates and storage](docs/DATA_BACKEND.md)
+- [Labeling, baseline experiments and Hugging Face readiness](docs/LABELING_AND_ML.md)
+- [Data registry and artifact schemas](data/README.md)
+- [Interactive mockup and implementation notes](docs/prototype/README.md)
 - [Verified data sources](docs/DATA_SOURCES.md)
 - [Grok Bot and Cursor implementation handoff](docs/GROK_HANDOFF.md)
 - [Three-minute demo script](docs/DEMO_SCRIPT.md)
@@ -58,5 +62,6 @@ Use real GitHub issue numbers in branches and pull requests. Example: `feat/12-d
 - [CI and repository settings](docs/CI_CD.md)
 - [Demo checklist](docs/DEMO_CHECKLIST.md)
 - [Repository architecture decision](docs/adr/0001-repository-workflow.md)
+- [Data foundation architecture decision](docs/adr/0003-data-foundation.md)
 
 The workflow draws on [ALEASAT Mission Software](https://github.com/jumiknows/Aleasat-Mission-Software). This repository has its own code, issue numbers, owners, and deployment decisions.
