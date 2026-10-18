@@ -1,6 +1,6 @@
 # Data backend and pipeline
 
-Status: implementation specification, not a running backend. Parent: [data epic #29](https://github.com/jumiknows/spacex2026Hacks/issues/29). Decision: [ADR 0003](adr/0003-data-foundation.md).
+Status: the batch commands and one replay snapshot exist. Scheduled storage and model training do not. Parent: [data epic #29](https://github.com/jumiknows/spacex2026Hacks/issues/29). Decision: [ADR 0003](adr/0003-data-foundation.md).
 
 ## What to build now
 

@@ -1,7 +1,7 @@
 {
   "registryVersion": "1.0",
   "reviewedAt": "2026-10-18",
-  "status": "documentation-reviewed-no-data-acquired",
+  "status": "replay-snapshot-acquired-live-key-unverified",
   "sources": [
     {
       "id": "firms-viirs-snpp",
@@ -13,7 +13,18 @@
       "credentialEnv": "FIRMS_MAP_KEY",
       "availabilityVerified": false,
       "redistributionReview": "pending",
-      "notes": "One bounded region. Confidence is categorical. Acquire a real replay window only after checking product availability."
+      "notes": "Live area requests still need FIRMS_MAP_KEY. No authenticated live call has succeeded."
+    },
+    {
+      "id": "firms-viirs-noaa20",
+      "provider": "NASA FIRMS",
+      "product": "VIIRS_NOAA20_NRT",
+      "documentationUrl": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_USA_contiguous_and_Hawaii_7d.csv",
+      "purpose": "thermal-observations",
+      "priority": "P0",
+      "availabilityVerified": true,
+      "redistributionReview": "public-nasa-archive-file-attributed",
+      "notes": "Public 7-day CONUS and Hawaii CSV retrieved 2026-10-18. SHA-256 d94310ccd14dd8552bd428116259b74eae6ba264d140b44a46fe8cc9ecefd0e0. Washington rows are the published replay subset. This is not a live MAP_KEY fetch."
     },
     {
       "id": "census-gazetteer-places",
@@ -21,9 +32,9 @@
       "documentationUrl": "https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html",
       "purpose": "public-community-catalog",
       "priority": "P0",
-      "availabilityVerified": false,
-      "redistributionReview": "pending",
-      "notes": "Pin the acquired vintage. Representative coordinates are not boundaries or household locations."
+      "availabilityVerified": true,
+      "redistributionReview": "us-government-work",
+      "notes": "2026 Washington place file retrieved 2026-10-18. SHA-256 ea15e505da225db4290d9f318cc6fa08701cd9c953e6cae33209dfb432807e11. The app catalog is 12 named places from that file."
     },
     {
       "id": "fpa-fod-research",

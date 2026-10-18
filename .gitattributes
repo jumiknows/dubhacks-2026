@@ -6,3 +6,5 @@
 *.webp binary
 *.pdf binary
 *.mp4 binary
+data/replay/**/raw/* binary
+*.csv binary

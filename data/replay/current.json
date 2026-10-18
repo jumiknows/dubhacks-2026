@@ -1,0 +1,6 @@
+{
+  "sourceId": "firms-viirs-noaa20",
+  "regionId": "wa-demo",
+  "snapshotId": "ddb23860ee372014201c236f56ab5045bbcc4a0b816a7807ea7dc14a10567c29",
+  "manifestPath": "data/replay/wa-viirs-noaa20-20261010/manifest.json"
+}
