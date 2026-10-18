@@ -45,6 +45,7 @@ The presenter can start the story and user-testing plan now. Their final evidenc
 - Use synthetic fixtures only for edge-case tests and early UI work. Switch the main demo to a verified real dataset.
 - Keep missing-provider work blocked and visible. Do not replace real API evidence with an undocumented mock.
 - Report changed files, commands run, results, limitations, and the next unblocked issue.
+- Follow the writing and visual direction in PRODUCT_BRIEF.md. Keep wording direct and the interface consistent with the current mockup. Describe routine wording and styling changes as cleanup.
 - Merge completed work into `dev` through the existing review process. Promote a verified release to `main`.
 
 ## Time budget

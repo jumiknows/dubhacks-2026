@@ -6,7 +6,7 @@ Issue: [#1](https://github.com/jumiknows/spacex2026Hacks/issues/1)
 
 ## Context
 
-The team needs ALEASAT-style traceability and review practices in an empty hackathon repository. There is no agreed application stack or deployment target yet.
+The team needs traceable changes and consistent review practices in an empty hackathon repository. At setup, the application stack and deployment target had not been selected.
 
 ## Decision
 
@@ -17,7 +17,7 @@ Start with Python standard-library repository checks. Choose application runtime
 ## Alternatives
 
 - Main-only development is simpler, but gives the team no separate integration baseline during the hackathon.
-- Copying ALEASAT's entire pipeline would require unrelated firmware, hardware runners, and deployment infrastructure.
+- A larger pipeline would add runners and deployment infrastructure before the application needs them.
 - Selecting a web framework during repository setup would commit the team before its demo scope is agreed.
 
 ## Consequences
