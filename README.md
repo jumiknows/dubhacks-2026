@@ -25,7 +25,7 @@ copy server\.env.example server\.env
 ## How a plan is built
 
 1. `server/services/planner.js` turns the prompt into items. **Stub** — templates stand in for a model.
-2. `server/services/fetchBot.js` returns a **Promise** of products for one query. **Stub** — mock catalog. Replace `searchCatalog()` with trusted-store APIs.
+2. `server/services/fetchBot.js` returns a **Promise** of products for one query. It searches every configured store API in `server/services/stores/` and falls back to the mock catalog. Keys go in `server/.env` (see `.env.example`). Without keys, Open Food Facts + Open Prices, UPCitemdb, Shopify stores and the sample APIs still work.
 3. `server/services/synthesizeBot.js` returns a **Promise** of one offer: image, dimensions, ship date, total price. **Stub** — cheapest in-stock listing.
 4. `server/services/pipeline.js` awaits those two promises and attaches them to the plan.
 5. `client/src/ui/` renders the plan. **UI stub** — replace the layout. Keep the props on `PlannerUI`. HTTP stays in `client/src/App.jsx`.
@@ -35,6 +35,8 @@ copy server\.env.example server\.env
 - `POST /api/plans` `{ prompt, category }` → plan, including `items[].products`, `items[].synthesis`, and `quote`
 - `GET /api/plans/:id`
 - `PATCH /api/plans/:id/items/:itemId` `{ purchased: boolean }` → plan with the buy list recomputed
+- `GET /api/stores` → each store API, whether it is enabled, and its last result
+- `GET /api/products/search?q=headlamp` → merged results from every enabled store
 
 `category` is `groceries`, `wedding`, `camping`, or `custom`. If the prompt mentions one of those occasions, that list wins over the selected tab.
 

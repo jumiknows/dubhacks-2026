@@ -1,10 +1,7 @@
 /**
  * OWNER: Fetch bot
- * STATUS: Stub. Returns a Promise of products for one query.
- *
- * Replace searchCatalog() with trusted-store API calls (REI, Target,
- * Walmart, Costco, or whichever stores you settle on). Keep the
- * RawProduct shape so synthesizeBot.js does not need to change.
+ * STATUS: Live. Searches every configured store API (services/stores/)
+ * and falls back to the mock catalog below when none returns a match.
  *
  * RawProduct:
  *   { id, store, title, price, currency, image, url,
@@ -13,11 +10,23 @@
  *   image: absolute URL | null
  *   dimensions: { label: string } | null
  *   shippingDays: number | null
+ * Live listings also carry description, source, isMock, warnings and gtin
+ * (see services/stores/core.js).
+ *
+ * Set STORES_LIVE=false to use only the mock catalog (offline demos).
  */
+import { searchStores } from "./stores/index.js";
 
-export function fetchProducts(query) {
-  const products = searchCatalog(query);
-  return Promise.resolve(products);
+export async function fetchProducts(query) {
+  if (process.env.STORES_LIVE !== "false") {
+    try {
+      const { products } = await searchStores(query);
+      if (products.length > 0) return products;
+    } catch (err) {
+      console.error("[fetchBot] store search failed:", err);
+    }
+  }
+  return searchCatalog(query);
 }
 
 function searchCatalog(query) {

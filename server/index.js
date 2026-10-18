@@ -3,6 +3,7 @@ import cors from "cors";
 import { getPlan, savePlan } from "./store.js";
 import { generatePlan } from "./services/planner.js";
 import { attachOffers, quotePlan } from "./services/pipeline.js";
+import { storesRouter } from "./routes/stores.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,6 +14,8 @@ app.use(express.json());
 app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
+
+app.use("/api", storesRouter);
 
 app.post("/api/plans", async (req, res) => {
   try {
