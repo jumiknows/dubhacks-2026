@@ -8,7 +8,7 @@ const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata = {
-  title: "OrbiCart",
+  title: "Esper",
   description: "Shop for where life takes you: camping kits grounded in NASA Earth data.",
 };
 

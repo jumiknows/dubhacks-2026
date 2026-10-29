@@ -3,7 +3,7 @@ import { mintVoiceSession } from "../../../../lib/server/voice";
 import { voiceAccess } from "../../../../lib/server/voice-access";
 import { shopInstructions, shopTools } from "../../../../lib/server/shop-voice";
 
-/** A Grok Voice session for OrbiCart shopping. Same access control and quota as the fire briefing. */
+/** A Grok Voice session for Esper shopping. Same access control and quota as the fire briefing. */
 export async function POST(request: Request): Promise<Response> {
   const denied = voiceAccess(request, "session"); if (denied) return denied;
   const minted = await mintVoiceSession();
