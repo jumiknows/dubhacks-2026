@@ -3,7 +3,7 @@ import { Workspace } from "../../components/workspace";
 import { currentReplay, loadPlaces, loadRegion, sourceFromSnapshot } from "../../lib/server/catalog";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "OrbiCart fire warnings", description: "NASA FIRMS thermal observations near Washington campsites." };
+export const metadata = { title: "Esper fire warnings", description: "NASA FIRMS thermal observations near Washington campsites." };
 
 export default function Page() {
   const places = loadPlaces();

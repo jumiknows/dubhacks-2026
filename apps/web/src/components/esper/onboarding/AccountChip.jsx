@@ -38,7 +38,7 @@ export default function AccountChip({ me }) {
     setError("");
     try {
       await action();
-      window.location.assign("/shop");
+      window.location.assign("/");
     } catch (err) {
       setError(err.message);
     }
@@ -53,7 +53,7 @@ export default function AccountChip({ me }) {
       {open ? (
         <div className="acct-menu" role="menu">
           <p className="acct-email">{email}</p>
-          <a role="menuitem" href="/shop?onboarding">Redo setup</a>
+          <a role="menuitem" href="/?onboarding">Redo setup</a>
           <button role="menuitem" type="button" onClick={() => run(signOut)}>Sign out</button>
           {confirming ? (
             <div className="acct-confirm">
